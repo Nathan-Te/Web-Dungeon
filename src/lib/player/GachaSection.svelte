@@ -55,8 +55,10 @@
   const CARD_WIDTH = 96; // w-24 = 96px
   const CARD_GAP = 8; // gap-2 = 8px
   const CARD_STEP = CARD_WIDTH + CARD_GAP;
-  const STRIP_SIZE = 40; // number of random cards before the final one
+  const STRIP_BEFORE = 60; // random cards before the result
+  const STRIP_AFTER = 10; // trailing random cards after the result (visual padding)
   const VIEWPORT_WIDTH = 400; // visible window
+  const RESULT_INDEX = STRIP_BEFORE; // index of the result card in the strip
 
   /** Pool of characters available in gacha */
   let poolCharacters = $derived(
@@ -65,14 +67,17 @@
       .filter((c): c is CharacterDefinition => c !== undefined)
   );
 
-  /** Build a randomized strip: STRIP_SIZE random + final */
+  /** Build strip: STRIP_BEFORE random + final + STRIP_AFTER random (trailing) */
   function buildCarouselStrip(finalChar: CharacterDefinition): CharacterDefinition[] {
     const pool = poolCharacters.length > 0 ? poolCharacters : [finalChar];
     const strip: CharacterDefinition[] = [];
-    for (let i = 0; i < STRIP_SIZE; i++) {
+    for (let i = 0; i < STRIP_BEFORE; i++) {
       strip.push(pool[Math.floor(Math.random() * pool.length)]);
     }
     strip.push(finalChar);
+    for (let i = 0; i < STRIP_AFTER; i++) {
+      strip.push(pool[Math.floor(Math.random() * pool.length)]);
+    }
     return strip;
   }
 
@@ -107,51 +112,50 @@
     carouselItems = buildCarouselStrip(picked);
     carouselX = 0;
 
-    // The final card is at index STRIP_SIZE. We want to center it in the viewport.
-    // Position of final card = STRIP_SIZE * CARD_STEP
-    // Center = finalPos - viewport/2 + card/2
-    const finalCardPos = STRIP_SIZE * CARD_STEP;
+    // Center the result card in the viewport
+    const finalCardPos = RESULT_INDEX * CARD_STEP;
     carouselTargetX = finalCardPos - VIEWPORT_WIDTH / 2 + CARD_WIDTH / 2;
 
-    // Start with high speed, decelerate
-    carouselSpeed = 28;
+    // Start slow, accelerate, then decelerate at the end
+    carouselSpeed = 4;
 
     function animate() {
       if (carouselX >= carouselTargetX) {
-        // Snap to target
         carouselX = carouselTargetX;
         carouselAnimFrame = null;
         carouselLanded = true;
 
-        // Delay then show result
         setTimeout(() => {
           pullResult = picked;
           isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
           isAnimating = false;
           showResult = true;
           onPull(picked.id);
-        }, 600);
+        }, 800);
         return;
       }
 
-      // Ease out: slow down as we approach target
-      const remaining = carouselTargetX - carouselX;
-      const totalDistance = carouselTargetX;
-      const progress = 1 - remaining / totalDistance;
+      const progress = carouselX / carouselTargetX;
 
-      // Deceleration curve
-      if (progress < 0.3) {
-        carouselSpeed = 28;
+      // Phase 1 (0-15%): slow start, ramp up
+      // Phase 2 (15-60%): fast cruise
+      // Phase 3 (60-85%): gradual slowdown
+      // Phase 4 (85-95%): slow
+      // Phase 5 (95-100%): crawl
+      if (progress < 0.15) {
+        carouselSpeed = 4 + progress / 0.15 * 20;
       } else if (progress < 0.6) {
-        carouselSpeed = 20;
-      } else if (progress < 0.8) {
-        carouselSpeed = 12;
-      } else if (progress < 0.9) {
-        carouselSpeed = 6;
+        carouselSpeed = 24;
+      } else if (progress < 0.85) {
+        const t = (progress - 0.6) / 0.25;
+        carouselSpeed = 24 - t * 14;
       } else if (progress < 0.95) {
-        carouselSpeed = 3;
+        const t = (progress - 0.85) / 0.1;
+        carouselSpeed = 10 - t * 6;
       } else {
-        carouselSpeed = 1.5;
+        const t = (progress - 0.95) / 0.05;
+        carouselSpeed = 4 - t * 2.5;
+        if (carouselSpeed < 1) carouselSpeed = 1;
       }
 
       carouselX += carouselSpeed;
@@ -212,7 +216,7 @@
         <div class="overflow-hidden rounded-xl border-2 border-slate-600 bg-slate-900/80" style="height: 128px;">
           <div class="flex gap-2 items-center h-full" style="transform: translateX(-{carouselX}px); will-change: transform;">
             {#each carouselItems as char, idx}
-              {@const isTarget = idx === STRIP_SIZE && carouselLanded}
+              {@const isTarget = idx === RESULT_INDEX && carouselLanded}
               <div class="flex-shrink-0 w-24 h-[112px] rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {isTarget ? 'border-yellow-400 ring-2 ring-yellow-400 scale-105' : 'border-slate-600'}
                 {ROLE_COLORS[char.role]}">

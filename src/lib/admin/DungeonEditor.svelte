@@ -6,14 +6,91 @@
   interface Props {
     dungeons: Dungeon[];
     enemies: EnemyTemplate[];
+    dailyDungeonId?: string;
+    dailyDungeonSchedule?: Record<string, string>;
     onSave: (dungeon: Dungeon) => void;
     onDelete: (id: string) => void;
+    onSaveDailyDungeon?: (id: string) => void;
+    onSaveSchedule?: (schedule: Record<string, string>) => void;
   }
 
-  let { dungeons, enemies, onSave, onDelete }: Props = $props();
+  let { dungeons, enemies, dailyDungeonId, dailyDungeonSchedule, onSave, onDelete, onSaveDailyDungeon, onSaveSchedule }: Props = $props();
 
   let editingDungeon: Dungeon | null = $state(null);
   let editingRoomIndex: number | null = $state(null);
+
+  // Daily dungeon config
+  let selectedDailyId: string = $state(dailyDungeonId ?? '');
+  let schedule: Record<string, string> = $state(dailyDungeonSchedule ? { ...dailyDungeonSchedule } : {});
+
+  // Calendar state
+  let calendarMonth = $state(new Date());
+
+  function getCalendarDays(): { date: string; day: number; isCurrentMonth: boolean }[] {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const days: { date: string; day: number; isCurrentMonth: boolean }[] = [];
+    for (let i = 0; i < firstDay; i++) {
+      days.push({ date: '', day: 0, isCurrentMonth: false });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ date: dateStr, day: d, isCurrentMonth: true });
+    }
+    return days;
+  }
+
+  let calendarDays = $derived(getCalendarDays());
+  let calendarLabel = $derived(
+    calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  );
+
+  function prevMonth() {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+  }
+  function nextMonth() {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+  }
+
+  let selectedCalendarDate: string | null = $state(null);
+  let selectedCalendarDungeonId: string = $state('');
+
+  function selectCalendarDate(date: string) {
+    selectedCalendarDate = date;
+    selectedCalendarDungeonId = schedule[date] ?? '';
+  }
+
+  function assignDungeonToDate() {
+    if (!selectedCalendarDate || !onSaveSchedule) return;
+    if (selectedCalendarDungeonId) {
+      schedule = { ...schedule, [selectedCalendarDate]: selectedCalendarDungeonId };
+    } else {
+      const { [selectedCalendarDate]: _, ...rest } = schedule;
+      schedule = rest;
+    }
+    onSaveSchedule(schedule);
+    selectedCalendarDate = null;
+  }
+
+  function getDungeonNameById(id: string): string {
+    return dungeons.find((d) => d.id === id)?.name ?? '???';
+  }
+
+  function getTodayStr(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function handleSaveDailyDungeon() {
+    if (selectedDailyId && onSaveDailyDungeon) onSaveDailyDungeon(selectedDailyId);
+  }
+
+  function getDungeonSummary(d: Dungeon): string {
+    const totalEnemies = d.rooms.reduce((n, r) => n + r.enemies.length, 0);
+    const teamSize = d.maxTeamSize ?? 5;
+    return `${d.rooms.length} rooms, ${totalEnemies} enemies, team ${teamSize}`;
+  }
 
   function startNewDungeon() {
     editingDungeon = createBlankDungeon();
@@ -407,8 +484,10 @@
           <span class="text-xs text-amber-400">{dungeon.rooms.length} rooms</span>
 
           <span class="text-xs text-gray-500">
-            {dungeon.rooms.reduce((n, r) => n + r.enemies.length, 0)} enemies total
+            {dungeon.rooms.reduce((n, r) => n + r.enemies.length, 0)} enemies
           </span>
+
+          <span class="text-xs text-blue-400">team {dungeon.maxTeamSize ?? 5}</span>
 
           <button
             onclick={() => startEditDungeon(dungeon)}
@@ -465,5 +544,102 @@
 
   {#if dungeons.length === 0}
     <p class="text-gray-500 text-center py-8">No dungeons. Create a dungeon and fill it with rooms!</p>
+  {/if}
+
+  <!-- Daily Dungeon Fallback -->
+  {#if onSaveDailyDungeon}
+    <div class="bg-slate-800 rounded-lg p-4">
+      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon - Default Fallback</h3>
+      <div class="flex gap-3 items-end">
+        <div class="flex-1">
+          <span class="block text-xs text-gray-400 mb-1">Fallback dungeon (used when no calendar entry for today)</span>
+          <select
+            bind:value={selectedDailyId}
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          >
+            <option value="">-- None --</option>
+            {#each dungeons as d}
+              <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
+            {/each}
+          </select>
+        </div>
+        <button
+          onclick={handleSaveDailyDungeon}
+          disabled={!selectedDailyId}
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm font-bold"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Daily Dungeon Calendar -->
+  {#if onSaveSchedule}
+    <div class="bg-slate-800 rounded-lg p-4">
+      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon Calendar</h3>
+
+      <!-- Month navigation -->
+      <div class="flex items-center justify-between mb-3">
+        <button onclick={prevMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&lt;</button>
+        <span class="font-bold text-sm">{calendarLabel}</span>
+        <button onclick={nextMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&gt;</button>
+      </div>
+
+      <!-- Weekday headers -->
+      <div class="grid grid-cols-7 gap-1 mb-1">
+        {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as d}
+          <div class="text-center text-[10px] text-gray-500 font-bold">{d}</div>
+        {/each}
+      </div>
+
+      <!-- Calendar grid -->
+      <div class="grid grid-cols-7 gap-1">
+        {#each calendarDays as cell}
+          {#if cell.isCurrentMonth}
+            {@const assigned = schedule[cell.date]}
+            {@const isToday = cell.date === getTodayStr()}
+            <button
+              onclick={() => selectCalendarDate(cell.date)}
+              class="h-10 rounded text-xs flex flex-col items-center justify-center transition-colors
+                {isToday ? 'ring-2 ring-yellow-400' : ''}
+                {assigned ? 'bg-amber-900 text-amber-200' : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}
+                {selectedCalendarDate === cell.date ? 'ring-2 ring-white' : ''}"
+            >
+              <span class="font-bold">{cell.day}</span>
+              {#if assigned}
+                <span class="text-[7px] truncate w-full text-center px-0.5">{getDungeonNameById(assigned)}</span>
+              {/if}
+            </button>
+          {:else}
+            <div></div>
+          {/if}
+        {/each}
+      </div>
+
+      <!-- Assign dungeon to selected date -->
+      {#if selectedCalendarDate}
+        <div class="mt-3 p-3 bg-slate-900 rounded">
+          <div class="text-xs text-gray-400 mb-2">Assign dungeon for <span class="text-white font-bold">{selectedCalendarDate}</span>:</div>
+          <div class="flex gap-2 items-end">
+            <select
+              bind:value={selectedCalendarDungeonId}
+              class="flex-1 px-3 py-2 bg-slate-700 rounded text-sm"
+            >
+              <option value="">-- None --</option>
+              {#each dungeons as d}
+                <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
+              {/each}
+            </select>
+            <button
+              onclick={assignDungeonToDate}
+              class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold"
+            >
+              {selectedCalendarDungeonId ? 'Assign' : 'Clear'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>

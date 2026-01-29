@@ -217,8 +217,12 @@
     <DungeonEditor
       dungeons={content.dungeons}
       enemies={content.enemies}
+      dailyDungeonId={content.dailyDungeonId}
+      dailyDungeonSchedule={content.dailyDungeonSchedule}
       onSave={onSaveDungeon}
       onDelete={onDeleteDungeon}
+      onSaveDailyDungeon={onSaveDailyDungeon}
+      onSaveSchedule={onSaveSchedule}
     />
   {:else if activeTab === 'spells'}
     <SpellEditor
@@ -231,13 +235,8 @@
   {:else if activeTab === 'gacha'}
     <GachaConfigEditor
       characters={content.characters}
-      dungeons={content.dungeons}
       gachaConfig={content.gachaConfig}
-      dailyDungeonId={content.dailyDungeonId}
-      dailyDungeonSchedule={content.dailyDungeonSchedule}
       onSave={onSaveGachaConfig}
-      onSaveDailyDungeon={onSaveDailyDungeon}
-      onSaveSchedule={onSaveSchedule}
     />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
