@@ -3,7 +3,7 @@
  * Extends core game types with editor-specific data
  */
 
-import type { CharacterDefinition, Role, Rarity } from '../game/types';
+import type { CharacterDefinition, Role, Rarity, SpriteSet } from '../game/types';
 import type { AbilityDefinition } from '../game/abilities';
 
 /** Enemy template for dungeon encounters */
@@ -16,7 +16,9 @@ export interface EnemyTemplate {
   ascension: number;
   /** Reference to ability ID from the abilities list */
   abilityId: string;
-  /** Sprite image (URL or base64 data URI) */
+  /** Sprite images per animation state */
+  sprites?: SpriteSet;
+  /** @deprecated Use sprites.idle instead — kept for migration */
   sprite?: string;
   /** Optional stat overrides (multipliers applied to role base stats) */
   statOverrides?: {

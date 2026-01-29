@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Role, Position } from '../game/types';
+  import type { Role, Position, SpriteSet, AnimState } from '../game/types';
   import CharacterCard from './CharacterCard.svelte';
 
   interface DisplayUnit {
@@ -11,7 +11,8 @@
     position: Position;
     team: 'player' | 'enemy';
     isAlive: boolean;
-    sprite?: string;
+    sprites?: SpriteSet;
+    animState?: AnimState;
   }
 
   interface Props {
@@ -31,13 +32,13 @@
 
 <div class="flex flex-col items-center gap-8">
   <!-- Enemy Grid (mirrored - row 2 at top, row 0 at bottom) -->
-  <div class="flex flex-col gap-2">
+  <div class="flex flex-col gap-3">
     <h3 class="text-red-400 font-bold text-center mb-2">Enemy Team</h3>
     {#each [2, 1, 0] as row}
-      <div class="flex gap-2 justify-center">
+      <div class="flex gap-3 justify-center">
         {#each cols as col}
           {@const unit = getUnitAtPosition(enemyDisplayUnits, row, col)}
-          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
+          <div class="w-24 h-28 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
             {#if unit}
               <CharacterCard
                 name={unit.name}
@@ -46,7 +47,8 @@
                 maxHp={unit.maxHp}
                 isAlive={unit.isAlive}
                 isPlayer={false}
-                sprite={unit.sprite}
+                sprites={unit.sprites}
+                animState={unit.animState}
               />
             {/if}
           </div>
@@ -56,20 +58,20 @@
   </div>
 
   <!-- Battle Line Separator -->
-  <div class="w-full max-w-xs border-t-2 border-dashed border-gray-500 relative">
+  <div class="w-full max-w-sm border-t-2 border-dashed border-gray-500 relative">
     <span class="absolute left-1/2 -translate-x-1/2 -top-3 bg-slate-900 px-2 text-gray-400 text-sm">
       BATTLEFIELD
     </span>
   </div>
 
   <!-- Player Grid -->
-  <div class="flex flex-col gap-2">
+  <div class="flex flex-col gap-3">
     <h3 class="text-blue-400 font-bold text-center mb-2">Player Team</h3>
     {#each rows as row}
-      <div class="flex gap-2 justify-center">
+      <div class="flex gap-3 justify-center">
         {#each cols as col}
           {@const unit = getUnitAtPosition(playerDisplayUnits, row, col)}
-          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
+          <div class="w-24 h-28 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
             {#if unit}
               <CharacterCard
                 name={unit.name}
@@ -78,7 +80,8 @@
                 maxHp={unit.maxHp}
                 isAlive={unit.isAlive}
                 isPlayer={true}
-                sprite={unit.sprite}
+                sprites={unit.sprites}
+                animState={unit.animState}
               />
             {/if}
           </div>

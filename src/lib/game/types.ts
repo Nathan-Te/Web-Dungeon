@@ -42,6 +42,17 @@ export const ROLE_PREFERRED_ROW: Record<Role, 0 | 1 | 2> = {
   healer: 2, // Back
 };
 
+/** Animation state for sprites */
+export type AnimState = 'idle' | 'attack' | 'castAbility' | 'death';
+
+/** Sprite set with animation states (URL or base64 data URI per state) */
+export interface SpriteSet {
+  idle?: string;
+  attack?: string;
+  castAbility?: string;
+  death?: string;
+}
+
 /** Character definition (static data) */
 export interface CharacterDefinition {
   id: string;
@@ -50,7 +61,9 @@ export interface CharacterDefinition {
   rarity: Rarity;
   abilityName: string;
   abilityDescription: string;
-  /** Sprite image (URL or base64 data URI) */
+  /** Sprite images per animation state */
+  sprites?: SpriteSet;
+  /** @deprecated Use sprites.idle instead — kept for migration */
   sprite?: string;
 }
 

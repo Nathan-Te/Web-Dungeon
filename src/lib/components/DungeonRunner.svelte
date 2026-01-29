@@ -8,6 +8,8 @@
     type BattleResult,
     type Role,
     type Position,
+    type SpriteSet,
+    type AnimState,
     ROLE_BASE_STATS,
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
@@ -29,7 +31,8 @@
     position: Position;
     team: 'player' | 'enemy';
     isAlive: boolean;
-    sprite?: string;
+    sprites?: SpriteSet;
+    animState?: AnimState;
   }
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
@@ -134,7 +137,7 @@
           rarity: template.rarity,
           abilityName: '',
           abilityDescription: '',
-          sprite: template.sprite,
+          sprites: template.sprites ?? (template.sprite ? { idle: template.sprite } : undefined),
         };
         const level = Math.max(1, Math.round(template.level * room.difficultyMult));
         return new Character(def, level, template.ascension);
@@ -193,7 +196,8 @@
             position: pos,
             team: teamType,
             isAlive: currentHp > 0,
-            sprite: char.definition.sprite,
+            sprites: char.definition.sprites ?? (char.definition.sprite ? { idle: char.definition.sprite } : undefined),
+            animState: 'idle' as AnimState,
           });
         }
       }
@@ -266,11 +270,19 @@
 
   function applyActionToUnits(units: DisplayUnit[], action: CombatAction) {
     if (action.actionType === 'attack' || action.actionType === 'ability') {
+      const aIdx = units.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        units[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
+      }
       const tIdx = units.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.damage !== undefined) {
         units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - action.damage);
       }
     } else if (action.actionType === 'heal') {
+      const aIdx = units.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        units[aIdx].animState = 'castAbility';
+      }
       const tIdx = units.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.healing !== undefined) {
         units[tIdx].currentHp = Math.min(units[tIdx].maxHp, units[tIdx].currentHp + action.healing);
@@ -280,12 +292,14 @@
       if (dIdx !== -1) {
         units[dIdx].isAlive = false;
         units[dIdx].currentHp = 0;
+        units[dIdx].animState = 'death';
       }
     }
   }
 
   function applyAction(action: CombatAction) {
-    const updated = displayUnits.map((u) => ({ ...u }));
+    // Reset all anim states, then apply current action
+    const updated = displayUnits.map((u) => ({ ...u, animState: 'idle' as AnimState }));
     applyActionToUnits(updated, action);
     displayUnits = updated;
   }

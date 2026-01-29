@@ -234,8 +234,8 @@
       <!-- Sprite -->
       <div class="mt-3">
         <SpritePicker
-          sprite={editingChar.sprite}
-          onUpdate={(s) => { if (editingChar) editingChar = { ...editingChar, sprite: s }; }}
+          sprites={editingChar.sprites}
+          onUpdate={(s) => { if (editingChar) editingChar = { ...editingChar, sprites: s }; }}
         />
       </div>
 
@@ -272,8 +272,8 @@
   <div class="space-y-1">
     {#each filteredCharacters as char (char.id)}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
-        {#if char.sprite}
-          <img src={char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+        {#if char.sprites?.idle || char.sprite}
+          <img src={char.sprites?.idle ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
         {:else}
           <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
         {/if}
