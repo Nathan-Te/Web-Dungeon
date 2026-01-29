@@ -92,6 +92,28 @@
     return `${d.rooms.length} rooms, ${totalEnemies} enemies, team ${teamSize}`;
   }
 
+  // Search / filter
+  let searchQuery = $state('');
+  let filterRooms = $state('');
+  let filterTeam = $state('');
+
+  let filteredDungeons = $derived(() => {
+    let list = dungeons;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((d) => d.name.toLowerCase().includes(q));
+    }
+    if (filterRooms) {
+      const n = parseInt(filterRooms);
+      if (!isNaN(n)) list = list.filter((d) => d.rooms.length === n);
+    }
+    if (filterTeam) {
+      const n = parseInt(filterTeam);
+      if (!isNaN(n)) list = list.filter((d) => (d.maxTeamSize ?? 5) === n);
+    }
+    return list;
+  });
+
   function startNewDungeon() {
     editingDungeon = createBlankDungeon();
     editingRoomIndex = null;
@@ -234,8 +256,105 @@
 </script>
 
 <div class="space-y-4">
+  <!-- Daily Dungeon Fallback -->
+  {#if onSaveDailyDungeon}
+    <div class="bg-slate-800 rounded-lg p-4">
+      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon - Default Fallback</h3>
+      <div class="flex gap-3 items-end">
+        <div class="flex-1">
+          <span class="block text-xs text-gray-400 mb-1">Fallback dungeon (used when no calendar entry for today)</span>
+          <select
+            bind:value={selectedDailyId}
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          >
+            <option value="">-- None --</option>
+            {#each dungeons as d}
+              <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
+            {/each}
+          </select>
+        </div>
+        <button
+          onclick={handleSaveDailyDungeon}
+          disabled={!selectedDailyId}
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm font-bold"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Daily Dungeon Calendar -->
+  {#if onSaveSchedule}
+    <div class="bg-slate-800 rounded-lg p-4">
+      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon Calendar</h3>
+
+      <!-- Month navigation -->
+      <div class="flex items-center justify-between mb-3">
+        <button onclick={prevMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&lt;</button>
+        <span class="font-bold text-sm">{calendarLabel}</span>
+        <button onclick={nextMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&gt;</button>
+      </div>
+
+      <!-- Weekday headers -->
+      <div class="grid grid-cols-7 gap-1 mb-1">
+        {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as d}
+          <div class="text-center text-[10px] text-gray-500 font-bold">{d}</div>
+        {/each}
+      </div>
+
+      <!-- Calendar grid -->
+      <div class="grid grid-cols-7 gap-1">
+        {#each calendarDays as cell}
+          {#if cell.isCurrentMonth}
+            {@const assigned = schedule[cell.date]}
+            {@const isToday = cell.date === getTodayStr()}
+            <button
+              onclick={() => selectCalendarDate(cell.date)}
+              class="h-10 rounded text-xs flex flex-col items-center justify-center transition-colors
+                {isToday ? 'ring-2 ring-yellow-400' : ''}
+                {assigned ? 'bg-amber-900 text-amber-200' : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}
+                {selectedCalendarDate === cell.date ? 'ring-2 ring-white' : ''}"
+            >
+              <span class="font-bold">{cell.day}</span>
+              {#if assigned}
+                <span class="text-[7px] truncate w-full text-center px-0.5">{getDungeonNameById(assigned)}</span>
+              {/if}
+            </button>
+          {:else}
+            <div></div>
+          {/if}
+        {/each}
+      </div>
+
+      <!-- Assign dungeon to selected date -->
+      {#if selectedCalendarDate}
+        <div class="mt-3 p-3 bg-slate-900 rounded">
+          <div class="text-xs text-gray-400 mb-2">Assign dungeon for <span class="text-white font-bold">{selectedCalendarDate}</span>:</div>
+          <div class="flex gap-2 items-end">
+            <select
+              bind:value={selectedCalendarDungeonId}
+              class="flex-1 px-3 py-2 bg-slate-700 rounded text-sm"
+            >
+              <option value="">-- None --</option>
+              {#each dungeons as d}
+                <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
+              {/each}
+            </select>
+            <button
+              onclick={assignDungeonToDate}
+              class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold"
+            >
+              {selectedCalendarDungeonId ? 'Assign' : 'Clear'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Toolbar -->
-  <div class="flex gap-3 items-center">
+  <div class="flex gap-3 items-center flex-wrap">
     <button
       onclick={startNewDungeon}
       class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
@@ -243,6 +362,40 @@
       + New Dungeon
     </button>
     <span class="text-gray-400 text-sm">{dungeons.length} dungeons</span>
+  </div>
+
+  <!-- Search / Filter -->
+  <div class="flex gap-2 items-end flex-wrap">
+    <div class="flex-1 min-w-[140px]">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Search by name</span>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search..."
+        class="w-full px-3 py-1.5 bg-slate-700 rounded text-sm"
+      />
+    </div>
+    <div class="w-24">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Rooms</span>
+      <input
+        type="number"
+        min="0"
+        bind:value={filterRooms}
+        placeholder="Any"
+        class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm"
+      />
+    </div>
+    <div class="w-24">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Team size</span>
+      <input
+        type="number"
+        min="1"
+        max="9"
+        bind:value={filterTeam}
+        placeholder="Any"
+        class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm"
+      />
+    </div>
   </div>
 
   <!-- Dungeon Edit Form -->
@@ -471,7 +624,7 @@
 
   <!-- Dungeon List -->
   <div class="space-y-2">
-    {#each dungeons as dungeon (dungeon.id)}
+    {#each filteredDungeons() as dungeon (dungeon.id)}
       <div class="px-4 py-3 bg-slate-800 rounded group">
         <div class="flex items-center gap-3">
           <span class="flex-1">
@@ -542,104 +695,9 @@
     {/each}
   </div>
 
-  {#if dungeons.length === 0}
-    <p class="text-gray-500 text-center py-8">No dungeons. Create a dungeon and fill it with rooms!</p>
-  {/if}
-
-  <!-- Daily Dungeon Fallback -->
-  {#if onSaveDailyDungeon}
-    <div class="bg-slate-800 rounded-lg p-4">
-      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon - Default Fallback</h3>
-      <div class="flex gap-3 items-end">
-        <div class="flex-1">
-          <span class="block text-xs text-gray-400 mb-1">Fallback dungeon (used when no calendar entry for today)</span>
-          <select
-            bind:value={selectedDailyId}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          >
-            <option value="">-- None --</option>
-            {#each dungeons as d}
-              <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
-            {/each}
-          </select>
-        </div>
-        <button
-          onclick={handleSaveDailyDungeon}
-          disabled={!selectedDailyId}
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm font-bold"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Daily Dungeon Calendar -->
-  {#if onSaveSchedule}
-    <div class="bg-slate-800 rounded-lg p-4">
-      <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon Calendar</h3>
-
-      <!-- Month navigation -->
-      <div class="flex items-center justify-between mb-3">
-        <button onclick={prevMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&lt;</button>
-        <span class="font-bold text-sm">{calendarLabel}</span>
-        <button onclick={nextMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&gt;</button>
-      </div>
-
-      <!-- Weekday headers -->
-      <div class="grid grid-cols-7 gap-1 mb-1">
-        {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as d}
-          <div class="text-center text-[10px] text-gray-500 font-bold">{d}</div>
-        {/each}
-      </div>
-
-      <!-- Calendar grid -->
-      <div class="grid grid-cols-7 gap-1">
-        {#each calendarDays as cell}
-          {#if cell.isCurrentMonth}
-            {@const assigned = schedule[cell.date]}
-            {@const isToday = cell.date === getTodayStr()}
-            <button
-              onclick={() => selectCalendarDate(cell.date)}
-              class="h-10 rounded text-xs flex flex-col items-center justify-center transition-colors
-                {isToday ? 'ring-2 ring-yellow-400' : ''}
-                {assigned ? 'bg-amber-900 text-amber-200' : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}
-                {selectedCalendarDate === cell.date ? 'ring-2 ring-white' : ''}"
-            >
-              <span class="font-bold">{cell.day}</span>
-              {#if assigned}
-                <span class="text-[7px] truncate w-full text-center px-0.5">{getDungeonNameById(assigned)}</span>
-              {/if}
-            </button>
-          {:else}
-            <div></div>
-          {/if}
-        {/each}
-      </div>
-
-      <!-- Assign dungeon to selected date -->
-      {#if selectedCalendarDate}
-        <div class="mt-3 p-3 bg-slate-900 rounded">
-          <div class="text-xs text-gray-400 mb-2">Assign dungeon for <span class="text-white font-bold">{selectedCalendarDate}</span>:</div>
-          <div class="flex gap-2 items-end">
-            <select
-              bind:value={selectedCalendarDungeonId}
-              class="flex-1 px-3 py-2 bg-slate-700 rounded text-sm"
-            >
-              <option value="">-- None --</option>
-              {#each dungeons as d}
-                <option value={d.id}>{d.name} — {getDungeonSummary(d)}</option>
-              {/each}
-            </select>
-            <button
-              onclick={assignDungeonToDate}
-              class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold"
-            >
-              {selectedCalendarDungeonId ? 'Assign' : 'Clear'}
-            </button>
-          </div>
-        </div>
-      {/if}
-    </div>
+  {#if filteredDungeons().length === 0}
+    <p class="text-gray-500 text-center py-4">
+      {dungeons.length === 0 ? 'No dungeons. Create a dungeon and fill it with rooms!' : 'No dungeons match your filters.'}
+    </p>
   {/if}
 </div>
