@@ -14,7 +14,7 @@
     ROLE_PREFERRED_ROW,
   } from '../game';
 
-  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
   const ROLE_COLORS: Record<Role, string> = {
     tank: 'text-blue-400',
     warrior: 'text-orange-400',
@@ -22,6 +22,7 @@
     mage: 'text-purple-400',
     assassin: 'text-gray-300',
     healer: 'text-emerald-400',
+    summoner: 'text-teal-400',
   };
 
   function charactersByRole(role: Role): CharacterDefinition[] {
@@ -47,6 +48,7 @@
     sprites?: SpriteSet;
     animState?: AnimState;
     hitEffect?: HitEffect;
+    isBoss?: boolean;
   }
 
   // Battle state
@@ -217,6 +219,27 @@
         updated[dIdx].currentHp = 0;
         updated[dIdx].animState = 'death';
       }
+    } else if (action.actionType === 'summon' && action.summonedUnit) {
+      const aIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+      }
+      const su = action.summonedUnit;
+      updated.push({
+        id: su.id,
+        name: su.name,
+        role: su.role,
+        currentHp: su.hp,
+        maxHp: su.hp,
+        atk: su.atk,
+        def: su.def,
+        spd: su.spd,
+        position: su.position,
+        team: su.team,
+        isAlive: true,
+        sprites: su.sprites,
+        animState: 'idle' as AnimState,
+      });
     }
 
     displayUnits = updated;
@@ -271,6 +294,27 @@
         updated[dIdx].currentHp = 0;
         updated[dIdx].animState = 'death';
       }
+    } else if (action.actionType === 'summon' && action.summonedUnit) {
+      const aIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+      }
+      const su = action.summonedUnit;
+      updated.push({
+        id: su.id,
+        name: su.name,
+        role: su.role,
+        currentHp: su.hp,
+        maxHp: su.hp,
+        atk: su.atk,
+        def: su.def,
+        spd: su.spd,
+        position: su.position,
+        team: su.team,
+        isAlive: true,
+        sprites: su.sprites,
+        animState: 'idle' as AnimState,
+      });
     }
     return updated;
   }

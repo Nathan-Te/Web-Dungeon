@@ -12,7 +12,8 @@ export type AbilityTargeting =
   | 'single_back_row'   // Assassin default: back row enemy
   | 'aoe_first_n'       // Cleave: hits first N enemies
   | 'aoe_random_n'      // Multi-shot: hits N random enemies
-  | 'heal_lowest_ally'; // Healer: heals weakest ally under threshold
+  | 'heal_lowest_ally'  // Healer: heals weakest ally under threshold
+  | 'summon_unit';      // Summoner: summons a unit onto the battlefield
 
 /** Full ability definition */
 export interface AbilityDefinition {
@@ -100,6 +101,17 @@ export const DEFAULT_ABILITIES: AbilityDefinition[] = [
     targetCount: 1,
     ignoreDefense: false,
     healThreshold: 0.7,
+  },
+  {
+    id: 'ability_summon',
+    name: 'Summon',
+    description: 'Summons an ally unit onto the battlefield. Max summons depends on the summoner.',
+    allowedRoles: ['summoner'],
+    powerMultiplier: 0,
+    targeting: 'summon_unit',
+    targetCount: 1,
+    ignoreDefense: false,
+    healThreshold: 0,
   },
 ];
 

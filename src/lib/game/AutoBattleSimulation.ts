@@ -6,9 +6,27 @@ import {
   type BattleResult,
   type Position,
   type Role,
+  type SpriteSet,
   COMBAT_CONSTANTS,
+  ROLE_BASE_STATS,
   ROLE_PREFERRED_ROW,
 } from './types';
+
+/** Summon template data passed into the simulation */
+export interface SummonTemplate {
+  id: string;
+  name: string;
+  role: Role;
+  level: number;
+  ascension: number;
+  sprites?: SpriteSet;
+  statOverrides?: {
+    hpMult?: number;
+    atkMult?: number;
+    defMult?: number;
+    spdMult?: number;
+  };
+}
 
 /**
  * Auto-chess battle simulation engine
@@ -21,17 +39,47 @@ export class AutoBattleSimulation {
   private enemyUnits: Map<string, CombatState> = new Map();
   private characterNames: Map<string, string> = new Map();
   private characterRoles: Map<string, Role> = new Map();
+  private characterSprites: Map<string, SpriteSet | undefined> = new Map();
   private actionLog: CombatAction[] = [];
   private currentTurn: number = 0;
+
+  /** Boss ability lists: characterId -> ability role keys */
+  private bossAbilityRoles: Map<string, Role[]> = new Map();
+
+  /** Summoner data: characterId -> { summonTemplates, maxSummons, activeSummonIds } */
+  private summonerData: Map<string, {
+    templates: SummonTemplate[];
+    maxSummons: number;
+    activeSummonIds: Set<string>;
+  }> = new Map();
 
   constructor(
     playerTeam: Character[],
     enemyTeam: Character[],
-    seed: number
+    seed: number,
+    options?: {
+      /** Boss ability role lists: characterId -> array of Role keys for ability selection */
+      bossAbilities?: Map<string, Role[]>;
+      /** Summoner configs: characterId -> { templates, maxSummons } */
+      summonerConfigs?: Map<string, { templates: SummonTemplate[]; maxSummons: number }>;
+    }
   ) {
     this.seed = seed;
     this.rng = new SeededRNG(seed);
     this.initializeTeams(playerTeam, enemyTeam);
+
+    if (options?.bossAbilities) {
+      this.bossAbilityRoles = options.bossAbilities;
+    }
+    if (options?.summonerConfigs) {
+      for (const [id, cfg] of options.summonerConfigs) {
+        this.summonerData.set(id, {
+          templates: cfg.templates,
+          maxSummons: cfg.maxSummons,
+          activeSummonIds: new Set(),
+        });
+      }
+    }
   }
 
   /**
@@ -82,6 +130,7 @@ export class AutoBattleSimulation {
           units.set(char.id, state);
           this.characterNames.set(char.id, char.name);
           this.characterRoles.set(char.id, char.role);
+          this.characterSprites.set(char.id, char.definition.sprites);
         }
       });
     };
@@ -144,6 +193,23 @@ export class AutoBattleSimulation {
     const role = this.characterRoles.get(actor.characterId)!;
     const actorName = this.characterNames.get(actor.characterId)!;
 
+    // Summoners try to summon first
+    if (role === 'summoner') {
+      const sumData = this.summonerData.get(actor.characterId);
+      if (sumData && sumData.templates.length > 0) {
+        // Remove dead summons from active set
+        for (const sid of sumData.activeSummonIds) {
+          const sUnit = this.playerUnits.get(sid) ?? this.enemyUnits.get(sid);
+          if (!sUnit || !sUnit.isAlive) sumData.activeSummonIds.delete(sid);
+        }
+        if (sumData.activeSummonIds.size < sumData.maxSummons &&
+            this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE)) {
+          this.executeSummon(actor, sumData, actorName);
+          return;
+        }
+      }
+    }
+
     // Healers try to heal first
     if (role === 'healer') {
       const healTarget = this.findHealTarget(actor);
@@ -161,7 +227,14 @@ export class AutoBattleSimulation {
     const useAbility = this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE);
 
     if (useAbility) {
-      this.executeAbility(actor, target, role, actorName);
+      // Boss: pick a random ability role from their list
+      const bossRoles = this.bossAbilityRoles.get(actor.characterId);
+      if (bossRoles && bossRoles.length > 0) {
+        const abilityRole = bossRoles[this.rng.randomInt(0, bossRoles.length - 1)];
+        this.executeAbility(actor, target, abilityRole, actorName);
+      } else {
+        this.executeAbility(actor, target, role, actorName);
+      }
     } else {
       this.executeBasicAttack(actor, target, actorName);
     }
@@ -229,6 +302,7 @@ export class AutoBattleSimulation {
         // Backstab - ignore defense
         this.executeBackstab(actor, target, actorName, targetName);
         break;
+      case 'summoner':
       default:
         // Fallback to basic attack
         this.executeBasicAttack(actor, target, actorName);
@@ -395,6 +469,98 @@ export class AutoBattleSimulation {
   }
 
   /**
+   * Execute summon ability — creates a new unit on the battlefield
+   */
+  private executeSummon(
+    actor: CombatState,
+    sumData: { templates: SummonTemplate[]; maxSummons: number; activeSummonIds: Set<string> },
+    actorName: string
+  ): void {
+    const template = sumData.templates[this.rng.randomInt(0, sumData.templates.length - 1)];
+    const summonId = `${template.id}_s${Date.now().toString(36)}_${this.rng.randomInt(0, 9999)}`;
+
+    // Find an empty position on the summoner's side
+    const position = this.findEmptyPosition(actor.team);
+    if (!position) return; // No space to summon
+
+    // Calculate stats from template
+    const calcStat = (base: number, mult: number = 1) => {
+      const levelMult = 1 + (template.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
+      const ascMult = 1 + template.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
+      return Math.floor(base * levelMult * ascMult * mult);
+    };
+    const baseStats = ROLE_BASE_STATS[template.role];
+    const ov = template.statOverrides;
+    const hp = calcStat(baseStats.hp, ov?.hpMult);
+    const atk = calcStat(baseStats.atk, ov?.atkMult);
+    const def = calcStat(baseStats.def, ov?.defMult);
+    const spd = Math.floor(baseStats.spd * (ov?.spdMult ?? 1));
+
+    const state: CombatState = {
+      characterId: summonId,
+      currentHp: hp,
+      maxHp: hp,
+      atk,
+      def,
+      spd,
+      position,
+      team: actor.team,
+      isAlive: true,
+      level: template.level,
+      ascension: template.ascension,
+      isSummoned: true,
+    };
+
+    const units = actor.team === 'player' ? this.playerUnits : this.enemyUnits;
+    units.set(summonId, state);
+    this.characterNames.set(summonId, template.name);
+    this.characterRoles.set(summonId, template.role);
+    this.characterSprites.set(summonId, template.sprites);
+    sumData.activeSummonIds.add(summonId);
+
+    this.actionLog.push({
+      turn: this.currentTurn,
+      actorId: actor.characterId,
+      actorName,
+      actionType: 'summon',
+      abilityUsed: 'Summon',
+      message: `${actorName} summons ${template.name}!`,
+      summonedUnit: {
+        id: summonId,
+        name: template.name,
+        role: template.role,
+        hp,
+        atk,
+        def,
+        spd,
+        position,
+        team: actor.team,
+        sprites: template.sprites,
+      },
+    });
+  }
+
+  /**
+   * Find an empty position on a team's side of the battlefield
+   */
+  private findEmptyPosition(team: 'player' | 'enemy'): Position | null {
+    const units = team === 'player' ? this.playerUnits : this.enemyUnits;
+    const occupied = new Set<string>();
+    for (const u of units.values()) {
+      if (u.isAlive) occupied.add(`${u.position.row},${u.position.col}`);
+    }
+    // Try rows 0-3, cols 0-2
+    for (let row = 0; row <= 3; row++) {
+      for (let col = 0; col <= 2; col++) {
+        if (!occupied.has(`${row},${col}`)) {
+          return { row: row as 0 | 1 | 2 | 3, col: col as 0 | 1 | 2 };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Calculate damage with formula: ATK * (1 - DEF/(DEF+100)) with ±10% variance
    */
   private calculateDamage(
@@ -442,7 +608,8 @@ export class AutoBattleSimulation {
         // Target lowest HP enemy
         return this.findLowestHpEnemy(enemies);
       case 'healer':
-        // Healers target enemies if not healing
+      case 'summoner':
+        // Healers/summoners target enemies if not using ability
         return this.findLowestHpEnemy(enemies);
       default:
         return enemies[0];

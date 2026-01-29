@@ -3,14 +3,14 @@
  */
 
 /** Character roles with specific combat behaviors */
-export type Role = 'tank' | 'warrior' | 'archer' | 'mage' | 'assassin' | 'healer';
+export type Role = 'tank' | 'warrior' | 'archer' | 'mage' | 'assassin' | 'healer' | 'summoner';
 
 /** Character rarity tiers */
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
-/** Grid position in 3x3 battlefield (row 0 = front, row 2 = back) */
+/** Grid position in battlefield (row 0 = front; row 3 = extra row for boss fights) */
 export interface Position {
-  row: 0 | 1 | 2; // 0 = front, 1 = mid, 2 = back
+  row: 0 | 1 | 2 | 3;
   col: 0 | 1 | 2;
 }
 
@@ -30,6 +30,7 @@ export const ROLE_BASE_STATS: Record<Role, BaseStats> = {
   mage: { hp: 450, atk: 180, def: 30, spd: 60 },
   assassin: { hp: 550, atk: 140, def: 50, spd: 120 },
   healer: { hp: 600, atk: 60, def: 60, spd: 80 },
+  summoner: { hp: 550, atk: 100, def: 50, spd: 65 },
 };
 
 /** Preferred row positions by role */
@@ -40,6 +41,7 @@ export const ROLE_PREFERRED_ROW: Record<Role, 0 | 1 | 2> = {
   mage: 2, // Back
   assassin: 1, // Mid
   healer: 2, // Back
+  summoner: 2, // Back
 };
 
 /** Animation state for sprites */
@@ -89,6 +91,10 @@ export interface CharacterDefinition {
   sprites?: SpriteSet;
   /** @deprecated Use sprites.idle instead — kept for migration */
   sprite?: string;
+  /** For summoner role: IDs of characters this summoner can summon */
+  summonIds?: string[];
+  /** Max active summons (1-3, default 1) */
+  maxSummons?: number;
 }
 
 /** Combat state for a character during battle */
@@ -104,10 +110,14 @@ export interface CombatState {
   isAlive: boolean;
   level: number;
   ascension: number;
+  /** Whether this unit is a boss (occupies 3x3) */
+  isBoss?: boolean;
+  /** Whether this unit was summoned mid-battle */
+  isSummoned?: boolean;
 }
 
 /** Types of combat actions */
-export type ActionType = 'attack' | 'ability' | 'heal' | 'death';
+export type ActionType = 'attack' | 'ability' | 'heal' | 'death' | 'summon';
 
 /** Single combat action log entry */
 export interface CombatAction {
@@ -122,6 +132,19 @@ export interface CombatAction {
   isCritical?: boolean;
   abilityUsed?: string;
   message: string;
+  /** For summon actions: the summoned unit data */
+  summonedUnit?: {
+    id: string;
+    name: string;
+    role: Role;
+    hp: number;
+    atk: number;
+    def: number;
+    spd: number;
+    position: Position;
+    team: 'player' | 'enemy';
+    sprites?: SpriteSet;
+  };
 }
 
 /** Battle result */

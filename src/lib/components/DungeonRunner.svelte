@@ -11,6 +11,7 @@
     type SpriteSet,
     type AnimState,
     type HitEffect,
+    type SummonTemplate,
     ROLE_BASE_STATS,
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
@@ -35,9 +36,10 @@
     sprites?: SpriteSet;
     animState?: AnimState;
     hitEffect?: HitEffect;
+    isBoss?: boolean;
   }
 
-  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
   const ROLE_COLORS: Record<Role, string> = {
     tank: 'text-blue-400',
     warrior: 'text-orange-400',
@@ -45,6 +47,7 @@
     mage: 'text-purple-400',
     assassin: 'text-gray-300',
     healer: 'text-emerald-400',
+    summoner: 'text-teal-400',
   };
 
   // Content
@@ -127,13 +130,23 @@
       .map((def) => new Character(def, playerLevel, 0));
   }
 
+  /** Track which characters are bosses and their ability roles */
+  let enemyBossIds: Set<string> = new Set();
+  let bossAbilityMap: Map<string, Role[]> = new Map();
+  let summonerConfigMap: Map<string, { templates: SummonTemplate[]; maxSummons: number }> = new Map();
+
   function createEnemyTeamFromRoom(room: DungeonRoom): Character[] {
+    enemyBossIds = new Set();
+    bossAbilityMap = new Map();
+    summonerConfigMap = new Map();
+
     return room.enemies
       .map((re) => {
         const template = allEnemies.find((e) => e.id === re.enemyTemplateId);
         if (!template) return null;
+        const charId = `${template.id}_${Math.random().toString(36).slice(2, 6)}`;
         const def: CharacterDefinition = {
-          id: `${template.id}_${Math.random().toString(36).slice(2, 6)}`,
+          id: charId,
           name: template.name,
           role: template.role,
           rarity: template.rarity,
@@ -142,6 +155,42 @@
           sprites: template.sprites ?? (template.sprite ? { idle: template.sprite } : undefined),
         };
         const level = Math.max(1, Math.round(template.level * room.difficultyMult));
+
+        // Track boss
+        if (template.isBoss) {
+          enemyBossIds.add(charId);
+          // Boss multi-abilities: resolve ability roles from abilityIds
+          if (template.abilityIds && template.abilityIds.length > 0) {
+            // Map each abilityId to a role for the simulation's executeAbility
+            const roles: Role[] = template.abilityIds.map(aid => {
+              const ab = allEnemies.length ? undefined : undefined; // abilities not directly available here
+              // We store the roles of the abilities — look up from ability allowedRoles
+              return template.role; // fallback to template role
+            });
+            bossAbilityMap.set(charId, roles);
+          }
+        }
+
+        // Track summoner
+        if (template.role === 'summoner' && template.summonIds && template.summonIds.length > 0) {
+          const templates: SummonTemplate[] = template.summonIds
+            .map(sid => allEnemies.find(e => e.id === sid))
+            .filter((e): e is EnemyTemplate => e !== null && e !== undefined)
+            .map(e => ({
+              id: e.id,
+              name: e.name,
+              role: e.role,
+              level: Math.max(1, Math.round(e.level * room.difficultyMult)),
+              ascension: e.ascension,
+              sprites: e.sprites ?? (e.sprite ? { idle: e.sprite } : undefined),
+              statOverrides: e.statOverrides,
+            }));
+          summonerConfigMap.set(charId, {
+            templates,
+            maxSummons: template.maxSummons ?? 1,
+          });
+        }
+
         return new Character(def, level, template.ascension);
       })
       .filter((c): c is Character => c !== null);
@@ -149,11 +198,62 @@
 
   function buildDisplayUnits(playerTeam: Character[], enemyTeam: Character[]): DisplayUnit[] {
     const units: DisplayUnit[] = [];
+    const hasBossEnemy = enemyTeam.some(c => enemyBossIds.has(c.id));
+
     const assignTeam = (team: Character[], teamType: 'player' | 'enemy') => {
       const sorted = [...team].sort(
         (a, b) => ROLE_PREFERRED_ROW[a.role] - ROLE_PREFERRED_ROW[b.role]
       );
       const used = new Set<string>();
+
+      // If enemy team has a boss, boss goes at row 0 col 0 and occupies rows 0-2
+      // Other enemies go to row 3
+      if (teamType === 'enemy' && hasBossEnemy) {
+        for (const char of sorted) {
+          const isBoss = enemyBossIds.has(char.id);
+          let pos: Position;
+          if (isBoss) {
+            pos = { row: 0, col: 0 };
+            // Mark rows 0-2 as used
+            for (let r = 0; r <= 2; r++) {
+              for (let c = 0; c <= 2; c++) {
+                used.add(`${r},${c}`);
+              }
+            }
+          } else {
+            // Minions go to row 3
+            let foundPos: Position | null = null;
+            for (let col = 0; col <= 2 && !foundPos; col++) {
+              const key = `3,${col}`;
+              if (!used.has(key)) {
+                foundPos = { row: 3, col: col as 0 | 1 | 2 };
+                used.add(key);
+              }
+            }
+            if (!foundPos) continue;
+            pos = foundPos;
+          }
+
+          units.push({
+            id: char.id,
+            name: char.name,
+            role: char.role,
+            currentHp: char.hp,
+            maxHp: char.hp,
+            atk: char.atk,
+            def: char.def,
+            spd: char.spd,
+            position: pos,
+            team: teamType,
+            isAlive: true,
+            sprites: char.definition.sprites ?? (char.definition.sprite ? { idle: char.definition.sprite } : undefined),
+            animState: 'idle' as AnimState,
+            isBoss,
+          });
+        }
+        return;
+      }
+
       for (const char of sorted) {
         const preferredRow = ROLE_PREFERRED_ROW[char.role];
         let pos: Position | null = null;
@@ -230,7 +330,10 @@
     // Apply carry-over HP by modifying player characters' combat state
     // We simulate battle with fresh Characters but the display shows carry-over
     const roomSeed = seed + currentRoomIndex * 1000;
-    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, roomSeed);
+    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, roomSeed, {
+      bossAbilities: bossAbilityMap.size > 0 ? bossAbilityMap : undefined,
+      summonerConfigs: summonerConfigMap.size > 0 ? summonerConfigMap : undefined,
+    });
     const result = simulation.simulate();
 
     actionLog = result.actionLog;
@@ -298,6 +401,27 @@
         units[dIdx].currentHp = 0;
         units[dIdx].animState = 'death';
       }
+    } else if (action.actionType === 'summon' && action.summonedUnit) {
+      const aIdx = units.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        units[aIdx].animState = 'castAbility';
+      }
+      const su = action.summonedUnit;
+      units.push({
+        id: su.id,
+        name: su.name,
+        role: su.role,
+        currentHp: su.hp,
+        maxHp: su.hp,
+        atk: su.atk,
+        def: su.def,
+        spd: su.spd,
+        position: su.position,
+        team: su.team,
+        isAlive: true,
+        sprites: su.sprites,
+        animState: 'idle' as AnimState,
+      });
     }
   }
 

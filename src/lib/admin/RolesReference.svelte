@@ -9,6 +9,7 @@
     { role: 'mage', color: 'border-purple-500 bg-purple-950', icon: 'Staff' },
     { role: 'assassin', color: 'border-gray-400 bg-gray-900', icon: 'Dagger' },
     { role: 'healer', color: 'border-emerald-500 bg-emerald-950', icon: 'Cross' },
+    { role: 'summoner', color: 'border-teal-500 bg-teal-950', icon: 'Portal' },
   ];
 
   const ROW_LABELS: Record<number, string> = {
@@ -90,6 +91,19 @@
         'High SPD (80) — heals before most allies take damage',
         'Preferred position: Back row — support',
         'Only heals allies below 70% HP threshold; otherwise does basic attack',
+      ],
+    },
+    summoner: {
+      targeting: 'Attacks the lowest HP enemy (basic attack only)',
+      ability: 'Summon (spawns an ally unit)',
+      abilityDetail: 'Summons a configured unit onto the battlefield. Max 1-3 active summons.',
+      combatNotes: [
+        'Moderate stats: 550 HP, 100 ATK, 50 DEF',
+        'Moderate SPD (65)',
+        'Preferred position: Back row — summoner',
+        'Summons are based on configured character/enemy templates',
+        'Dead summons free a slot for new summons',
+        'When not summoning, attacks like a basic unit',
       ],
     },
   };

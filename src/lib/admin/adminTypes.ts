@@ -16,6 +16,10 @@ export interface EnemyTemplate {
   ascension: number;
   /** Reference to ability ID from the abilities list */
   abilityId: string;
+  /** Whether this enemy is a boss (occupies 3x3, can have multiple abilities) */
+  isBoss?: boolean;
+  /** Multiple ability IDs for bosses (used instead of abilityId when isBoss) */
+  abilityIds?: string[];
   /** Sprite images per animation state */
   sprites?: SpriteSet;
   /** @deprecated Use sprites.idle instead — kept for migration */
@@ -27,6 +31,10 @@ export interface EnemyTemplate {
     defMult?: number;
     spdMult?: number;
   };
+  /** For summoner role: IDs of enemy templates this summoner can summon */
+  summonIds?: string[];
+  /** Max active summons (1-3, default 1) */
+  maxSummons?: number;
 }
 
 /** A dungeon room with enemy composition */

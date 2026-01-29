@@ -19,7 +19,7 @@
 
   let { enemies, abilities, onSave, onDelete }: Props = $props();
 
-  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 
   const RARITY_COLORS: Record<Rarity, string> = {
@@ -186,30 +186,154 @@
           />
         </div>
 
-        <div class="sm:col-span-2">
-          <span class="block text-xs text-gray-400 mb-1">Spell</span>
-          {#if availableAbilities.length > 0}
-            <select
-              bind:value={editingEnemy.abilityId}
-              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-            >
-              {#each availableAbilities as ab}
-                <option value={ab.id}>
-                  {ab.name} - {ab.powerMultiplier}x ATK, {ab.targetCount} target(s)
-                </option>
-              {/each}
-            </select>
-          {:else}
-            <select
-              bind:value={editingEnemy.abilityId}
-              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-            >
-              {#each abilities as ab}
-                <option value={ab.id}>{ab.name} ({ab.allowedRoles.join(', ')})</option>
-              {/each}
-            </select>
-          {/if}
+        <!-- Boss toggle -->
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editingEnemy.isBoss ?? false}
+              onchange={(e) => {
+                if (!editingEnemy) return;
+                editingEnemy = { ...editingEnemy, isBoss: e.currentTarget.checked, abilityIds: e.currentTarget.checked ? (editingEnemy.abilityIds ?? [editingEnemy.abilityId]) : undefined };
+              }}
+              class="w-4 h-4 accent-red-500"
+            />
+            <span class="text-sm font-bold text-red-400">BOSS</span>
+          </label>
+          <span class="text-xs text-gray-500">Boss occupies 3x3, can use multiple abilities</span>
         </div>
+
+        <!-- Spell(s) -->
+        {#if editingEnemy.isBoss}
+          <div class="sm:col-span-2">
+            <span class="block text-xs text-gray-400 mb-1">Boss Abilities ({(editingEnemy.abilityIds ?? []).length})</span>
+            <div class="space-y-1">
+              {#each editingEnemy.abilityIds ?? [] as abilityId, i}
+                <div class="flex gap-2 items-center">
+                  <select
+                    value={abilityId}
+                    onchange={(e) => {
+                      if (!editingEnemy) return;
+                      const ids = [...(editingEnemy.abilityIds ?? [])];
+                      ids[i] = e.currentTarget.value;
+                      editingEnemy = { ...editingEnemy, abilityIds: ids };
+                    }}
+                    class="flex-1 px-3 py-1.5 bg-slate-700 rounded text-sm"
+                  >
+                    {#each abilities as ab}
+                      <option value={ab.id}>{ab.name} ({ab.allowedRoles.join(', ')}) - {ab.powerMultiplier}x ATK</option>
+                    {/each}
+                  </select>
+                  <button
+                    onclick={() => {
+                      if (!editingEnemy) return;
+                      const ids = [...(editingEnemy.abilityIds ?? [])];
+                      ids.splice(i, 1);
+                      editingEnemy = { ...editingEnemy, abilityIds: ids };
+                    }}
+                    class="px-2 py-1 bg-red-800 hover:bg-red-700 rounded text-xs"
+                  >X</button>
+                </div>
+              {/each}
+              <button
+                onclick={() => {
+                  if (!editingEnemy) return;
+                  const ids = [...(editingEnemy.abilityIds ?? [])];
+                  ids.push(abilities[0]?.id ?? '');
+                  editingEnemy = { ...editingEnemy, abilityIds: ids };
+                }}
+                class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs"
+              >+ Add Ability</button>
+            </div>
+          </div>
+        {:else}
+          <div class="sm:col-span-2">
+            <span class="block text-xs text-gray-400 mb-1">Spell</span>
+            {#if availableAbilities.length > 0}
+              <select
+                bind:value={editingEnemy.abilityId}
+                class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+              >
+                {#each availableAbilities as ab}
+                  <option value={ab.id}>
+                    {ab.name} - {ab.powerMultiplier}x ATK, {ab.targetCount} target(s)
+                  </option>
+                {/each}
+              </select>
+            {:else}
+              <select
+                bind:value={editingEnemy.abilityId}
+                class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+              >
+                {#each abilities as ab}
+                  <option value={ab.id}>{ab.name} ({ab.allowedRoles.join(', ')})</option>
+                {/each}
+              </select>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Summoner config -->
+        {#if editingEnemy.role === 'summoner'}
+          <div class="sm:col-span-2">
+            <span class="block text-xs text-gray-400 mb-1">Summon Targets (enemy IDs this summoner can summon)</span>
+            <div class="space-y-1">
+              {#each editingEnemy.summonIds ?? [] as summonId, i}
+                <div class="flex gap-2 items-center">
+                  <select
+                    value={summonId}
+                    onchange={(e) => {
+                      if (!editingEnemy) return;
+                      const ids = [...(editingEnemy.summonIds ?? [])];
+                      ids[i] = e.currentTarget.value;
+                      editingEnemy = { ...editingEnemy, summonIds: ids };
+                    }}
+                    class="flex-1 px-3 py-1.5 bg-slate-700 rounded text-sm"
+                  >
+                    {#each enemies.filter(e => e.id !== editingEnemy?.id) as enemy}
+                      <option value={enemy.id}>{enemy.name} ({enemy.role})</option>
+                    {/each}
+                  </select>
+                  <button
+                    onclick={() => {
+                      if (!editingEnemy) return;
+                      const ids = [...(editingEnemy.summonIds ?? [])];
+                      ids.splice(i, 1);
+                      editingEnemy = { ...editingEnemy, summonIds: ids };
+                    }}
+                    class="px-2 py-1 bg-red-800 hover:bg-red-700 rounded text-xs"
+                  >X</button>
+                </div>
+              {/each}
+              <button
+                onclick={() => {
+                  if (!editingEnemy) return;
+                  const ids = [...(editingEnemy.summonIds ?? [])];
+                  const otherEnemies = enemies.filter(e => e.id !== editingEnemy?.id);
+                  if (otherEnemies.length > 0) {
+                    ids.push(otherEnemies[0].id);
+                    editingEnemy = { ...editingEnemy, summonIds: ids };
+                  }
+                }}
+                class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs"
+              >+ Add Summon</button>
+            </div>
+            <div class="mt-2">
+              <span class="text-xs text-gray-400">Max Active Summons (1-3)</span>
+              <input
+                type="number"
+                min="1"
+                max="3"
+                value={editingEnemy.maxSummons ?? 1}
+                onchange={(e) => {
+                  if (!editingEnemy) return;
+                  editingEnemy = { ...editingEnemy, maxSummons: parseInt(e.currentTarget.value) || 1 };
+                }}
+                class="ml-2 w-16 px-2 py-1 bg-slate-700 rounded text-sm"
+              />
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Sprite -->
@@ -362,9 +486,20 @@
           {enemy.role}
         </span>
 
-        <span class="flex-1 font-medium text-red-300">{enemy.name}</span>
+        <span class="flex-1 font-medium text-red-300">
+          {enemy.name}
+          {#if enemy.isBoss}
+            <span class="ml-1 px-1.5 py-0.5 bg-red-800 text-red-200 text-xs rounded font-bold">BOSS</span>
+          {/if}
+        </span>
 
-        <span class="text-xs text-purple-400">{getAbilityName(enemy.abilityId)}</span>
+        <span class="text-xs text-purple-400">
+          {#if enemy.isBoss && enemy.abilityIds?.length}
+            {enemy.abilityIds.length} abilities
+          {:else}
+            {getAbilityName(enemy.abilityId)}
+          {/if}
+        </span>
 
         <span class="text-xs text-gray-500">
           Lv{enemy.level} A{enemy.ascension}

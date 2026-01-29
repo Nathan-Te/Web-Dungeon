@@ -13,6 +13,7 @@
     ability: 'text-purple-400',
     heal: 'text-green-400',
     death: 'text-red-500',
+    summon: 'text-teal-400',
   };
 
   let visibleActions = $derived(actions.slice(0, currentIndex + 1));

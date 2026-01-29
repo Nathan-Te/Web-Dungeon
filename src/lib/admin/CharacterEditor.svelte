@@ -18,7 +18,7 @@
 
   let { characters, abilities, onSave, onDelete }: Props = $props();
 
-  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
 
   const RARITY_STARS: Record<Rarity, string> = {

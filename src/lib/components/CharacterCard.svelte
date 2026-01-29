@@ -12,9 +12,13 @@
     sprites?: SpriteSet;
     animState?: AnimState;
     hitEffect?: HitEffect;
+    isBoss?: boolean;
   }
 
-  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect }: Props = $props();
+  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect, isBoss = false }: Props = $props();
+
+  /** Cell size in px — bosses get 3x the space */
+  let cellSize = $derived(isBoss ? 264 : 88);
 
   const roleColors: Record<Role, string> = {
     tank: 'bg-blue-600',
@@ -23,6 +27,7 @@
     mage: 'bg-purple-600',
     assassin: 'bg-gray-700',
     healer: 'bg-yellow-600',
+    summoner: 'bg-teal-600',
   };
 
   const roleIcons: Record<Role, string> = {
@@ -32,6 +37,7 @@
     mage: 'M',
     assassin: 'X',
     healer: 'H',
+    summoner: 'S',
   };
 
   let hpPercent = $derived(Math.max(0, (currentHp / maxHp) * 100));
@@ -147,14 +153,16 @@
 {#if hasSprite}
   <!-- Sprite layout: image dominant, info strip below -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
-    <div class="relative w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
-      {isPlayer ? 'border-blue-400' : 'border-red-400'}">
+    <div class="relative rounded-lg border-2 overflow-hidden bg-slate-900
+      {isPlayer ? 'border-blue-400' : 'border-red-400'}
+      {isBoss ? 'border-4 border-red-600' : ''}"
+      style="width: {cellSize}px; height: {cellSize}px;">
       {#if hitOverlayClass}
         <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
       {/if}
       {#if sheetConfig}
         <!-- Animated sprite sheet: scale sheet so one frame fills the container, apply zoom -->
-        {@const baseScale = 88 / sheetConfig.frameWidth}
+        {@const baseScale = cellSize / sheetConfig.frameWidth}
         {@const scale = baseScale * spriteZoom}
         {@const totalCols = sheetConfig.framesPerRow}
         {@const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow)}
@@ -164,8 +172,8 @@
         {@const row = Math.floor(currentFrame / sheetConfig.framesPerRow)}
         {@const posX = col * sheetConfig.frameWidth * scale}
         {@const posY = row * sheetConfig.frameHeight * scale}
-        {@const offsetX = (88 - sheetConfig.frameWidth * scale) / 2}
-        {@const offsetY = (88 - sheetConfig.frameHeight * scale) / 2}
+        {@const offsetX = (cellSize - sheetConfig.frameWidth * scale) / 2}
+        {@const offsetY = (cellSize - sheetConfig.frameHeight * scale) / 2}
         <div
           class="w-full h-full transition-transform duration-200 {animClass}"
           style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: {offsetX - posX}px {offsetY - posY}px;"
@@ -180,12 +188,14 @@
         />
       {/if}
     </div>
-    <div class="w-24 -mt-0.5">
-      <div class="text-center text-[11px] font-bold truncate leading-tight">{name}</div>
-      <div class="h-1.5 bg-gray-900 rounded-full overflow-hidden mx-0.5">
+    <div style="width: {isBoss ? cellSize : 96}px" class="-mt-0.5">
+      <div class="text-center font-bold truncate leading-tight {isBoss ? 'text-base text-red-300' : 'text-[11px]'}">
+        {#if isBoss}<span class="text-red-500">BOSS </span>{/if}{name}
+      </div>
+      <div class="bg-gray-900 rounded-full overflow-hidden mx-0.5 {isBoss ? 'h-3' : 'h-1.5'}">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
       </div>
-      <div class="text-center text-[10px] text-gray-300 leading-tight">{currentHp}/{maxHp}</div>
+      <div class="text-center text-gray-300 leading-tight {isBoss ? 'text-sm' : 'text-[10px]'}">{currentHp}/{maxHp}</div>
     </div>
   </div>
 {:else}

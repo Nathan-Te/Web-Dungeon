@@ -12,7 +12,7 @@ export * from './types';
 export { Character, createCharacter } from './Character';
 
 // Battle simulation
-export { AutoBattleSimulation } from './AutoBattleSimulation';
+export { AutoBattleSimulation, type SummonTemplate } from './AutoBattleSimulation';
 
 // Character data
 export {
