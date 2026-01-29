@@ -32,6 +32,8 @@ export interface AbilityDefinition {
   ignoreDefense: boolean;
   /** For healer: HP threshold (0-1) below which allies are eligible */
   healThreshold: number;
+  /** Cooldown in turns (0 = no cooldown, usable every turn if triggered) */
+  cooldown?: number;
 }
 
 /** Built-in ability definitions */

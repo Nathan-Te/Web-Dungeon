@@ -17,9 +17,23 @@
   };
 
   let visibleActions = $derived(actions.slice(0, currentIndex + 1));
+
+  let scrollContainer: HTMLDivElement | undefined = $state(undefined);
+
+  $effect(() => {
+    // Track currentIndex to auto-scroll
+    if (currentIndex >= 0 && scrollContainer) {
+      // Use tick-like delay to ensure DOM is updated
+      requestAnimationFrame(() => {
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      });
+    }
+  });
 </script>
 
-<div class="bg-slate-800 rounded-lg p-4 h-64 overflow-y-auto">
+<div bind:this={scrollContainer} class="bg-slate-800 rounded-lg p-4 h-64 overflow-y-auto">
   <h3 class="text-lg font-bold mb-2 sticky top-0 bg-slate-800">Battle Log</h3>
 
   {#if visibleActions.length === 0}

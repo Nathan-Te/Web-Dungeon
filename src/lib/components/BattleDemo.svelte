@@ -66,6 +66,7 @@
 
   // Available characters loaded from content store
   let allCharacters: CharacterDefinition[] = $state([]);
+  let allAbilities: import('../game/abilities').AbilityDefinition[] = $state([]);
   let customRoleStats: Partial<Record<Role, import('../game/types').BaseStats>> | undefined = $state(undefined);
   let playerTeamIds: string[] = $state([]);
   let enemyTeamIds: string[] = $state([]);
@@ -75,6 +76,7 @@
   function loadCharacters() {
     const content = loadContent();
     allCharacters = content.characters;
+    allAbilities = content.abilities;
     customRoleStats = content.roleStats;
 
     // Default selection: first 3 characters per team
@@ -177,7 +179,9 @@
     const { playerTeam, enemyTeam } = createTeamsFromSelection();
     if (playerTeam.length === 0 || enemyTeam.length === 0) return;
 
-    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed);
+    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed, {
+      abilityDefs: allAbilities,
+    });
     battleResult = simulation.simulate();
     actionLog = battleResult.actionLog;
     displayUnits = buildDisplayUnits(playerTeam, enemyTeam);

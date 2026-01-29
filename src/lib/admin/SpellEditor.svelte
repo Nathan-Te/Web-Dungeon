@@ -162,6 +162,17 @@
           />
         </div>
 
+        <div>
+          <span class="block text-xs text-gray-400 mb-1">Cooldown (turns, 0 = none)</span>
+          <input
+            type="number"
+            min="0"
+            max="20"
+            bind:value={editingAbility.cooldown}
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          />
+        </div>
+
         <div class="flex items-center gap-4 pt-5">
           <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" bind:checked={editingAbility.ignoreDefense} class="w-4 h-4" />
@@ -210,6 +221,9 @@
           {editingAbility.powerMultiplier}x ATK,
           {editingAbility.targetCount} target(s),
           {getTargetingLabel(editingAbility.targeting)}
+          {#if editingAbility.cooldown && editingAbility.cooldown > 0}
+            <span class="text-cyan-400 ml-1">[CD: {editingAbility.cooldown}t]</span>
+          {/if}
           {#if editingAbility.ignoreDefense}
             <span class="text-red-400 ml-1">[Ignores DEF]</span>
           {/if}
@@ -251,6 +265,10 @@
         <span class="text-xs text-gray-500">
           {ability.targetCount} target(s)
         </span>
+
+        {#if ability.cooldown && ability.cooldown > 0}
+          <span class="text-xs text-cyan-400">CD:{ability.cooldown}t</span>
+        {/if}
 
         {#if ability.ignoreDefense}
           <span class="text-xs text-red-500">No DEF</span>

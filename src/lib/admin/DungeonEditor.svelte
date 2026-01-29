@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { EnemyTemplate, DungeonRoom, Dungeon } from './adminTypes';
+  import type { SpriteSource, SpriteSheetConfig } from '../game/types';
   import { createBlankDungeon, createBlankRoom, generateId } from './adminTypes';
 
   interface Props {
@@ -137,6 +138,22 @@
     healer: 'H',
     summoner: 'S',
   };
+
+  function isSheet(src: SpriteSource | undefined): src is SpriteSheetConfig {
+    return typeof src === 'object' && src !== null && 'src' in src;
+  }
+
+  /** Get idle sprite info for an enemy template */
+  function getIdleSprite(template: EnemyTemplate): {
+    type: 'static' | 'sheet' | 'none';
+    src?: string;
+    sheet?: SpriteSheetConfig;
+  } {
+    const idle = template.sprites?.idle ?? (template.sprite ? template.sprite : undefined);
+    if (!idle) return { type: 'none' };
+    if (isSheet(idle)) return { type: 'sheet', sheet: idle };
+    return { type: 'static', src: idle as string };
+  }
 </script>
 
 <div class="space-y-4">
@@ -273,14 +290,25 @@
                         <div class="flex gap-2 flex-wrap mb-2">
                           {#each room.enemies as roomEnemy, ei}
                             {@const enemy = getEnemy(roomEnemy.enemyTemplateId)}
-                            <div class="relative w-16 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5
+                            {@const sprite = enemy ? getIdleSprite(enemy) : { type: 'none' as const }}
+                            <div class="relative w-16 h-20 rounded-lg border-2 flex flex-col items-center overflow-hidden
                               {enemy ? (ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500') : 'bg-slate-800 border-slate-500'}">
-                              <span class="text-lg font-bold">{enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}</span>
+                              <div class="w-14 h-14 flex items-center justify-center mt-0.5">
+                                {#if sprite.type === 'static' && sprite.src}
+                                  <img src={sprite.src} alt={enemy?.name ?? ''} class="w-full h-full object-contain" />
+                                {:else if sprite.type === 'sheet' && sprite.sheet}
+                                  <div class="w-full h-full"
+                                    style="background-image: url({sprite.sheet.src}); background-size: {sprite.sheet.framesPerRow * 100}% auto; background-position: 0 0;"
+                                  ></div>
+                                {:else}
+                                  <span class="text-lg font-bold">{enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}</span>
+                                {/if}
+                              </div>
                               <span class="text-[9px] font-medium text-center leading-tight px-0.5 truncate w-full">
                                 {enemy?.name ?? '???'}
                               </span>
                               {#if enemy?.isBoss}
-                                <span class="absolute top-0 left-0 right-0 text-[8px] text-center text-red-400 font-bold">BOSS</span>
+                                <span class="absolute top-0 left-0 right-0 text-[8px] text-center text-red-400 font-bold bg-black/50">BOSS</span>
                               {/if}
                               <button
                                 onclick={() => removeEnemyFromRoom(i, ei)}
@@ -298,12 +326,23 @@
                           <span class="block text-xs text-gray-500 mb-1">Add enemy:</span>
                           <div class="flex gap-1.5 flex-wrap">
                             {#each enemies as enemy (enemy.id)}
+                              {@const sprite = getIdleSprite(enemy)}
                               <button
                                 onclick={() => addEnemyToRoom(i, enemy.id)}
-                                class="w-14 h-16 rounded border-2 flex flex-col items-center justify-center gap-0.5 hover:brightness-125 transition-all
+                                class="w-14 h-16 rounded border-2 flex flex-col items-center overflow-hidden hover:brightness-125 transition-all
                                   {ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500'}"
                               >
-                                <span class="text-sm font-bold">{ROLE_ICONS[enemy.role] ?? '?'}</span>
+                                <div class="w-12 h-10 flex items-center justify-center">
+                                  {#if sprite.type === 'static' && sprite.src}
+                                    <img src={sprite.src} alt={enemy.name} class="w-full h-full object-contain" />
+                                  {:else if sprite.type === 'sheet' && sprite.sheet}
+                                    <div class="w-full h-full"
+                                      style="background-image: url({sprite.sheet.src}); background-size: {sprite.sheet.framesPerRow * 100}% auto; background-position: 0 0;"
+                                    ></div>
+                                  {:else}
+                                    <span class="text-sm font-bold">{ROLE_ICONS[enemy.role] ?? '?'}</span>
+                                  {/if}
+                                </div>
                                 <span class="text-[8px] text-center leading-tight px-0.5 truncate w-full">{enemy.name}</span>
                                 {#if enemy.isBoss}
                                   <span class="text-[7px] text-red-400 font-bold -mt-0.5">BOSS</span>
@@ -385,11 +424,20 @@
                 <div class="flex gap-0.5">
                   {#each room.enemies as re}
                     {@const enemy = getEnemy(re.enemyTemplateId)}
-                    <span class="w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold border
+                    {@const sprite = enemy ? getIdleSprite(enemy) : { type: 'none' as const }}
+                    <span class="w-6 h-6 flex items-center justify-center rounded border overflow-hidden
                       {enemy ? (ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500') : 'bg-slate-800 border-slate-500'}"
                       title={enemy?.name ?? '???'}
                     >
-                      {enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}
+                      {#if sprite.type === 'static' && sprite.src}
+                        <img src={sprite.src} alt="" class="w-full h-full object-contain" />
+                      {:else if sprite.type === 'sheet' && sprite.sheet}
+                        <div class="w-full h-full"
+                          style="background-image: url({sprite.sheet.src}); background-size: {sprite.sheet.framesPerRow * 100}% auto; background-position: 0 0;"
+                        ></div>
+                      {:else}
+                        <span class="text-[9px] font-bold">{enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}</span>
+                      {/if}
                     </span>
                   {/each}
                 </div>

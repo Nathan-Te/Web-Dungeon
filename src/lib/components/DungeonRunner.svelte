@@ -56,6 +56,7 @@
   let allCharacters: CharacterDefinition[] = $state([]);
   let allDungeons: Dungeon[] = $state([]);
   let allEnemies: EnemyTemplate[] = $state([]);
+  let allAbilities: import('../game/abilities').AbilityDefinition[] = $state([]);
   let customRoleStats: Partial<Record<Role, BaseStats>> | undefined = $state(undefined);
 
   // Selection
@@ -111,6 +112,7 @@
     allCharacters = content.characters;
     allDungeons = content.dungeons;
     allEnemies = content.enemies;
+    allAbilities = content.abilities;
     customRoleStats = content.roleStats;
     if (allDungeons.length > 0) selectedDungeonId = allDungeons[0].id;
     if (allCharacters.length >= 3) {
@@ -138,11 +140,13 @@
   let enemyBossIds: Set<string> = new Set();
   let bossAbilityMap: Map<string, Role[]> = new Map();
   let summonerConfigMap: Map<string, { templates: SummonTemplate[]; maxSummons: number }> = new Map();
+  let characterAbilityIds: Map<string, string[]> = new Map();
 
   function createEnemyTeamFromRoom(room: DungeonRoom): Character[] {
     enemyBossIds = new Set();
     bossAbilityMap = new Map();
     summonerConfigMap = new Map();
+    characterAbilityIds = new Map();
 
     return room.enemies
       .map((re) => {
@@ -160,16 +164,21 @@
         };
         const level = Math.max(1, Math.round(template.level * room.difficultyMult));
 
+        // Track ability IDs for cooldown
+        if (template.isBoss && template.abilityIds && template.abilityIds.length > 0) {
+          characterAbilityIds.set(charId, [...template.abilityIds]);
+        } else if (template.abilityId) {
+          characterAbilityIds.set(charId, [template.abilityId]);
+        }
+
         // Track boss
         if (template.isBoss) {
           enemyBossIds.add(charId);
           // Boss multi-abilities: resolve ability roles from abilityIds
           if (template.abilityIds && template.abilityIds.length > 0) {
-            // Map each abilityId to a role for the simulation's executeAbility
             const roles: Role[] = template.abilityIds.map(aid => {
-              const ab = allEnemies.length ? undefined : undefined; // abilities not directly available here
-              // We store the roles of the abilities — look up from ability allowedRoles
-              return template.role; // fallback to template role
+              const ab = allAbilities.find(a => a.id === aid);
+              return ab?.allowedRoles[0] ?? template.role;
             });
             bossAbilityMap.set(charId, roles);
           }
@@ -338,6 +347,8 @@
       bossAbilities: bossAbilityMap.size > 0 ? bossAbilityMap : undefined,
       summonerConfigs: summonerConfigMap.size > 0 ? summonerConfigMap : undefined,
       customRoleStats,
+      abilityDefs: allAbilities,
+      characterAbilityIds: characterAbilityIds.size > 0 ? characterAbilityIds : undefined,
     });
     const result = simulation.simulate();
 

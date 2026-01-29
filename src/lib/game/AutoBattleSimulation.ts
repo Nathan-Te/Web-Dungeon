@@ -1,5 +1,6 @@
 import { Character } from './Character';
 import { SeededRNG } from './rng';
+import type { AbilityDefinition } from './abilities';
 import {
   type CombatState,
   type CombatAction,
@@ -56,6 +57,15 @@ export class AutoBattleSimulation {
   /** Custom role base stats (overrides ROLE_BASE_STATS) */
   private customRoleStats?: Partial<Record<Role, { hp: number; atk: number; def: number; spd: number }>>;
 
+  /** Ability definitions for cooldown lookup */
+  private abilityDefs: AbilityDefinition[] = [];
+
+  /** Cooldown tracker: characterId -> turns remaining until ability is available (0 = ready) */
+  private cooldownTracker: Map<string, number> = new Map();
+
+  /** Character ability ID mapping: characterId -> abilityId(s) */
+  private characterAbilityIds: Map<string, string[]> = new Map();
+
   constructor(
     playerTeam: Character[],
     enemyTeam: Character[],
@@ -67,11 +77,16 @@ export class AutoBattleSimulation {
       summonerConfigs?: Map<string, { templates: SummonTemplate[]; maxSummons: number }>;
       /** Custom role base stats */
       customRoleStats?: Partial<Record<Role, { hp: number; atk: number; def: number; spd: number }>>;
+      /** Ability definitions (for cooldown lookup) */
+      abilityDefs?: AbilityDefinition[];
+      /** Character ability ID mapping: characterId -> abilityId(s) */
+      characterAbilityIds?: Map<string, string[]>;
     }
   ) {
     this.seed = seed;
     this.rng = new SeededRNG(seed);
     this.customRoleStats = options?.customRoleStats;
+    this.abilityDefs = options?.abilityDefs ?? [];
     this.initializeTeams(playerTeam, enemyTeam);
 
     if (options?.bossAbilities) {
@@ -85,6 +100,30 @@ export class AutoBattleSimulation {
           activeSummonIds: new Set(),
         });
       }
+    }
+    if (options?.characterAbilityIds) {
+      this.characterAbilityIds = options.characterAbilityIds;
+    }
+  }
+
+  /** Check if a unit's ability is off cooldown */
+  private isAbilityReady(characterId: string): boolean {
+    const cd = this.cooldownTracker.get(characterId);
+    return cd === undefined || cd <= 0;
+  }
+
+  /** Set cooldown after ability use, based on the character's ability definition */
+  private setAbilityCooldown(characterId: string): void {
+    const abilityIds = this.characterAbilityIds.get(characterId);
+    if (!abilityIds || abilityIds.length === 0) return;
+    // Use the max cooldown from any of the character's abilities
+    let maxCd = 0;
+    for (const aid of abilityIds) {
+      const def = this.abilityDefs.find((a) => a.id === aid);
+      if (def?.cooldown && def.cooldown > maxCd) maxCd = def.cooldown;
+    }
+    if (maxCd > 0) {
+      this.cooldownTracker.set(characterId, maxCd);
     }
   }
 
@@ -171,6 +210,11 @@ export class AutoBattleSimulation {
    * @returns false if battle should end
    */
   private executeTurn(): boolean {
+    // Decrement cooldowns for all units at the start of each turn
+    for (const [id, cd] of this.cooldownTracker) {
+      if (cd > 0) this.cooldownTracker.set(id, cd - 1);
+    }
+
     // Get all alive units sorted by SPD (initiative)
     const allUnits = this.getAllAliveUnits();
 
@@ -204,8 +248,10 @@ export class AutoBattleSimulation {
     const role = this.characterRoles.get(actor.characterId)!;
     const actorName = this.characterNames.get(actor.characterId)!;
 
+    const abilityReady = this.isAbilityReady(actor.characterId);
+
     // Summoners try to summon first
-    if (role === 'summoner') {
+    if (role === 'summoner' && abilityReady) {
       const sumData = this.summonerData.get(actor.characterId);
       if (sumData && sumData.templates.length > 0) {
         // Remove dead summons from active set
@@ -216,16 +262,18 @@ export class AutoBattleSimulation {
         if (sumData.activeSummonIds.size < sumData.maxSummons &&
             this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE)) {
           this.executeSummon(actor, sumData, actorName);
+          this.setAbilityCooldown(actor.characterId);
           return;
         }
       }
     }
 
     // Healers try to heal first
-    if (role === 'healer') {
+    if (role === 'healer' && abilityReady) {
       const healTarget = this.findHealTarget(actor);
       if (healTarget && this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE)) {
         this.executeHeal(actor, healTarget, actorName);
+        this.setAbilityCooldown(actor.characterId);
         return;
       }
     }
@@ -234,8 +282,8 @@ export class AutoBattleSimulation {
     const target = this.findTarget(actor, role);
     if (!target) return;
 
-    // Check for ability trigger
-    const useAbility = this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE);
+    // Check for ability trigger (only if not on cooldown)
+    const useAbility = abilityReady && this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE);
 
     if (useAbility) {
       // Boss: pick a random ability role from their list
@@ -246,6 +294,7 @@ export class AutoBattleSimulation {
       } else {
         this.executeAbility(actor, target, role, actorName);
       }
+      this.setAbilityCooldown(actor.characterId);
     } else {
       this.executeBasicAttack(actor, target, actorName);
     }
