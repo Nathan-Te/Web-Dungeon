@@ -278,11 +278,17 @@
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
         {#if isSheet(char.sprites?.idle)}
           {@const cfg = char.sprites.idle}
+          {@const zoom = char.sprites?.spriteScale ?? 1}
+          {@const fScale = (32 / cfg.frameWidth) * zoom}
+          {@const offsetX = (32 - cfg.frameWidth * fScale) / 2}
+          {@const offsetY = (32 - cfg.frameHeight * fScale) / 2}
           <div class="w-8 h-8 rounded bg-slate-900 overflow-hidden"
-            style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * 32}px auto; background-position: 0px 0px;">
+            style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * cfg.frameWidth * fScale}px auto; background-position: {offsetX}px {offsetY}px;">
           </div>
         {:else if (typeof char.sprites?.idle === 'string') || char.sprite}
-          <img src={(typeof char.sprites?.idle === 'string' ? char.sprites.idle : undefined) ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+          {@const zoom = char.sprites?.spriteScale ?? 1}
+          <img src={(typeof char.sprites?.idle === 'string' ? char.sprites.idle : undefined) ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900"
+            style={zoom !== 1 ? `transform: scale(${zoom})` : ''} />
         {:else}
           <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
         {/if}

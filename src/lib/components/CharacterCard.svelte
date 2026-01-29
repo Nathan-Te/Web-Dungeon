@@ -66,8 +66,8 @@
   /** Has any sprite (static or sheet) */
   let hasSprite = $derived(spriteSource !== undefined);
 
-  /** Display size for sprite container (base 88px, scaled) */
-  let displaySize = $derived(Math.round(88 * (sprites?.spriteScale ?? 1)));
+  /** Sprite zoom scale (zooms content inside fixed-size cell) */
+  let spriteZoom = $derived(sprites?.spriteScale ?? 1);
 
   /** CSS filter effect per animation state */
   let animClass = $derived(
@@ -119,9 +119,10 @@
     holdingLastFrame = false;
   }
 
-  // Watch for sheet config changes
+  // Watch for sheet config changes — don't restart if already holding death's last frame
   $effect(() => {
     if (sheetConfig) {
+      if (holdingLastFrame && animState === 'death') return;
       startFrameAnimation(sheetConfig, animState === 'death');
     } else {
       stopFrameAnimation();
@@ -137,12 +138,12 @@
 {#if hasSprite}
   <!-- Sprite layout: image dominant, info strip below -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
-    <div class="rounded-lg border-2 overflow-hidden bg-slate-900
-      {isPlayer ? 'border-blue-400' : 'border-red-400'}"
-      style="width: {displaySize}px; height: {displaySize}px;">
+    <div class="w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
+      {isPlayer ? 'border-blue-400' : 'border-red-400'}">
       {#if sheetConfig}
-        <!-- Animated sprite sheet: scale sheet so one frame fills the container -->
-        {@const scale = displaySize / sheetConfig.frameWidth}
+        <!-- Animated sprite sheet: scale sheet so one frame fills the container, apply zoom -->
+        {@const baseScale = 88 / sheetConfig.frameWidth}
+        {@const scale = baseScale * spriteZoom}
         {@const totalCols = sheetConfig.framesPerRow}
         {@const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow)}
         {@const scaledW = totalCols * sheetConfig.frameWidth * scale}
@@ -151,20 +152,23 @@
         {@const row = Math.floor(currentFrame / sheetConfig.framesPerRow)}
         {@const posX = col * sheetConfig.frameWidth * scale}
         {@const posY = row * sheetConfig.frameHeight * scale}
+        {@const offsetX = (88 - sheetConfig.frameWidth * scale) / 2}
+        {@const offsetY = (88 - sheetConfig.frameHeight * scale) / 2}
         <div
           class="w-full h-full transition-transform duration-200 {animClass}"
-          style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: -{posX}px -{posY}px;"
+          style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: {offsetX - posX}px {offsetY - posY}px;"
         ></div>
       {:else if staticSrc}
-        <!-- Static image -->
+        <!-- Static image with zoom -->
         <img
           src={staticSrc}
           alt={name}
           class="w-full h-full object-contain transition-all duration-200 {animClass}"
+          style="transform: scale({spriteZoom})"
         />
       {/if}
     </div>
-    <div style="width: {Math.max(displaySize, 80)}px;" class="-mt-0.5">
+    <div class="w-24 -mt-0.5">
       <div class="text-center text-[11px] font-bold truncate leading-tight">{name}</div>
       <div class="h-1.5 bg-gray-900 rounded-full overflow-hidden mx-0.5">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
