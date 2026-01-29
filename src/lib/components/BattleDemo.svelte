@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import {
     Character,
     AutoBattleSimulation,
@@ -254,7 +255,7 @@
   }
 
   // Initialize on mount
-  $effect(() => {
+  onMount(() => {
     runBattle();
   });
 </script>
