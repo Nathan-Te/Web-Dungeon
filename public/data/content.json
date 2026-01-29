@@ -375,7 +375,8 @@
       "char_016",
       "char_002",
       "char_003",
-      "char_007"
+      "char_007",
+      "char_017"
     ],
     "rates": {
       "common": 0.74,
@@ -395,5 +396,5 @@
   "dailyDungeonSchedule": {
     "2026-01-29": "dungeon_migrated"
   },
-  "publishedAt": 1769728678923
+  "publishedAt": 1769728779838
 }
