@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Role, Position, SpriteSet, AnimState } from '../game/types';
+  import type { Role, Position, SpriteSet, AnimState, HitEffect } from '../game/types';
   import CharacterCard from './CharacterCard.svelte';
 
   interface DisplayUnit {
@@ -13,6 +13,7 @@
     isAlive: boolean;
     sprites?: SpriteSet;
     animState?: AnimState;
+    hitEffect?: HitEffect;
   }
 
   interface Props {
@@ -49,6 +50,7 @@
                 isPlayer={false}
                 sprites={unit.sprites}
                 animState={unit.animState}
+                hitEffect={unit.hitEffect}
               />
             {/if}
           </div>
@@ -82,6 +84,7 @@
                 isPlayer={true}
                 sprites={unit.sprites}
                 animState={unit.animState}
+                hitEffect={unit.hitEffect}
               />
             {/if}
           </div>

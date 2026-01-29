@@ -10,6 +10,7 @@
     type Position,
     type SpriteSet,
     type AnimState,
+    type HitEffect,
     ROLE_PREFERRED_ROW,
   } from '../game';
 
@@ -45,6 +46,7 @@
     isAlive: boolean;
     sprites?: SpriteSet;
     animState?: AnimState;
+    hitEffect?: HitEffect;
   }
 
   // Battle state
@@ -184,8 +186,8 @@
     );
     if (idx === -1) return;
 
-    // Clone array for reactivity — reset living units to idle, keep dead in death
-    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
+    // Clone array for reactivity — reset living units to idle, keep dead in death, clear hit effects
+    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
 
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       // Actor animates
@@ -196,6 +198,7 @@
       const tIdx = updated.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.damage !== undefined) {
         updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+        updated[tIdx].hitEffect = 'damage';
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
@@ -205,6 +208,7 @@
       const tIdx = updated.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.healing !== undefined) {
         updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
+        updated[tIdx].hitEffect = 'heal';
       }
     } else if (action.actionType === 'death') {
       const dIdx = updated.findIndex((u) => u.id === action.actorId);
@@ -239,7 +243,7 @@
   }
 
   function replayAction(units: DisplayUnit[], action: CombatAction): DisplayUnit[] {
-    const updated = units.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
+    const updated = units.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
       if (aIdx !== -1) {
@@ -248,6 +252,7 @@
       const tIdx = updated.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.damage !== undefined) {
         updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+        updated[tIdx].hitEffect = 'damage';
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
@@ -257,6 +262,7 @@
       const tIdx = updated.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.healing !== undefined) {
         updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
+        updated[tIdx].hitEffect = 'heal';
       }
     } else if (action.actionType === 'death') {
       const dIdx = updated.findIndex((u) => u.id === action.actorId);

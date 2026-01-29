@@ -10,6 +10,7 @@
     type Position,
     type SpriteSet,
     type AnimState,
+    type HitEffect,
     ROLE_BASE_STATS,
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
@@ -33,6 +34,7 @@
     isAlive: boolean;
     sprites?: SpriteSet;
     animState?: AnimState;
+    hitEffect?: HitEffect;
   }
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
@@ -277,6 +279,7 @@
       const tIdx = units.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.damage !== undefined) {
         units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - action.damage);
+        units[tIdx].hitEffect = 'damage';
       }
     } else if (action.actionType === 'heal') {
       const aIdx = units.findIndex((u) => u.id === action.actorId);
@@ -286,6 +289,7 @@
       const tIdx = units.findIndex((u) => u.id === action.targetId);
       if (tIdx !== -1 && action.healing !== undefined) {
         units[tIdx].currentHp = Math.min(units[tIdx].maxHp, units[tIdx].currentHp + action.healing);
+        units[tIdx].hitEffect = 'heal';
       }
     } else if (action.actionType === 'death') {
       const dIdx = units.findIndex((u) => u.id === action.actorId);
@@ -298,8 +302,8 @@
   }
 
   function applyAction(action: CombatAction) {
-    // Reset living units to idle, keep dead in death
-    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
+    // Reset living units to idle, keep dead in death, clear hit effects
+    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
     applyActionToUnits(updated, action);
     displayUnits = updated;
   }

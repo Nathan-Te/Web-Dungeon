@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { Role, SpriteSet, SpriteSource, SpriteSheetConfig, AnimState } from '../game/types';
+  import type { Role, SpriteSet, SpriteSource, SpriteSheetConfig, AnimState, HitEffect } from '../game/types';
 
   interface Props {
     name: string;
@@ -11,9 +11,10 @@
     isPlayer: boolean;
     sprites?: SpriteSet;
     animState?: AnimState;
+    hitEffect?: HitEffect;
   }
 
-  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle' }: Props = $props();
+  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect }: Props = $props();
 
   const roleColors: Record<Role, string> = {
     tank: 'bg-blue-600',
@@ -74,6 +75,13 @@
     animState === 'attack' ? 'scale-110 brightness-125' :
     animState === 'castAbility' ? 'scale-105 hue-rotate-30' :
     animState === 'death' ? 'rotate-12 brightness-50' :
+    ''
+  );
+
+  /** Hit effect overlay color */
+  let hitOverlayClass = $derived(
+    hitEffect === 'damage' ? 'hit-flash-damage' :
+    hitEffect === 'heal' ? 'hit-flash-heal' :
     ''
   );
 
@@ -139,8 +147,11 @@
 {#if hasSprite}
   <!-- Sprite layout: image dominant, info strip below -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
-    <div class="w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
+    <div class="relative w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
       {isPlayer ? 'border-blue-400' : 'border-red-400'}">
+      {#if hitOverlayClass}
+        <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
+      {/if}
       {#if sheetConfig}
         <!-- Animated sprite sheet: scale sheet so one frame fills the container, apply zoom -->
         {@const baseScale = 88 / sheetConfig.frameWidth}
@@ -185,6 +196,9 @@
       {roleColors[role]}
       {isAlive ? 'opacity-100' : 'opacity-30 grayscale'}"
   >
+    {#if hitOverlayClass}
+      <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
+    {/if}
     <div class="absolute top-0.5 left-0 right-0 text-center text-xs font-bold truncate px-1">
       {name}
     </div>
@@ -204,3 +218,21 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .hit-flash-damage {
+    animation: flash-red 0.4s ease-out;
+  }
+  .hit-flash-heal {
+    animation: flash-green 0.4s ease-out;
+  }
+
+  @keyframes flash-red {
+    0% { background-color: rgba(239, 68, 68, 0.7); }
+    100% { background-color: transparent; }
+  }
+  @keyframes flash-green {
+    0% { background-color: rgba(34, 197, 94, 0.7); }
+    100% { background-color: transparent; }
+  }
+</style>

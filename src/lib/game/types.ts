@@ -45,6 +45,9 @@ export const ROLE_PREFERRED_ROW: Record<Role, 0 | 1 | 2> = {
 /** Animation state for sprites */
 export type AnimState = 'idle' | 'attack' | 'castAbility' | 'death';
 
+/** Visual hit effect on the target of an action */
+export type HitEffect = 'damage' | 'heal';
+
 /** Sprite sheet configuration for frame-based animation */
 export interface SpriteSheetConfig {
   /** URL or base64 data URI of the sprite sheet image */
