@@ -9,14 +9,12 @@
     gachaConfig?: GachaConfig;
     dailyDungeonId?: string;
     dailyDungeonSchedule?: Record<string, string>;
-    maxDungeonTeamSize?: number;
     onSave: (config: GachaConfig) => void;
     onSaveDailyDungeon: (id: string) => void;
     onSaveSchedule: (schedule: Record<string, string>) => void;
-    onSaveMaxTeamSize: (size: number) => void;
   }
 
-  let { characters, dungeons, gachaConfig, dailyDungeonId, dailyDungeonSchedule, maxDungeonTeamSize, onSave, onSaveDailyDungeon, onSaveSchedule, onSaveMaxTeamSize }: Props = $props();
+  let { characters, dungeons, gachaConfig, dailyDungeonId, dailyDungeonSchedule, onSave, onSaveDailyDungeon, onSaveSchedule }: Props = $props();
 
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
   const RARITY_COLORS: Record<Rarity, string> = {
@@ -40,7 +38,6 @@
 
   let selectedDailyId: string = $state(dailyDungeonId ?? '');
   let schedule: Record<string, string> = $state(dailyDungeonSchedule ? { ...dailyDungeonSchedule } : {});
-  let teamSize: number = $state(maxDungeonTeamSize ?? 6);
 
   // Calendar state
   let calendarMonth = $state(new Date());
@@ -100,10 +97,6 @@
 
   function getTodayStr(): string {
     return new Date().toISOString().slice(0, 10);
-  }
-
-  function handleSaveMaxTeamSize() {
-    onSaveMaxTeamSize(teamSize);
   }
 
   function isInPool(charId: string): boolean {
@@ -199,25 +192,6 @@
       </button>
     </div>
 
-    <!-- Max Team Size -->
-    <div class="flex gap-3 items-end">
-      <div>
-        <span class="block text-xs text-gray-400 mb-1">Max Team Size</span>
-        <input
-          type="number"
-          min="1"
-          max="9"
-          bind:value={teamSize}
-          class="w-20 px-3 py-2 bg-slate-700 rounded text-sm"
-        />
-      </div>
-      <button
-        onclick={handleSaveMaxTeamSize}
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold"
-      >
-        Save
-      </button>
-    </div>
   </div>
 
   <!-- Daily Dungeon Calendar -->

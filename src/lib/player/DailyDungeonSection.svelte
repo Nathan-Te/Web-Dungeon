@@ -37,7 +37,7 @@
     onDungeonCleared: () => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 6, onAttemptUsed, onDungeonCleared }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 5, onAttemptUsed, onDungeonCleared }: Props = $props();
 
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',

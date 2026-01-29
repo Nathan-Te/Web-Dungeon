@@ -20,16 +20,17 @@
   let isStatic = $derived(hasSprite && !isSheet(idle));
   let sheet = $derived(isSheet(idle) ? idle : null);
   let staticSrc = $derived(isStatic && typeof idle === 'string' ? idle : null);
+  let zoom = $derived(sprites?.spriteScale ?? 1);
 </script>
 
-<div class={className}>
+<div class="{className} overflow-hidden">
   {#if sheet}
-    <!-- Show first frame of sprite sheet -->
-    <div class="w-full h-full overflow-hidden"
-      style="background-image: url({sheet.src}); background-size: {sheet.framesPerRow * 100}% auto; background-position: 0 0; background-repeat: no-repeat;"
+    <!-- Show first frame of sprite sheet with zoom -->
+    <div class="w-full h-full"
+      style="background-image: url({sheet.src}); background-size: {sheet.framesPerRow * 100}% auto; background-position: 0 0; background-repeat: no-repeat; transform: scale({zoom}); transform-origin: center center;"
     ></div>
   {:else if staticSrc}
-    <img src={staticSrc} alt="" class="w-full h-full object-contain" />
+    <img src={staticSrc} alt="" class="w-full h-full object-contain" style="transform: scale({zoom}); transform-origin: center center;" />
   {:else}
     <span class="w-full h-full flex items-center justify-center text-xl font-bold text-white/30">{fallback}</span>
   {/if}

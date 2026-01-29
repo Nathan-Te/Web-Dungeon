@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { CharacterDefinition, Rarity, Role } from '../game/types';
   import type { GachaConfig } from '../admin/adminTypes';
   import type { PlayerSave } from './playerStore';
@@ -32,27 +33,43 @@
     assassin: 'X', healer: 'H', summoner: 'S',
   };
 
+  const ROLE_COLORS: Record<Role, string> = {
+    tank: 'bg-blue-900', warrior: 'bg-orange-900', archer: 'bg-green-900',
+    mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
+    summoner: 'bg-teal-900',
+  };
+
   let pullResult: CharacterDefinition | null = $state(null);
   let isNew = $state(false);
   let isAnimating = $state(false);
   let showResult = $state(false);
 
-  // Carousel state
+  // Horizontal carousel state (CS:GO case opening style)
   let carouselItems: CharacterDefinition[] = $state([]);
-  let carouselOffset = $state(0);
-  let carouselTimer: ReturnType<typeof setInterval> | null = null;
-  let currentCarouselChar = $derived(carouselItems.length > 0 ? carouselItems[Math.min(carouselOffset, carouselItems.length - 1)] : null);
+  let carouselX = $state(0); // Current pixel offset of the strip
+  let carouselAnimFrame: number | null = null;
+  let carouselSpeed = $state(0); // pixels per frame
+  let carouselTargetX = $state(0); // where we want to stop
+  let carouselLanded = $state(false);
 
-  /** Build a randomized carousel strip of characters from the pool */
-  function buildCarouselStrip(finalChar: CharacterDefinition): CharacterDefinition[] {
-    const pool = gachaConfig.characterPool
+  const CARD_WIDTH = 96; // w-24 = 96px
+  const CARD_GAP = 8; // gap-2 = 8px
+  const CARD_STEP = CARD_WIDTH + CARD_GAP;
+  const STRIP_SIZE = 40; // number of random cards before the final one
+  const VIEWPORT_WIDTH = 400; // visible window
+
+  /** Pool of characters available in gacha */
+  let poolCharacters = $derived(
+    gachaConfig.characterPool
       .map((id) => characters.find((c) => c.id === id))
-      .filter((c): c is CharacterDefinition => c !== undefined);
-    if (pool.length === 0) return [finalChar];
+      .filter((c): c is CharacterDefinition => c !== undefined)
+  );
 
+  /** Build a randomized strip: STRIP_SIZE random + final */
+  function buildCarouselStrip(finalChar: CharacterDefinition): CharacterDefinition[] {
+    const pool = poolCharacters.length > 0 ? poolCharacters : [finalChar];
     const strip: CharacterDefinition[] = [];
-    // 20 random characters then the final one
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < STRIP_SIZE; i++) {
       strip.push(pool[Math.floor(Math.random() * pool.length)]);
     }
     strip.push(finalChar);
@@ -65,6 +82,7 @@
     isAnimating = true;
     pullResult = null;
     showResult = false;
+    carouselLanded = false;
 
     // Determine rarity by weighted random
     const roll = Math.random();
@@ -79,53 +97,73 @@
     }
 
     // Filter pool by rarity
-    const poolForRarity = gachaConfig.characterPool
-      .map((id) => characters.find((c) => c.id === id))
-      .filter((c): c is CharacterDefinition => c !== undefined && c.rarity === selectedRarity);
-
-    const pool = poolForRarity.length > 0
-      ? poolForRarity
-      : gachaConfig.characterPool
-          .map((id) => characters.find((c) => c.id === id))
-          .filter((c): c is CharacterDefinition => c !== undefined);
-
-    if (pool.length === 0) {
-      isAnimating = false;
-      return;
-    }
+    const poolForRarity = poolCharacters.filter((c) => c.rarity === selectedRarity);
+    const pool = poolForRarity.length > 0 ? poolForRarity : poolCharacters;
+    if (pool.length === 0) { isAnimating = false; return; }
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
 
-    // Start carousel
+    // Build strip
     carouselItems = buildCarouselStrip(picked);
-    carouselOffset = 0;
+    carouselX = 0;
 
-    let step = 0;
-    const totalSteps = carouselItems.length - 1;
-    let speed = 60; // start fast
+    // The final card is at index STRIP_SIZE. We want to center it in the viewport.
+    // Position of final card = STRIP_SIZE * CARD_STEP
+    // Center = finalPos - viewport/2 + card/2
+    const finalCardPos = STRIP_SIZE * CARD_STEP;
+    carouselTargetX = finalCardPos - VIEWPORT_WIDTH / 2 + CARD_WIDTH / 2;
 
-    function advanceCarousel() {
-      if (step >= totalSteps) {
-        // Landed on final
-        if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
-        pullResult = picked;
-        isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
-        isAnimating = false;
-        showResult = true;
-        onPull(picked.id);
+    // Start with high speed, decelerate
+    carouselSpeed = 28;
+
+    function animate() {
+      if (carouselX >= carouselTargetX) {
+        // Snap to target
+        carouselX = carouselTargetX;
+        carouselAnimFrame = null;
+        carouselLanded = true;
+
+        // Delay then show result
+        setTimeout(() => {
+          pullResult = picked;
+          isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
+          isAnimating = false;
+          showResult = true;
+          onPull(picked.id);
+        }, 600);
         return;
       }
-      step++;
-      carouselOffset = step;
-      // Slow down as we approach the end
-      const progress = step / totalSteps;
-      speed = 60 + Math.floor(progress * progress * 400); // decelerate
-      if (carouselTimer) clearInterval(carouselTimer);
-      carouselTimer = setInterval(advanceCarousel, speed);
+
+      // Ease out: slow down as we approach target
+      const remaining = carouselTargetX - carouselX;
+      const totalDistance = carouselTargetX;
+      const progress = 1 - remaining / totalDistance;
+
+      // Deceleration curve
+      if (progress < 0.3) {
+        carouselSpeed = 28;
+      } else if (progress < 0.6) {
+        carouselSpeed = 20;
+      } else if (progress < 0.8) {
+        carouselSpeed = 12;
+      } else if (progress < 0.9) {
+        carouselSpeed = 6;
+      } else if (progress < 0.95) {
+        carouselSpeed = 3;
+      } else {
+        carouselSpeed = 1.5;
+      }
+
+      carouselX += carouselSpeed;
+      carouselAnimFrame = requestAnimationFrame(animate);
     }
 
-    carouselTimer = setInterval(advanceCarousel, speed);
+    carouselAnimFrame = requestAnimationFrame(animate);
   }
+
+  onDestroy(() => {
+    if (carouselAnimFrame) cancelAnimationFrame(carouselAnimFrame);
+  });
 </script>
 
 <div class="space-y-6">
@@ -157,19 +195,36 @@
       </div>
     </div>
   {:else if isAnimating && carouselItems.length > 0}
-    <!-- Carousel animation -->
+    <!-- CS:GO-style horizontal carousel -->
     <div class="flex flex-col items-center gap-4">
       <div class="text-sm text-gray-400 animate-pulse">Pulling...</div>
-      {#if currentCarouselChar}
-        <div class="w-28 h-36 overflow-hidden rounded-xl border-4 border-yellow-500 bg-slate-800 relative">
-          <div class="w-full h-full flex flex-col items-center justify-center gap-1 p-2
-            animate-[slotFlip_0.1s_ease-out]" style="animation-iteration-count: 1;">
-            <SpritePreview sprites={currentCarouselChar.sprites} fallback={ROLE_ICONS[currentCarouselChar.role]} class="w-16 h-16" />
-            <span class="text-xs font-bold truncate w-full text-center">{currentCarouselChar.name}</span>
-            <span class="text-[10px] capitalize {RARITY_TEXT[currentCarouselChar.rarity]}">{currentCarouselChar.rarity}</span>
+
+      <!-- Carousel viewport -->
+      <div class="relative" style="width: {VIEWPORT_WIDTH}px;">
+        <!-- Center marker (triangle + line) -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 z-10 w-0.5 h-full bg-yellow-400/60"></div>
+        <div class="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-0 h-0
+          border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-yellow-400"></div>
+        <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 z-10 w-0 h-0
+          border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-yellow-400"></div>
+
+        <!-- Scrolling strip -->
+        <div class="overflow-hidden rounded-xl border-2 border-slate-600 bg-slate-900/80" style="height: 128px;">
+          <div class="flex gap-2 items-center h-full" style="transform: translateX(-{carouselX}px); will-change: transform;">
+            {#each carouselItems as char, idx}
+              {@const isTarget = idx === STRIP_SIZE && carouselLanded}
+              <div class="flex-shrink-0 w-24 h-[112px] rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
+                {isTarget ? 'border-yellow-400 ring-2 ring-yellow-400 scale-105' : 'border-slate-600'}
+                {ROLE_COLORS[char.role]}">
+                <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-14 h-14 mt-1" />
+                <span class="text-[9px] font-bold truncate w-full text-center px-0.5">{char.name}</span>
+                <span class="text-[8px] capitalize text-gray-400">{char.role}</span>
+                <span class="text-[8px] capitalize {RARITY_TEXT[char.rarity]}">{char.rarity}</span>
+              </div>
+            {/each}
           </div>
         </div>
-      {/if}
+      </div>
     </div>
   {:else}
     <!-- Pull Button -->
@@ -192,7 +247,7 @@
       {/if}
 
       <!-- Rates Info -->
-      <div class="bg-slate-800 rounded-lg p-4 w-full max-w-sm">
+      <div class="bg-slate-800 rounded-lg p-4 w-full max-w-md">
         <h4 class="text-xs text-gray-500 mb-2 text-center">Pull Rates</h4>
         <div class="grid grid-cols-4 gap-2 text-center">
           {#each (['common', 'rare', 'epic', 'legendary'] as Rarity[]) as rarity}
@@ -203,6 +258,31 @@
           {/each}
         </div>
       </div>
+
+      <!-- Obtainable Characters -->
+      {#if poolCharacters.length > 0}
+        <div class="bg-slate-800 rounded-lg p-4 w-full max-w-xl">
+          <h4 class="text-xs text-gray-500 mb-3 text-center">Obtainable Characters ({poolCharacters.length})</h4>
+          {#each (['legendary', 'epic', 'rare', 'common'] as Rarity[]) as rarity}
+            {@const chars = poolCharacters.filter((c) => c.rarity === rarity)}
+            {#if chars.length > 0}
+              <div class="mb-3">
+                <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
+                <div class="flex gap-2 flex-wrap">
+                  {#each chars as char}
+                    <div class="w-20 h-28 rounded-lg border-2 flex flex-col items-center overflow-hidden
+                      {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">
+                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-14 h-14 mt-0.5" />
+                      <span class="text-[8px] font-bold truncate w-full text-center px-0.5">{char.name}</span>
+                      <span class="text-[7px] capitalize text-gray-400">{char.role}</span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -211,9 +291,5 @@
   @keyframes fadeInScale {
     0% { opacity: 0; transform: scale(0.5); }
     100% { opacity: 1; transform: scale(1); }
-  }
-  @keyframes slotFlip {
-    0% { transform: translateY(-100%); opacity: 0.3; }
-    100% { transform: translateY(0); opacity: 1; }
   }
 </style>

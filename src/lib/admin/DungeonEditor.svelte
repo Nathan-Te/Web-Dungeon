@@ -175,7 +175,7 @@
         {dungeons.some((d) => d.id === editingDungeon?.id) ? 'Edit' : 'New'} Dungeon
       </h3>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div>
           <span class="block text-xs text-gray-400 mb-1">Name</span>
           <input
@@ -191,6 +191,17 @@
             type="text"
             bind:value={editingDungeon.description}
             placeholder="Short description"
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          />
+        </div>
+        <div>
+          <span class="block text-xs text-gray-400 mb-1">Max Team Size</span>
+          <input
+            type="number"
+            min="1"
+            max="9"
+            value={editingDungeon.maxTeamSize ?? 5}
+            oninput={(e) => { if (editingDungeon) editingDungeon = { ...editingDungeon, maxTeamSize: parseInt(e.currentTarget.value) || 5 }; }}
             class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
           />
         </div>

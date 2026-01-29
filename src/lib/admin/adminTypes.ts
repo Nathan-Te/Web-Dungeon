@@ -77,6 +77,8 @@ export interface Dungeon {
   name: string;
   description: string;
   rooms: DungeonRoom[];
+  /** Maximum team size for this dungeon (default 5) */
+  maxTeamSize?: number;
 }
 
 /** Complete game content bundle (for export/import) */

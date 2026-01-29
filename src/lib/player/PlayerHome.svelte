@@ -44,7 +44,7 @@
       ? content.dungeons.find((d) => d.id === dailyDungeonId) ?? null
       : null
   );
-  let maxTeamSize = $derived(content.maxDungeonTeamSize ?? 6);
+  let maxTeamSize = $derived(dailyDungeon?.maxTeamSize ?? 5);
 
   onMount(() => {
     content = loadContent();
