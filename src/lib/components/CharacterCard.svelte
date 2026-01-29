@@ -77,14 +77,34 @@
   // --- Sprite sheet animation ---
   let currentFrame = $state(0);
   let frameTimer: ReturnType<typeof setInterval> | null = null;
+  let holdingLastFrame = $state(false);
 
-  function startFrameAnimation(cfg: SpriteSheetConfig) {
+  function startFrameAnimation(cfg: SpriteSheetConfig, isDeath: boolean) {
     stopFrameAnimation();
     currentFrame = 0;
+    holdingLastFrame = false;
     const duration = sprites?.frameDuration ?? 150;
-    frameTimer = setInterval(() => {
-      currentFrame = (currentFrame + 1) % cfg.frameCount;
-    }, duration);
+
+    if (isDeath) {
+      // Death: play through once, then hold the last frame
+      frameTimer = setInterval(() => {
+        if (currentFrame < cfg.frameCount - 1) {
+          currentFrame++;
+        } else {
+          // Reached last frame — hold it
+          holdingLastFrame = true;
+          if (frameTimer) {
+            clearInterval(frameTimer);
+            frameTimer = null;
+          }
+        }
+      }, duration);
+    } else {
+      // Normal: loop
+      frameTimer = setInterval(() => {
+        currentFrame = (currentFrame + 1) % cfg.frameCount;
+      }, duration);
+    }
   }
 
   function stopFrameAnimation() {
@@ -93,12 +113,13 @@
       frameTimer = null;
     }
     currentFrame = 0;
+    holdingLastFrame = false;
   }
 
   // Watch for sheet config changes
   $effect(() => {
     if (sheetConfig) {
-      startFrameAnimation(sheetConfig);
+      startFrameAnimation(sheetConfig, animState === 'death');
     } else {
       stopFrameAnimation();
     }
@@ -108,25 +129,6 @@
     stopFrameAnimation();
   });
 
-  /** Compute background-position for current frame in sheet */
-  let sheetBgPosition = $derived.by(() => {
-    if (!sheetConfig) return '0% 0%';
-    const col = currentFrame % sheetConfig.framesPerRow;
-    const row = Math.floor(currentFrame / sheetConfig.framesPerRow);
-    const totalCols = sheetConfig.framesPerRow;
-    const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow);
-    // percentage-based positioning
-    const xPct = totalCols > 1 ? (col / (totalCols - 1)) * 100 : 0;
-    const yPct = totalRows > 1 ? (row / (totalRows - 1)) * 100 : 0;
-    return `${xPct}% ${yPct}%`;
-  });
-
-  let sheetBgSize = $derived.by(() => {
-    if (!sheetConfig) return '100% 100%';
-    const totalCols = sheetConfig.framesPerRow;
-    const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow);
-    return `${totalCols * 100}% ${totalRows * 100}%`;
-  });
 </script>
 
 {#if hasSprite}
@@ -135,10 +137,19 @@
     <div class="w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
       {isPlayer ? 'border-blue-400' : 'border-red-400'}">
       {#if sheetConfig}
-        <!-- Animated sprite sheet -->
+        <!-- Animated sprite sheet: scale sheet so one frame fills the container -->
+        {@const scale = 88 / sheetConfig.frameWidth}
+        {@const totalCols = sheetConfig.framesPerRow}
+        {@const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow)}
+        {@const scaledW = totalCols * sheetConfig.frameWidth * scale}
+        {@const scaledH = totalRows * sheetConfig.frameHeight * scale}
+        {@const col = currentFrame % sheetConfig.framesPerRow}
+        {@const row = Math.floor(currentFrame / sheetConfig.framesPerRow)}
+        {@const posX = col * sheetConfig.frameWidth * scale}
+        {@const posY = row * sheetConfig.frameHeight * scale}
         <div
           class="w-full h-full transition-transform duration-200 {animClass}"
-          style="background-image: url({sheetConfig.src}); background-size: {sheetBgSize}; background-position: {sheetBgPosition};"
+          style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: -{posX}px -{posY}px;"
         ></div>
       {:else if staticSrc}
         <!-- Static image -->
