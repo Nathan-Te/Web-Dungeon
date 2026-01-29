@@ -81,6 +81,23 @@
     }
   }
 
+  // Hidden admin access: triple-click on the title
+  let titleClickCount = $state(0);
+  let titleClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function handleTitleClick() {
+    titleClickCount++;
+    if (titleClickTimer) clearTimeout(titleClickTimer);
+    if (titleClickCount >= 3) {
+      titleClickCount = 0;
+      onNavigate('admin');
+    } else {
+      titleClickTimer = setTimeout(() => {
+        titleClickCount = 0;
+      }, 600);
+    }
+  }
+
   const sections: { key: Section; label: string; icon: string }[] = [
     { key: 'collection', label: 'Collection', icon: '' },
     { key: 'gacha', label: 'Gacha', icon: '' },
@@ -91,19 +108,19 @@
 <div class="max-w-4xl mx-auto p-4">
   <!-- Header -->
   <div class="flex items-center justify-between mb-4">
-    <h1 class="text-2xl font-bold text-amber-400">Dungeon Gacha Run</h1>
+    <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+    <h1
+      class="text-2xl font-bold text-amber-400 select-none cursor-default"
+      onclick={handleTitleClick}
+    >
+      Dungeon Gacha Run
+    </h1>
     <div class="flex gap-2">
       <button
         onclick={handleResetSave}
         class="px-3 py-1 bg-red-900 hover:bg-red-800 rounded text-xs text-red-300"
       >
         Reset Save
-      </button>
-      <button
-        onclick={() => onNavigate('admin')}
-        class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs"
-      >
-        Admin
       </button>
     </div>
   </div>
