@@ -214,9 +214,9 @@
           const hp = survivorHp.get(char.id);
           units.push({
             id: char.id, name: char.name, role: char.role,
-            currentHp: hp?.currentHp ?? char.stats.hp,
-            maxHp: hp?.maxHp ?? char.stats.hp,
-            atk: char.stats.atk, def: char.stats.def, spd: char.stats.spd,
+            currentHp: hp?.currentHp ?? char.hp,
+            maxHp: hp?.maxHp ?? char.hp,
+            atk: char.atk, def: char.def, spd: char.spd,
             position: pos, team: teamType, isAlive: true,
             sprites: char.sprites, isBoss,
           });
@@ -233,9 +233,9 @@
                 const hp = survivorHp.get(char.id);
                 units.push({
                   id: char.id, name: char.name, role: char.role,
-                  currentHp: hp?.currentHp ?? char.stats.hp,
-                  maxHp: hp?.maxHp ?? char.stats.hp,
-                  atk: char.stats.atk, def: char.stats.def, spd: char.stats.spd,
+                  currentHp: hp?.currentHp ?? char.hp,
+                  maxHp: hp?.maxHp ?? char.hp,
+                  atk: char.atk, def: char.def, spd: char.spd,
                   position: { row: r as 0 | 1 | 2, col: c as 0 | 1 | 2 },
                   team: teamType, isAlive: true, sprites: char.sprites,
                 });
@@ -252,9 +252,9 @@
                   const hp = survivorHp.get(char.id);
                   units.push({
                     id: char.id, name: char.name, role: char.role,
-                    currentHp: hp?.currentHp ?? char.stats.hp,
-                    maxHp: hp?.maxHp ?? char.stats.hp,
-                    atk: char.stats.atk, def: char.stats.def, spd: char.stats.spd,
+                    currentHp: hp?.currentHp ?? char.hp,
+                    maxHp: hp?.maxHp ?? char.hp,
+                    atk: char.atk, def: char.def, spd: char.spd,
                     position: { row: r as 0 | 1 | 2, col: c as 0 | 1 | 2 },
                     team: teamType, isAlive: true, sprites: char.sprites,
                   });
