@@ -4,37 +4,62 @@
 
 import type { CharacterDefinition } from '../game/types';
 import { CHARACTER_DEFINITIONS } from '../game/characters';
+import { DEFAULT_ABILITIES, type AbilityDefinition } from '../game/abilities';
 import {
   type GameContent,
   type EnemyTemplate,
   type DungeonRoom,
   CURRENT_CONTENT_VERSION,
-  createEmptyContent,
 } from './adminTypes';
 
 const STORAGE_KEY = 'dungeon-gacha-content';
+
+/** Create default content with built-in data */
+function createDefaultContent(): GameContent {
+  return {
+    version: CURRENT_CONTENT_VERSION,
+    characters: [...CHARACTER_DEFINITIONS],
+    enemies: [],
+    dungeonRooms: [],
+    abilities: [...DEFAULT_ABILITIES],
+  };
+}
+
+/** Migrate v1 content to v2 (add abilities array) */
+function migrateContent(parsed: Record<string, unknown>): GameContent {
+  const content = parsed as Partial<GameContent>;
+  return {
+    version: CURRENT_CONTENT_VERSION,
+    characters: Array.isArray(content.characters) ? content.characters : [...CHARACTER_DEFINITIONS],
+    enemies: Array.isArray(content.enemies) ? content.enemies : [],
+    dungeonRooms: Array.isArray(content.dungeonRooms) ? content.dungeonRooms : [],
+    abilities: Array.isArray(content.abilities) ? content.abilities : [...DEFAULT_ABILITIES],
+  };
+}
 
 /** Load content from localStorage, falling back to defaults */
 export function loadContent(): GameContent {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as GameContent;
+      const parsed = JSON.parse(raw);
       if (parsed.version === CURRENT_CONTENT_VERSION) {
-        return parsed;
+        // Ensure abilities array exists even on current version
+        if (!Array.isArray(parsed.abilities)) {
+          parsed.abilities = [...DEFAULT_ABILITIES];
+        }
+        return parsed as GameContent;
       }
+      // Migrate older versions
+      const migrated = migrateContent(parsed);
+      saveContent(migrated);
+      return migrated;
     }
   } catch {
     // Ignore parse errors
   }
 
-  // Default: load built-in character definitions
-  return {
-    version: CURRENT_CONTENT_VERSION,
-    characters: [...CHARACTER_DEFINITIONS],
-    enemies: [],
-    dungeonRooms: [],
-  };
+  return createDefaultContent();
 }
 
 /** Save content to localStorage */
@@ -66,14 +91,14 @@ export function parseImportedJson(jsonString: string): GameContent | string {
       return 'Invalid content format: missing version or characters array';
     }
 
-    // Validate characters
     for (const char of parsed.characters) {
       if (!char.id || !char.name || !char.role || !char.rarity) {
         return `Invalid character: ${JSON.stringify(char).slice(0, 80)}`;
       }
     }
 
-    return parsed as GameContent;
+    // Migrate if needed
+    return migrateContent(parsed);
   } catch (e) {
     return `JSON parse error: ${e instanceof Error ? e.message : String(e)}`;
   }
@@ -81,12 +106,7 @@ export function parseImportedJson(jsonString: string): GameContent | string {
 
 /** Reset content to built-in defaults */
 export function resetToDefaults(): GameContent {
-  const content: GameContent = {
-    version: CURRENT_CONTENT_VERSION,
-    characters: [...CHARACTER_DEFINITIONS],
-    enemies: [],
-    dungeonRooms: [],
-  };
+  const content = createDefaultContent();
   saveContent(content);
   return content;
 }
@@ -128,7 +148,6 @@ export function deleteEnemy(content: GameContent, id: string): GameContent {
   return {
     ...content,
     enemies: content.enemies.filter((e) => e.id !== id),
-    // Also remove from dungeon rooms
     dungeonRooms: content.dungeonRooms.map((room) => ({
       ...room,
       enemies: room.enemies.filter((e) => e.enemyTemplateId !== id),
@@ -152,5 +171,24 @@ export function deleteRoom(content: GameContent, id: string): GameContent {
   return {
     ...content,
     dungeonRooms: content.dungeonRooms.filter((r) => r.id !== id),
+  };
+}
+
+export function upsertAbility(
+  content: GameContent,
+  ability: AbilityDefinition
+): GameContent {
+  const idx = content.abilities.findIndex((a) => a.id === ability.id);
+  const abilities =
+    idx >= 0
+      ? content.abilities.map((a, i) => (i === idx ? ability : a))
+      : [...content.abilities, ability];
+  return { ...content, abilities };
+}
+
+export function deleteAbility(content: GameContent, id: string): GameContent {
+  return {
+    ...content,
+    abilities: content.abilities.filter((a) => a.id !== id),
   };
 }

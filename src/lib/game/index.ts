@@ -21,3 +21,12 @@ export {
   getCharactersByRarity,
   getCharactersByRole,
 } from './characters';
+
+// Abilities
+export {
+  DEFAULT_ABILITIES,
+  getAbilityById,
+  getAbilitiesForRole,
+  type AbilityDefinition,
+  type AbilityTargeting,
+} from './abilities';

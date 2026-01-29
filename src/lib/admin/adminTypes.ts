@@ -4,6 +4,7 @@
  */
 
 import type { CharacterDefinition, Role, Rarity } from '../game/types';
+import type { AbilityDefinition } from '../game/abilities';
 
 /** Enemy template for dungeon encounters */
 export interface EnemyTemplate {
@@ -13,8 +14,8 @@ export interface EnemyTemplate {
   rarity: Rarity;
   level: number;
   ascension: number;
-  abilityName: string;
-  abilityDescription: string;
+  /** Reference to ability ID from the abilities list */
+  abilityId: string;
   /** Optional stat overrides (multipliers applied to role base stats) */
   statOverrides?: {
     hpMult?: number;
@@ -42,25 +43,22 @@ export interface DungeonRoomEnemy {
   position?: { row: 0 | 1 | 2; col: 0 | 1 | 2 };
 }
 
+/** Extended character definition with ability ID reference */
+export interface CharacterWithAbility extends CharacterDefinition {
+  /** Reference to ability ID */
+  abilityId: string;
+}
+
 /** Complete game content bundle (for export/import) */
 export interface GameContent {
   version: number;
   characters: CharacterDefinition[];
   enemies: EnemyTemplate[];
   dungeonRooms: DungeonRoom[];
+  abilities: AbilityDefinition[];
 }
 
-export const CURRENT_CONTENT_VERSION = 1;
-
-/** Default empty content */
-export function createEmptyContent(): GameContent {
-  return {
-    version: CURRENT_CONTENT_VERSION,
-    characters: [],
-    enemies: [],
-    dungeonRooms: [],
-  };
-}
+export const CURRENT_CONTENT_VERSION = 2;
 
 /** Generate a unique ID */
 export function generateId(prefix: string): string {
@@ -88,8 +86,7 @@ export function createBlankEnemy(): EnemyTemplate {
     rarity: 'common',
     level: 1,
     ascension: 0,
-    abilityName: '',
-    abilityDescription: '',
+    abilityId: 'ability_cleave',
   };
 }
 
@@ -102,5 +99,20 @@ export function createBlankRoom(roomNumber: number): DungeonRoom {
     isBoss: roomNumber === 6,
     enemies: [],
     difficultyMult: 1 + (roomNumber - 1) * 0.1,
+  };
+}
+
+/** Create a blank ability definition */
+export function createBlankAbility(): AbilityDefinition {
+  return {
+    id: generateId('ability'),
+    name: '',
+    description: '',
+    allowedRoles: ['warrior'],
+    powerMultiplier: 1.0,
+    targeting: 'single_closest',
+    targetCount: 1,
+    ignoreDefense: false,
+    healThreshold: 0,
   };
 }

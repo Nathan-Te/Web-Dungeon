@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { CharacterDefinition } from '../game/types';
+  import type { AbilityDefinition } from '../game/abilities';
   import type { GameContent, EnemyTemplate, DungeonRoom } from './adminTypes';
   import {
     loadContent,
@@ -14,10 +15,14 @@
     deleteEnemy,
     upsertRoom,
     deleteRoom,
+    upsertAbility,
+    deleteAbility,
   } from './contentStore';
   import CharacterEditor from './CharacterEditor.svelte';
   import EnemyEditor from './EnemyEditor.svelte';
   import DungeonEditor from './DungeonEditor.svelte';
+  import SpellEditor from './SpellEditor.svelte';
+  import RolesReference from './RolesReference.svelte';
 
   interface Props {
     onNavigate: (page: string) => void;
@@ -25,9 +30,9 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'data';
   let activeTab: Tab = $state('characters');
-  let content: GameContent = $state({ version: 1, characters: [], enemies: [], dungeonRooms: [] });
+  let content: GameContent = $state({ version: 2, characters: [], enemies: [], dungeonRooms: [], abilities: [] });
   let statusMessage = $state('');
   let importError = $state('');
 
@@ -70,6 +75,14 @@
     save(deleteRoom(content, id));
   }
 
+  // Ability CRUD
+  function onSaveAbility(ability: AbilityDefinition) {
+    save(upsertAbility(content, ability));
+  }
+  function onDeleteAbility(id: string) {
+    save(deleteAbility(content, id));
+  }
+
   // Data management
   function handleExport() {
     exportContentAsJson(content);
@@ -106,8 +119,10 @@
   const tabs: { key: Tab; label: string; count: () => number }[] = [
     { key: 'characters', label: 'Characters', count: () => content.characters.length },
     { key: 'enemies', label: 'Enemies', count: () => content.enemies.length },
-    { key: 'dungeons', label: 'Dungeon Rooms', count: () => content.dungeonRooms.length },
-    { key: 'data', label: 'Import / Export', count: () => 0 },
+    { key: 'dungeons', label: 'Dungeons', count: () => content.dungeonRooms.length },
+    { key: 'spells', label: 'Spells', count: () => content.abilities.length },
+    { key: 'roles', label: 'Roles', count: () => 0 },
+    { key: 'data', label: 'Data', count: () => 0 },
   ];
 </script>
 
@@ -131,11 +146,11 @@
   {/if}
 
   <!-- Tabs -->
-  <div class="flex gap-1 mb-6 border-b border-slate-700 pb-1">
+  <div class="flex gap-1 mb-6 border-b border-slate-700 pb-1 overflow-x-auto">
     {#each tabs as tab}
       <button
         onclick={() => (activeTab = tab.key)}
-        class="px-4 py-2 rounded-t text-sm font-medium transition-colors
+        class="px-3 py-2 rounded-t text-sm font-medium transition-colors whitespace-nowrap
           {activeTab === tab.key
             ? 'bg-slate-700 text-white'
             : 'text-gray-400 hover:text-gray-300 hover:bg-slate-800'}"
@@ -154,12 +169,14 @@
   {#if activeTab === 'characters'}
     <CharacterEditor
       characters={content.characters}
+      abilities={content.abilities}
       onSave={onSaveCharacter}
       onDelete={onDeleteCharacter}
     />
   {:else if activeTab === 'enemies'}
     <EnemyEditor
       enemies={content.enemies}
+      abilities={content.abilities}
       onSave={onSaveEnemy}
       onDelete={onDeleteEnemy}
     />
@@ -170,12 +187,20 @@
       onSave={onSaveRoom}
       onDelete={onDeleteRoom}
     />
+  {:else if activeTab === 'spells'}
+    <SpellEditor
+      abilities={content.abilities}
+      onSave={onSaveAbility}
+      onDelete={onDeleteAbility}
+    />
+  {:else if activeTab === 'roles'}
+    <RolesReference />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
       <!-- Summary -->
       <div class="bg-slate-800 rounded-lg p-4">
         <h3 class="font-bold mb-3">Content Summary</h3>
-        <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div class="bg-slate-900 rounded p-3">
             <div class="text-2xl font-bold text-blue-400">{content.characters.length}</div>
             <div class="text-xs text-gray-400">Characters</div>
@@ -187,6 +212,10 @@
           <div class="bg-slate-900 rounded p-3">
             <div class="text-2xl font-bold text-amber-400">{content.dungeonRooms.length}</div>
             <div class="text-xs text-gray-400">Rooms</div>
+          </div>
+          <div class="bg-slate-900 rounded p-3">
+            <div class="text-2xl font-bold text-purple-400">{content.abilities.length}</div>
+            <div class="text-xs text-gray-400">Spells</div>
           </div>
         </div>
       </div>

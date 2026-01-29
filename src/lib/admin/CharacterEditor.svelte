@@ -1,27 +1,20 @@
 <script lang="ts">
   import type { CharacterDefinition, Role, Rarity } from '../game/types';
   import { ROLE_BASE_STATS } from '../game/types';
+  import type { AbilityDefinition } from '../game/abilities';
   import { createBlankCharacter } from './adminTypes';
 
   interface Props {
     characters: CharacterDefinition[];
+    abilities: AbilityDefinition[];
     onSave: (char: CharacterDefinition) => void;
     onDelete: (id: string) => void;
   }
 
-  let { characters, onSave, onDelete }: Props = $props();
+  let { characters, abilities, onSave, onDelete }: Props = $props();
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
-
-  const ROLE_ABILITIES: Record<Role, { name: string; desc: string }> = {
-    tank: { name: 'Taunt', desc: 'Draws enemy attention' },
-    warrior: { name: 'Cleave', desc: 'AoE damage to multiple enemies' },
-    archer: { name: 'Multi-shot', desc: 'Attacks 2 targets' },
-    mage: { name: 'Fireball', desc: 'High burst damage' },
-    assassin: { name: 'Backstab', desc: 'Ignores defense' },
-    healer: { name: 'Heal', desc: 'Heals the weakest ally' },
-  };
 
   const RARITY_STARS: Record<Rarity, string> = {
     common: '1',
@@ -49,8 +42,20 @@
     })
   );
 
+  /** Get abilities available for a given role */
+  function abilitiesForRole(role: Role): AbilityDefinition[] {
+    return abilities.filter((a) => a.allowedRoles.includes(role));
+  }
+
   function startNew() {
-    editingChar = createBlankCharacter();
+    const char = createBlankCharacter();
+    // Auto-select first ability for default role
+    const available = abilitiesForRole(char.role);
+    if (available.length > 0) {
+      char.abilityName = available[0].name;
+      char.abilityDescription = available[0].description;
+    }
+    editingChar = char;
   }
 
   function startEdit(char: CharacterDefinition) {
@@ -76,13 +81,33 @@
 
   function onRoleChange(role: Role) {
     if (!editingChar) return;
-    const ability = ROLE_ABILITIES[role];
+    const available = abilitiesForRole(role);
     editingChar = {
       ...editingChar,
       role,
-      abilityName: ability.name,
-      abilityDescription: ability.desc,
+      abilityName: available.length > 0 ? available[0].name : '',
+      abilityDescription: available.length > 0 ? available[0].description : '',
     };
+  }
+
+  function onAbilityChange(abilityId: string) {
+    if (!editingChar) return;
+    const ability = abilities.find((a) => a.id === abilityId);
+    if (ability) {
+      editingChar = {
+        ...editingChar,
+        abilityName: ability.name,
+        abilityDescription: ability.description,
+      };
+    }
+  }
+
+  function getSelectedAbilityId(): string {
+    if (!editingChar) return '';
+    const match = abilities.find(
+      (a) => a.name === editingChar!.abilityName && a.allowedRoles.includes(editingChar!.role)
+    );
+    return match?.id ?? '';
   }
 </script>
 
@@ -121,6 +146,8 @@
 
   <!-- Edit Form -->
   {#if editingChar}
+    {@const availableAbilities = abilitiesForRole(editingChar.role)}
+    {@const allAbilities = abilities}
     <div class="bg-slate-800 rounded-lg p-4 border border-slate-600">
       <h3 class="font-bold mb-3">
         {characters.some((c) => c.id === editingChar?.id) ? 'Edit' : 'New'} Character
@@ -128,7 +155,7 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Name</label>
+          <span class="block text-xs text-gray-400 mb-1">Name</span>
           <input
             type="text"
             bind:value={editingChar.name}
@@ -138,7 +165,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">ID</label>
+          <span class="block text-xs text-gray-400 mb-1">ID</span>
           <input
             type="text"
             value={editingChar.id}
@@ -148,7 +175,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Role</label>
+          <span class="block text-xs text-gray-400 mb-1">Role</span>
           <select
             value={editingChar.role}
             onchange={(e) => onRoleChange(e.currentTarget.value as Role)}
@@ -161,7 +188,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Rarity</label>
+          <span class="block text-xs text-gray-400 mb-1">Rarity</span>
           <select
             bind:value={editingChar.rarity}
             class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
@@ -172,22 +199,34 @@
           </select>
         </div>
 
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Ability Name</label>
-          <input
-            type="text"
-            bind:value={editingChar.abilityName}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          />
-        </div>
-
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Ability Description</label>
-          <input
-            type="text"
-            bind:value={editingChar.abilityDescription}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          />
+        <div class="sm:col-span-2">
+          <span class="block text-xs text-gray-400 mb-1">Spell</span>
+          {#if availableAbilities.length > 0}
+            <select
+              value={getSelectedAbilityId()}
+              onchange={(e) => onAbilityChange(e.currentTarget.value)}
+              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+            >
+              {#each availableAbilities as ab}
+                <option value={ab.id}>
+                  {ab.name} - {ab.powerMultiplier}x ATK, {ab.targetCount} target(s)
+                </option>
+              {/each}
+              <!-- Also show all abilities if the current one doesn't match role -->
+              {#if !availableAbilities.some((a) => a.name === editingChar.abilityName)}
+                <optgroup label="All spells">
+                  {#each allAbilities as ab}
+                    <option value={ab.id}>{ab.name} ({ab.allowedRoles.join(', ')})</option>
+                  {/each}
+                </optgroup>
+              {/if}
+            </select>
+          {:else}
+            <p class="text-xs text-yellow-500 py-2">No spells defined for {editingChar.role}. Create one in the Spells tab.</p>
+          {/if}
+          {#if editingChar.abilityDescription}
+            <p class="text-xs text-gray-500 mt-1">{editingChar.abilityDescription}</p>
+          {/if}
         </div>
       </div>
 

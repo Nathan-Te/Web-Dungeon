@@ -1,28 +1,21 @@
 <script lang="ts">
   import type { Role, Rarity } from '../game/types';
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
+  import type { AbilityDefinition } from '../game/abilities';
   import type { EnemyTemplate } from './adminTypes';
   import { createBlankEnemy } from './adminTypes';
 
   interface Props {
     enemies: EnemyTemplate[];
+    abilities: AbilityDefinition[];
     onSave: (enemy: EnemyTemplate) => void;
     onDelete: (id: string) => void;
   }
 
-  let { enemies, onSave, onDelete }: Props = $props();
+  let { enemies, abilities, onSave, onDelete }: Props = $props();
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
-
-  const ROLE_ABILITIES: Record<Role, { name: string; desc: string }> = {
-    tank: { name: 'Taunt', desc: 'Draws enemy attention' },
-    warrior: { name: 'Cleave', desc: 'AoE damage to multiple enemies' },
-    archer: { name: 'Multi-shot', desc: 'Attacks 2 targets' },
-    mage: { name: 'Fireball', desc: 'High burst damage' },
-    assassin: { name: 'Backstab', desc: 'Ignores defense' },
-    healer: { name: 'Heal', desc: 'Heals the weakest ally' },
-  };
 
   const RARITY_COLORS: Record<Rarity, string> = {
     common: 'text-gray-400',
@@ -33,10 +26,18 @@
 
   let editingEnemy: EnemyTemplate | null = $state(null);
 
+  function abilitiesForRole(role: Role): AbilityDefinition[] {
+    return abilities.filter((a) => a.allowedRoles.includes(role));
+  }
+
   function calcStat(base: number, level: number, ascension: number, mult: number = 1): number {
     const levelMult = 1 + (level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
     const ascMult = 1 + ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
     return Math.floor(base * levelMult * ascMult * mult);
+  }
+
+  function getAbilityName(abilityId: string): string {
+    return abilities.find((a) => a.id === abilityId)?.name ?? abilityId;
   }
 
   function startNew() {
@@ -66,12 +67,11 @@
 
   function onRoleChange(role: Role) {
     if (!editingEnemy) return;
-    const ability = ROLE_ABILITIES[role];
+    const available = abilitiesForRole(role);
     editingEnemy = {
       ...editingEnemy,
       role,
-      abilityName: ability.name,
-      abilityDescription: ability.desc,
+      abilityId: available.length > 0 ? available[0].id : editingEnemy.abilityId,
     };
   }
 </script>
@@ -90,6 +90,7 @@
 
   <!-- Edit Form -->
   {#if editingEnemy}
+    {@const availableAbilities = abilitiesForRole(editingEnemy.role)}
     <div class="bg-slate-800 rounded-lg p-4 border border-red-900">
       <h3 class="font-bold mb-3 text-red-400">
         {enemies.some((e) => e.id === editingEnemy?.id) ? 'Edit' : 'New'} Enemy
@@ -97,7 +98,7 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Name</label>
+          <span class="block text-xs text-gray-400 mb-1">Name</span>
           <input
             type="text"
             bind:value={editingEnemy.name}
@@ -107,7 +108,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">ID</label>
+          <span class="block text-xs text-gray-400 mb-1">ID</span>
           <input
             type="text"
             value={editingEnemy.id}
@@ -117,7 +118,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Role</label>
+          <span class="block text-xs text-gray-400 mb-1">Role</span>
           <select
             value={editingEnemy.role}
             onchange={(e) => onRoleChange(e.currentTarget.value as Role)}
@@ -130,7 +131,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Rarity</label>
+          <span class="block text-xs text-gray-400 mb-1">Rarity</span>
           <select
             bind:value={editingEnemy.rarity}
             class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
@@ -142,7 +143,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Level (1-100)</label>
+          <span class="block text-xs text-gray-400 mb-1">Level (1-100)</span>
           <input
             type="number"
             bind:value={editingEnemy.level}
@@ -153,7 +154,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Ascension (0-6)</label>
+          <span class="block text-xs text-gray-400 mb-1">Ascension (0-6)</span>
           <input
             type="number"
             bind:value={editingEnemy.ascension}
@@ -163,31 +164,38 @@
           />
         </div>
 
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Ability Name</label>
-          <input
-            type="text"
-            bind:value={editingEnemy.abilityName}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          />
-        </div>
-
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Ability Description</label>
-          <input
-            type="text"
-            bind:value={editingEnemy.abilityDescription}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          />
+        <div class="sm:col-span-2">
+          <span class="block text-xs text-gray-400 mb-1">Spell</span>
+          {#if availableAbilities.length > 0}
+            <select
+              bind:value={editingEnemy.abilityId}
+              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+            >
+              {#each availableAbilities as ab}
+                <option value={ab.id}>
+                  {ab.name} - {ab.powerMultiplier}x ATK, {ab.targetCount} target(s)
+                </option>
+              {/each}
+            </select>
+          {:else}
+            <select
+              bind:value={editingEnemy.abilityId}
+              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+            >
+              {#each abilities as ab}
+                <option value={ab.id}>{ab.name} ({ab.allowedRoles.join(', ')})</option>
+              {/each}
+            </select>
+          {/if}
         </div>
       </div>
 
       <!-- Stat Overrides -->
       <div class="mt-3">
-        <label class="block text-xs text-gray-400 mb-1">Stat Multipliers (optional, default 1.0)</label>
+        <span class="block text-xs text-gray-400 mb-1">Stat Multipliers (default 1.0)</span>
         <div class="grid grid-cols-4 gap-2">
           <div>
-            <label class="text-xs text-gray-500">HP x</label>
+            <span class="text-xs text-gray-500">HP x</span>
             <input
               type="number"
               step="0.1"
@@ -205,7 +213,7 @@
             />
           </div>
           <div>
-            <label class="text-xs text-gray-500">ATK x</label>
+            <span class="text-xs text-gray-500">ATK x</span>
             <input
               type="number"
               step="0.1"
@@ -223,7 +231,7 @@
             />
           </div>
           <div>
-            <label class="text-xs text-gray-500">DEF x</label>
+            <span class="text-xs text-gray-500">DEF x</span>
             <input
               type="number"
               step="0.1"
@@ -241,7 +249,7 @@
             />
           </div>
           <div>
-            <label class="text-xs text-gray-500">SPD x</label>
+            <span class="text-xs text-gray-500">SPD x</span>
             <input
               type="number"
               step="0.1"
@@ -308,6 +316,8 @@
         </span>
 
         <span class="flex-1 font-medium text-red-300">{enemy.name}</span>
+
+        <span class="text-xs text-purple-400">{getAbilityName(enemy.abilityId)}</span>
 
         <span class="text-xs text-gray-500">
           Lv{enemy.level} A{enemy.ascension}
