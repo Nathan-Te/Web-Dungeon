@@ -37,7 +37,7 @@
       <div class="flex gap-2 justify-center">
         {#each cols as col}
           {@const unit = getUnitAtPosition(enemyDisplayUnits, row, col)}
-          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-center justify-center">
+          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
             {#if unit}
               <CharacterCard
                 name={unit.name}
@@ -69,7 +69,7 @@
       <div class="flex gap-2 justify-center">
         {#each cols as col}
           {@const unit = getUnitAtPosition(playerDisplayUnits, row, col)}
-          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-center justify-center">
+          <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
             {#if unit}
               <CharacterCard
                 name={unit.name}
