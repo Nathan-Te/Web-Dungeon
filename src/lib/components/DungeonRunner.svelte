@@ -402,6 +402,7 @@
           if (tIdx !== -1) {
             units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - aoe.damage);
             units[tIdx].hitEffect = 'damage';
+            if (units[tIdx].currentHp <= 0) { units[tIdx].isAlive = false; units[tIdx].animState = 'death'; }
           }
         }
       } else {
@@ -409,6 +410,7 @@
         if (tIdx !== -1 && action.damage !== undefined) {
           units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - action.damage);
           units[tIdx].hitEffect = 'damage';
+          if (units[tIdx].currentHp <= 0) { units[tIdx].isAlive = false; units[tIdx].animState = 'death'; }
         }
       }
     } else if (action.actionType === 'heal') {
