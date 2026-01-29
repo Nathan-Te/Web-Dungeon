@@ -1,17 +1,22 @@
 <script lang="ts">
-  import type { CharacterDefinition, Rarity } from '../game/types';
+  import type { CharacterDefinition, Rarity, Role } from '../game/types';
   import type { GachaConfig, Dungeon } from './adminTypes';
+  import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
     characters: CharacterDefinition[];
     dungeons: Dungeon[];
     gachaConfig?: GachaConfig;
     dailyDungeonId?: string;
+    dailyDungeonSchedule?: Record<string, string>;
+    maxDungeonTeamSize?: number;
     onSave: (config: GachaConfig) => void;
     onSaveDailyDungeon: (id: string) => void;
+    onSaveSchedule: (schedule: Record<string, string>) => void;
+    onSaveMaxTeamSize: (size: number) => void;
   }
 
-  let { characters, dungeons, gachaConfig, dailyDungeonId, onSave, onSaveDailyDungeon }: Props = $props();
+  let { characters, dungeons, gachaConfig, dailyDungeonId, dailyDungeonSchedule, maxDungeonTeamSize, onSave, onSaveDailyDungeon, onSaveSchedule, onSaveMaxTeamSize }: Props = $props();
 
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
   const RARITY_COLORS: Record<Rarity, string> = {
@@ -34,6 +39,72 @@
   );
 
   let selectedDailyId: string = $state(dailyDungeonId ?? '');
+  let schedule: Record<string, string> = $state(dailyDungeonSchedule ? { ...dailyDungeonSchedule } : {});
+  let teamSize: number = $state(maxDungeonTeamSize ?? 6);
+
+  // Calendar state
+  let calendarMonth = $state(new Date());
+
+  function getCalendarDays(): { date: string; day: number; isCurrentMonth: boolean }[] {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+    const firstDay = new Date(y, m, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const days: { date: string; day: number; isCurrentMonth: boolean }[] = [];
+    // Padding for start of week
+    for (let i = 0; i < firstDay; i++) {
+      days.push({ date: '', day: 0, isCurrentMonth: false });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ date: dateStr, day: d, isCurrentMonth: true });
+    }
+    return days;
+  }
+
+  let calendarDays = $derived(getCalendarDays());
+  let calendarLabel = $derived(
+    calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  );
+
+  function prevMonth() {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+  }
+  function nextMonth() {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+  }
+
+  let selectedCalendarDate: string | null = $state(null);
+  let selectedCalendarDungeonId: string = $state('');
+
+  function selectCalendarDate(date: string) {
+    selectedCalendarDate = date;
+    selectedCalendarDungeonId = schedule[date] ?? '';
+  }
+
+  function assignDungeonToDate() {
+    if (!selectedCalendarDate) return;
+    if (selectedCalendarDungeonId) {
+      schedule = { ...schedule, [selectedCalendarDate]: selectedCalendarDungeonId };
+    } else {
+      const { [selectedCalendarDate]: _, ...rest } = schedule;
+      schedule = rest;
+    }
+    onSaveSchedule(schedule);
+    selectedCalendarDate = null;
+  }
+
+  function getDungeonName(id: string): string {
+    return dungeons.find((d) => d.id === id)?.name ?? '???';
+  }
+
+  function getTodayStr(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function handleSaveMaxTeamSize() {
+    onSaveMaxTeamSize(teamSize);
+  }
 
   function isInPool(charId: string): boolean {
     return config.characterPool.includes(charId);
@@ -86,18 +157,29 @@
     if (selectedDailyId) onSaveDailyDungeon(selectedDailyId);
   }
 
+  const ROLE_ICONS: Record<Role, string> = {
+    tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
+    assassin: 'X', healer: 'H', summoner: 'S',
+  };
+
+  const ROLE_COLORS: Record<Role, string> = {
+    tank: 'bg-blue-900', warrior: 'bg-orange-900', archer: 'bg-green-900',
+    mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
+    summoner: 'bg-teal-900',
+  };
+
   function getCharsByRarity(rarity: Rarity): CharacterDefinition[] {
     return characters.filter((c) => c.rarity === rarity);
   }
 </script>
 
 <div class="space-y-6">
-  <!-- Daily Dungeon Selection -->
+  <!-- Daily Dungeon Fallback -->
   <div class="bg-slate-800 rounded-lg p-4">
-    <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon</h3>
-    <div class="flex gap-3 items-end">
+    <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon - Default Fallback</h3>
+    <div class="flex gap-3 items-end mb-4">
       <div class="flex-1">
-        <span class="block text-xs text-gray-400 mb-1">Select dungeon for daily challenge</span>
+        <span class="block text-xs text-gray-400 mb-1">Fallback dungeon (used when no calendar entry for today)</span>
         <select
           bind:value={selectedDailyId}
           class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
@@ -116,6 +198,93 @@
         Save
       </button>
     </div>
+
+    <!-- Max Team Size -->
+    <div class="flex gap-3 items-end">
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">Max Team Size</span>
+        <input
+          type="number"
+          min="1"
+          max="9"
+          bind:value={teamSize}
+          class="w-20 px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
+      <button
+        onclick={handleSaveMaxTeamSize}
+        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold"
+      >
+        Save
+      </button>
+    </div>
+  </div>
+
+  <!-- Daily Dungeon Calendar -->
+  <div class="bg-slate-800 rounded-lg p-4">
+    <h3 class="font-bold mb-3 text-amber-400">Daily Dungeon Calendar</h3>
+
+    <!-- Month navigation -->
+    <div class="flex items-center justify-between mb-3">
+      <button onclick={prevMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&lt;</button>
+      <span class="font-bold text-sm">{calendarLabel}</span>
+      <button onclick={nextMonth} class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">&gt;</button>
+    </div>
+
+    <!-- Weekday headers -->
+    <div class="grid grid-cols-7 gap-1 mb-1">
+      {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as d}
+        <div class="text-center text-[10px] text-gray-500 font-bold">{d}</div>
+      {/each}
+    </div>
+
+    <!-- Calendar grid -->
+    <div class="grid grid-cols-7 gap-1">
+      {#each calendarDays as cell}
+        {#if cell.isCurrentMonth}
+          {@const assigned = schedule[cell.date]}
+          {@const isToday = cell.date === getTodayStr()}
+          <button
+            onclick={() => selectCalendarDate(cell.date)}
+            class="h-10 rounded text-xs flex flex-col items-center justify-center transition-colors
+              {isToday ? 'ring-2 ring-yellow-400' : ''}
+              {assigned ? 'bg-amber-900 text-amber-200' : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}
+              {selectedCalendarDate === cell.date ? 'ring-2 ring-white' : ''}"
+          >
+            <span class="font-bold">{cell.day}</span>
+            {#if assigned}
+              <span class="text-[7px] truncate w-full text-center px-0.5">{getDungeonName(assigned)}</span>
+            {/if}
+          </button>
+        {:else}
+          <div></div>
+        {/if}
+      {/each}
+    </div>
+
+    <!-- Assign dungeon to selected date -->
+    {#if selectedCalendarDate}
+      <div class="mt-3 p-3 bg-slate-900 rounded">
+        <div class="text-xs text-gray-400 mb-2">Assign dungeon for <span class="text-white font-bold">{selectedCalendarDate}</span>:</div>
+        <div class="flex gap-2 items-end">
+          <select
+            bind:value={selectedCalendarDungeonId}
+            class="flex-1 px-3 py-2 bg-slate-700 rounded text-sm"
+          >
+            <option value="">-- None --</option>
+            {#each dungeons as dungeon}
+              <option value={dungeon.id}>{dungeon.name}</option>
+            {/each}
+          </select>
+          <button
+            onclick={assignDungeonToDate}
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold"
+          >
+            {selectedCalendarDungeonId ? 'Assign' : 'Clear'}
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <!-- Gacha Rates -->
@@ -194,18 +363,21 @@
     {#each RARITIES as rarity}
       {@const chars = getCharsByRarity(rarity)}
       {#if chars.length > 0}
-        <div class="mb-2">
+        <div class="mb-3">
           <span class="text-xs font-bold capitalize {RARITY_COLORS[rarity]}">{rarity}</span>
-          <div class="flex gap-1 flex-wrap mt-1">
+          <div class="flex gap-2 flex-wrap mt-1">
             {#each chars as char}
               <button
                 onclick={() => toggleCharacter(char.id)}
-                class="px-2 py-1 rounded text-xs transition-colors
+                class="w-16 h-20 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                   {isInPool(char.id)
-                    ? 'bg-green-700 text-white'
-                    : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
+                    ? 'border-green-400 ring-1 ring-green-400'
+                    : 'border-slate-600 hover:border-slate-400 opacity-50'}
+                  {ROLE_COLORS[char.role]}"
               >
-                {char.name}
+                <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-12 h-12 mt-0.5" />
+                <span class="text-[8px] font-medium truncate w-full text-center px-0.5">{char.name}</span>
+                <span class="text-[7px] capitalize text-gray-400">{char.role}</span>
               </button>
             {/each}
           </div>

@@ -3,6 +3,7 @@
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { GachaConfig } from '../admin/adminTypes';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
+  import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
     playerSave: PlayerSave;
@@ -66,13 +67,6 @@
     return cost !== null && owned.duplicates >= cost;
   }
 
-  function getSpriteUrl(def: CharacterDefinition): string | null {
-    const idle = def.sprites?.idle;
-    if (!idle) return null;
-    if (typeof idle === 'string') return idle;
-    return (idle as SpriteSheetConfig).src;
-  }
-
   let selectedChar = $derived(selectedCharId ? getCharDef(selectedCharId) : null);
   let selectedOwned = $derived(selectedCharId ? ownedMap.get(selectedCharId) : undefined);
 </script>
@@ -97,13 +91,7 @@
               {selectedCharId === owned.characterId ? 'ring-2 ring-white scale-105' : 'hover:brightness-125'}
               bg-slate-800"
           >
-            <div class="w-14 h-14 flex items-center justify-center">
-              {#if getSpriteUrl(def)}
-                <img src={getSpriteUrl(def)} alt={def.name} class="w-full h-full object-contain" />
-              {:else}
-                <span class="text-2xl font-bold text-white/30">{ROLE_ICONS[def.role]}</span>
-              {/if}
-            </div>
+            <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14" />
             <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
             <span class="text-[8px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
           </button>
@@ -118,12 +106,8 @@
       <div class="bg-slate-800 rounded-lg p-4 max-w-md mx-auto border {RARITY_BORDER[selectedChar.rarity]}">
         <div class="flex gap-4">
           <!-- Sprite -->
-          <div class="w-24 h-24 rounded-lg bg-slate-900 flex items-center justify-center border border-slate-700 overflow-hidden">
-            {#if getSpriteUrl(selectedChar)}
-              <img src={getSpriteUrl(selectedChar)} alt={selectedChar.name} class="w-full h-full object-contain" />
-            {:else}
-              <span class="text-4xl font-bold text-white/20">{ROLE_ICONS[selectedChar.role]}</span>
-            {/if}
+          <div class="w-24 h-24 rounded-lg bg-slate-900 border border-slate-700 overflow-hidden">
+            <SpritePreview sprites={selectedChar.sprites} fallback={ROLE_ICONS[selectedChar.role]} class="w-24 h-24" />
           </div>
           <!-- Info -->
           <div class="flex-1 space-y-1">

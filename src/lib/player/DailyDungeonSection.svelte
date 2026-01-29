@@ -23,6 +23,8 @@
   import BattleGrid from '../components/BattleGrid.svelte';
   import BattleLog from '../components/BattleLog.svelte';
 
+  import SpritePreview from '../components/SpritePreview.svelte';
+
   interface Props {
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
@@ -30,11 +32,23 @@
     enemies: EnemyTemplate[];
     abilities: AbilityDefinition[];
     roleStats?: Partial<Record<Role, BaseStats>>;
+    maxTeamSize?: number;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, onAttemptUsed, onDungeonCleared }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 6, onAttemptUsed, onDungeonCleared }: Props = $props();
+
+  const ROLE_ICONS: Record<Role, string> = {
+    tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
+    assassin: 'X', healer: 'H', summoner: 'S',
+  };
+
+  const ROLE_COLORS: Record<Role, string> = {
+    tank: 'bg-blue-900', warrior: 'bg-orange-900', archer: 'bg-green-900',
+    mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
+    summoner: 'bg-teal-900',
+  };
 
   interface DisplayUnit {
     id: string;
@@ -94,7 +108,7 @@
   function toggleSelect(charId: string) {
     if (selectedIds.includes(charId)) {
       selectedIds = selectedIds.filter((id) => id !== charId);
-    } else if (selectedIds.length < 6) {
+    } else if (selectedIds.length < maxTeamSize) {
       selectedIds = [...selectedIds, charId];
     }
   }
@@ -413,26 +427,31 @@
   {#if phase === 'select'}
     <!-- Team Selection -->
     <div class="bg-slate-800 rounded-lg p-4">
-      <h3 class="font-bold mb-3">Select Your Team (up to 6)</h3>
+      <h3 class="font-bold mb-3">Select Your Team (up to {maxTeamSize})</h3>
       <div class="text-xs text-gray-400 mb-2">
         Attempts remaining: <span class="text-amber-400 font-bold">{playerSave.daily.dungeonAttemptsLeft}</span>
+        <span class="ml-3">Selected: <span class="text-white font-bold">{selectedIds.length}/{maxTeamSize}</span></span>
       </div>
 
       {#if ownedCharacters.length === 0}
         <p class="text-gray-500 py-4">You have no characters yet. Pull from the Gacha first!</p>
       {:else}
-        <div class="flex gap-2 flex-wrap mb-4">
+        <div class="flex gap-3 flex-wrap mb-4">
           {#each ownedCharacters as { owned, def }}
             <button
               onclick={() => toggleSelect(owned.characterId)}
-              class="w-16 h-20 rounded-lg border-2 flex flex-col items-center justify-center text-xs transition-all overflow-hidden
+              class="w-24 h-32 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {selectedIds.includes(owned.characterId)
-                  ? 'border-green-400 bg-green-900/30 ring-1 ring-green-400'
-                  : 'border-slate-600 bg-slate-700 hover:bg-slate-600'}"
+                  ? 'border-green-400 ring-2 ring-green-400 scale-105'
+                  : selectedIds.length >= maxTeamSize
+                    ? 'border-slate-700 opacity-40 cursor-not-allowed'
+                    : 'border-slate-600 hover:border-slate-400'}
+                {ROLE_COLORS[def.role]}"
             >
-              <span class="text-lg font-bold">{def.name[0]}</span>
-              <span class="text-[8px] truncate w-full text-center">{def.name}</span>
-              <span class="text-[8px] text-yellow-400">Lv{owned.level}</span>
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-16 h-16 mt-1" />
+              <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
+              <span class="text-[8px] capitalize text-gray-400">{def.role}</span>
+              <span class="text-[8px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
             </button>
           {/each}
         </div>

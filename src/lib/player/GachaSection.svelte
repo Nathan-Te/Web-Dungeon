@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { CharacterDefinition, Rarity } from '../game/types';
+  import type { CharacterDefinition, Rarity, Role } from '../game/types';
   import type { GachaConfig } from '../admin/adminTypes';
   import type { PlayerSave } from './playerStore';
+  import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
     playerSave: PlayerSave;
@@ -26,15 +27,44 @@
     legendary: 'text-yellow-400',
   };
 
+  const ROLE_ICONS: Record<Role, string> = {
+    tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
+    assassin: 'X', healer: 'H', summoner: 'S',
+  };
+
   let pullResult: CharacterDefinition | null = $state(null);
   let isNew = $state(false);
   let isAnimating = $state(false);
+  let showResult = $state(false);
+
+  // Carousel state
+  let carouselItems: CharacterDefinition[] = $state([]);
+  let carouselOffset = $state(0);
+  let carouselTimer: ReturnType<typeof setInterval> | null = null;
+  let currentCarouselChar = $derived(carouselItems.length > 0 ? carouselItems[Math.min(carouselOffset, carouselItems.length - 1)] : null);
+
+  /** Build a randomized carousel strip of characters from the pool */
+  function buildCarouselStrip(finalChar: CharacterDefinition): CharacterDefinition[] {
+    const pool = gachaConfig.characterPool
+      .map((id) => characters.find((c) => c.id === id))
+      .filter((c): c is CharacterDefinition => c !== undefined);
+    if (pool.length === 0) return [finalChar];
+
+    const strip: CharacterDefinition[] = [];
+    // 20 random characters then the final one
+    for (let i = 0; i < 20; i++) {
+      strip.push(pool[Math.floor(Math.random() * pool.length)]);
+    }
+    strip.push(finalChar);
+    return strip;
+  }
 
   function performPull() {
     if (playerSave.daily.gachaPulled || gachaConfig.characterPool.length === 0) return;
 
     isAnimating = true;
     pullResult = null;
+    showResult = false;
 
     // Determine rarity by weighted random
     const roll = Math.random();
@@ -53,7 +83,6 @@
       .map((id) => characters.find((c) => c.id === id))
       .filter((c): c is CharacterDefinition => c !== undefined && c.rarity === selectedRarity);
 
-    // Fallback: if no characters of that rarity exist, pick from entire pool
     const pool = poolForRarity.length > 0
       ? poolForRarity
       : gachaConfig.characterPool
@@ -67,20 +96,35 @@
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
 
-    // Delay to show animation
-    setTimeout(() => {
-      pullResult = picked;
-      isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
-      isAnimating = false;
-      onPull(picked.id);
-    }, 1200);
-  }
+    // Start carousel
+    carouselItems = buildCarouselStrip(picked);
+    carouselOffset = 0;
 
-  function getSpriteUrl(char: CharacterDefinition): string | null {
-    const idle = char.sprites?.idle;
-    if (!idle) return null;
-    if (typeof idle === 'string') return idle;
-    return idle.src; // sprite sheet - show the sheet image
+    let step = 0;
+    const totalSteps = carouselItems.length - 1;
+    let speed = 60; // start fast
+
+    function advanceCarousel() {
+      if (step >= totalSteps) {
+        // Landed on final
+        if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
+        pullResult = picked;
+        isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
+        isAnimating = false;
+        showResult = true;
+        onPull(picked.id);
+        return;
+      }
+      step++;
+      carouselOffset = step;
+      // Slow down as we approach the end
+      const progress = step / totalSteps;
+      speed = 60 + Math.floor(progress * progress * 400); // decelerate
+      if (carouselTimer) clearInterval(carouselTimer);
+      carouselTimer = setInterval(advanceCarousel, speed);
+    }
+
+    carouselTimer = setInterval(advanceCarousel, speed);
   }
 </script>
 
@@ -91,7 +135,7 @@
     <div class="text-center text-gray-500 py-8">
       The gacha pool is empty. Ask an admin to configure it.
     </div>
-  {:else if pullResult}
+  {:else if showResult && pullResult}
     <!-- Pull Result -->
     <div class="flex flex-col items-center gap-4">
       <div class="text-sm text-gray-400">You obtained:</div>
@@ -106,17 +150,26 @@
             Duplicate (+1)
           </span>
         {/if}
-        <div class="w-24 h-24 flex items-center justify-center">
-          {#if getSpriteUrl(pullResult)}
-            <img src={getSpriteUrl(pullResult)} alt={pullResult.name} class="w-full h-full object-contain" />
-          {:else}
-            <span class="text-5xl font-bold text-white/30">{pullResult.name[0]}</span>
-          {/if}
-        </div>
+        <SpritePreview sprites={pullResult.sprites} fallback={pullResult.name[0]} class="w-24 h-24" />
         <div class="text-lg font-bold">{pullResult.name}</div>
         <div class="capitalize text-sm {RARITY_TEXT[pullResult.rarity]}">{pullResult.rarity}</div>
         <div class="capitalize text-xs text-gray-400">{pullResult.role}</div>
       </div>
+    </div>
+  {:else if isAnimating && carouselItems.length > 0}
+    <!-- Carousel animation -->
+    <div class="flex flex-col items-center gap-4">
+      <div class="text-sm text-gray-400 animate-pulse">Pulling...</div>
+      {#if currentCarouselChar}
+        <div class="w-28 h-36 overflow-hidden rounded-xl border-4 border-yellow-500 bg-slate-800 relative">
+          <div class="w-full h-full flex flex-col items-center justify-center gap-1 p-2
+            animate-[slotFlip_0.1s_ease-out]" style="animation-iteration-count: 1;">
+            <SpritePreview sprites={currentCarouselChar.sprites} fallback={ROLE_ICONS[currentCarouselChar.role]} class="w-16 h-16" />
+            <span class="text-xs font-bold truncate w-full text-center">{currentCarouselChar.name}</span>
+            <span class="text-[10px] capitalize {RARITY_TEXT[currentCarouselChar.rarity]}">{currentCarouselChar.rarity}</span>
+          </div>
+        </div>
+      {/if}
     </div>
   {:else}
     <!-- Pull Button -->
@@ -132,9 +185,9 @@
           disabled={isAnimating}
           class="px-8 py-4 bg-gradient-to-b from-yellow-500 to-amber-700 hover:from-yellow-400 hover:to-amber-600
             disabled:opacity-50 rounded-xl text-xl font-bold shadow-lg shadow-amber-900/50 transition-all
-            {isAnimating ? 'animate-pulse scale-95' : 'hover:scale-105'}"
+            hover:scale-105"
         >
-          {isAnimating ? 'Pulling...' : 'Pull!'}
+          Pull!
         </button>
       {/if}
 
@@ -158,5 +211,9 @@
   @keyframes fadeInScale {
     0% { opacity: 0; transform: scale(0.5); }
     100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slotFlip {
+    0% { transform: translateY(-100%); opacity: 0.3; }
+    100% { transform: translateY(0); opacity: 1; }
   }
 </style>

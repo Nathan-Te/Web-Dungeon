@@ -35,11 +35,16 @@
   let playerSave: PlayerSave = $state(loadPlayerSave());
 
   let gachaConfig = $derived(content.gachaConfig);
+  let todayStr = $derived(new Date().toISOString().slice(0, 10));
+  let dailyDungeonId = $derived(
+    content.dailyDungeonSchedule?.[todayStr] ?? content.dailyDungeonId ?? null
+  );
   let dailyDungeon = $derived(
-    content.dailyDungeonId
-      ? content.dungeons.find((d) => d.id === content.dailyDungeonId) ?? null
+    dailyDungeonId
+      ? content.dungeons.find((d) => d.id === dailyDungeonId) ?? null
       : null
   );
+  let maxTeamSize = $derived(content.maxDungeonTeamSize ?? 6);
 
   onMount(() => {
     content = loadContent();
@@ -161,6 +166,7 @@
           enemies={content.enemies}
           abilities={content.abilities}
           roleStats={content.roleStats}
+          {maxTeamSize}
           onAttemptUsed={handleDungeonAttemptUsed}
           onDungeonCleared={handleDungeonCleared}
         />

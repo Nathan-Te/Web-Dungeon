@@ -94,6 +94,10 @@ export interface GameContent {
   gachaConfig?: GachaConfig;
   /** ID of the dungeon used as today's daily dungeon (admin picks) */
   dailyDungeonId?: string;
+  /** Calendar schedule: date (YYYY-MM-DD) → dungeon ID */
+  dailyDungeonSchedule?: Record<string, string>;
+  /** Max team size for dungeon (default 6) */
+  maxDungeonTeamSize?: number;
 }
 
 export const CURRENT_CONTENT_VERSION = 3;

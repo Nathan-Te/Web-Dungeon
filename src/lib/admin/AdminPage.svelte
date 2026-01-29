@@ -97,6 +97,12 @@
   function onSaveDailyDungeon(id: string) {
     save({ ...content, dailyDungeonId: id });
   }
+  function onSaveSchedule(schedule: Record<string, string>) {
+    save({ ...content, dailyDungeonSchedule: schedule });
+  }
+  function onSaveMaxTeamSize(size: number) {
+    save({ ...content, maxDungeonTeamSize: size });
+  }
 
   // Data management
   function handleExport() {
@@ -231,8 +237,12 @@
       dungeons={content.dungeons}
       gachaConfig={content.gachaConfig}
       dailyDungeonId={content.dailyDungeonId}
+      dailyDungeonSchedule={content.dailyDungeonSchedule}
+      maxDungeonTeamSize={content.maxDungeonTeamSize}
       onSave={onSaveGachaConfig}
       onSaveDailyDungeon={onSaveDailyDungeon}
+      onSaveSchedule={onSaveSchedule}
+      onSaveMaxTeamSize={onSaveMaxTeamSize}
     />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
