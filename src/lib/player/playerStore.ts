@@ -154,9 +154,9 @@ export function useDungeonAttempt(save: PlayerSave): PlayerSave {
   };
 }
 
-/** Mark daily dungeon as cleared */
+/** Mark daily dungeon as cleared and grant a bonus gacha pull */
 export function markDungeonCleared(save: PlayerSave): PlayerSave {
-  return { ...save, daily: { ...save.daily, dungeonCleared: true } };
+  return { ...save, daily: { ...save.daily, dungeonCleared: true, gachaPulled: false } };
 }
 
 /** Reset player save completely */

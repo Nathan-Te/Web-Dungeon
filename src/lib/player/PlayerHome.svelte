@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { CharacterDefinition, Role, BaseStats } from '../game/types';
   import type { GameContent, GachaConfig, Dungeon, EnemyTemplate } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
@@ -107,9 +107,39 @@
     { key: 'gacha', label: 'Gacha', icon: '' },
     { key: 'dungeon', label: 'Dungeon', icon: '' },
   ];
+
+  // Daily reset countdown timer
+  let resetCountdown = $state('');
+  let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+  function updateCountdown() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setHours(24, 0, 0, 0);
+    const diff = tomorrow.getTime() - now.getTime();
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    resetCountdown = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  onMount(() => {
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
+  });
+
+  onDestroy(() => {
+    if (countdownInterval) clearInterval(countdownInterval);
+  });
 </script>
 
 <div class="max-w-4xl mx-auto p-4">
+  <!-- Daily Reset Timer -->
+  <div class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 mb-4 text-center text-sm">
+    <span class="text-gray-400">Daily reset in </span>
+    <span class="text-amber-400 font-mono font-bold">{resetCountdown}</span>
+  </div>
+
   <!-- Header -->
   <div class="flex items-center justify-between mb-4">
     <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
@@ -178,6 +208,9 @@
         <div class="text-center py-8">
           <div class="text-2xl font-bold text-green-400 mb-2">Daily Dungeon Cleared!</div>
           <div class="text-gray-400">Come back tomorrow for a new challenge.</div>
+          {#if !playerSave.daily.gachaPulled}
+            <div class="text-yellow-400 mt-2 font-medium">You earned a bonus Gacha pull!</div>
+          {/if}
         </div>
       {:else}
         <DailyDungeonSection

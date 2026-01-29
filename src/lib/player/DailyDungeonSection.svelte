@@ -353,11 +353,19 @@
       if (action.aoeTargets && action.aoeTargets.length > 0) {
         for (const aoe of action.aoeTargets) {
           const tIdx = updated.findIndex((u) => u.id === aoe.id);
-          if (tIdx !== -1) { updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage); updated[tIdx].hitEffect = 'damage'; }
+          if (tIdx !== -1) {
+            updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage);
+            updated[tIdx].hitEffect = 'damage';
+            if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
+          }
         }
       } else {
         const tIdx = updated.findIndex((u) => u.id === action.targetId);
-        if (tIdx !== -1 && action.damage !== undefined) { updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage); updated[tIdx].hitEffect = 'damage'; }
+        if (tIdx !== -1 && action.damage !== undefined) {
+          updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+          updated[tIdx].hitEffect = 'damage';
+          if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
+        }
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
