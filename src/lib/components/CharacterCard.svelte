@@ -199,9 +199,9 @@
     </div>
   </div>
 {:else}
-  <!-- No-sprite layout: role icon card (enlarged) -->
+  <!-- No-sprite layout: role icon card -->
   <div
-    class="relative w-24 h-28 rounded-lg border-2 transition-all duration-200
+    class="relative w-[88px] h-[104px] rounded-lg border-2 transition-all duration-200
       {isPlayer ? 'border-blue-400' : 'border-red-400'}
       {roleColors[role]}
       {isAlive ? 'opacity-100' : 'opacity-30 grayscale'}"

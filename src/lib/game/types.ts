@@ -132,6 +132,8 @@ export interface CombatAction {
   isCritical?: boolean;
   abilityUsed?: string;
   message: string;
+  /** For AOE abilities: per-target damage data */
+  aoeTargets?: { id: string; damage: number }[];
   /** For summon actions: the summoned unit data */
   summonedUnit?: {
     id: string;

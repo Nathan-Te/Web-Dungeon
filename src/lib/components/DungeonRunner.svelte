@@ -38,6 +38,7 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    isSummoned?: boolean;
   }
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
@@ -383,10 +384,21 @@
       if (aIdx !== -1) {
         units[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
       }
-      const tIdx = units.findIndex((u) => u.id === action.targetId);
-      if (tIdx !== -1 && action.damage !== undefined) {
-        units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - action.damage);
-        units[tIdx].hitEffect = 'damage';
+      // AOE: apply per-target damage
+      if (action.aoeTargets && action.aoeTargets.length > 0) {
+        for (const aoe of action.aoeTargets) {
+          const tIdx = units.findIndex((u) => u.id === aoe.id);
+          if (tIdx !== -1) {
+            units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - aoe.damage);
+            units[tIdx].hitEffect = 'damage';
+          }
+        }
+      } else {
+        const tIdx = units.findIndex((u) => u.id === action.targetId);
+        if (tIdx !== -1 && action.damage !== undefined) {
+          units[tIdx].currentHp = Math.max(0, units[tIdx].currentHp - action.damage);
+          units[tIdx].hitEffect = 'damage';
+        }
       }
     } else if (action.actionType === 'heal') {
       const aIdx = units.findIndex((u) => u.id === action.actorId);
@@ -425,13 +437,17 @@
         isAlive: true,
         sprites: su.sprites,
         animState: 'idle' as AnimState,
+        isSummoned: true,
       });
     }
   }
 
   function applyAction(action: CombatAction) {
     // Reset living units to idle, keep dead in death, clear hit effects
-    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
+    // Filter out dead summoned units so they disappear from the grid
+    const updated = displayUnits
+      .filter((u) => u.isAlive || !u.isSummoned)
+      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
     applyActionToUnits(updated, action);
     displayUnits = updated;
   }

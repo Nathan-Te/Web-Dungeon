@@ -351,12 +351,14 @@ export class AutoBattleSimulation {
 
     let totalDamage = 0;
     const hitTargets: string[] = [];
+    const aoeTargets: { id: string; damage: number }[] = [];
 
     for (const target of targets) {
       const { damage } = this.calculateDamage(actor.atk * 0.6, target.def);
       target.currentHp = Math.max(0, target.currentHp - damage);
       totalDamage += damage;
       hitTargets.push(this.characterNames.get(target.characterId)!);
+      aoeTargets.push({ id: target.characterId, damage });
       this.checkDeath(target);
     }
 
@@ -367,6 +369,7 @@ export class AutoBattleSimulation {
       actionType: 'ability',
       damage: totalDamage,
       abilityUsed: 'Cleave',
+      aoeTargets,
       message: `${actorName} uses Cleave hitting ${hitTargets.join(', ')} for ${totalDamage} total damage!`,
     });
   }
@@ -377,12 +380,14 @@ export class AutoBattleSimulation {
 
     let totalDamage = 0;
     const hitTargets: string[] = [];
+    const aoeTargets: { id: string; damage: number }[] = [];
 
     for (const target of targets) {
       const { damage } = this.calculateDamage(actor.atk * 0.7, target.def);
       target.currentHp = Math.max(0, target.currentHp - damage);
       totalDamage += damage;
       hitTargets.push(this.characterNames.get(target.characterId)!);
+      aoeTargets.push({ id: target.characterId, damage });
       this.checkDeath(target);
     }
 
@@ -393,6 +398,7 @@ export class AutoBattleSimulation {
       actionType: 'ability',
       damage: totalDamage,
       abilityUsed: 'Multi-shot',
+      aoeTargets,
       message: `${actorName} uses Multi-shot hitting ${hitTargets.join(', ')} for ${totalDamage} total damage!`,
     });
   }

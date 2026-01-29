@@ -49,6 +49,7 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    isSummoned?: boolean;
   }
 
   // Battle state
@@ -185,13 +186,11 @@
   }
 
   function applyAction(action: CombatAction) {
-    const idx = displayUnits.findIndex(
-      (u) => u.id === (action.targetId ?? action.actorId)
-    );
-    if (idx === -1) return;
-
     // Clone array for reactivity — reset living units to idle, keep dead in death, clear hit effects
-    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
+    // Filter out dead summoned units so they disappear from the grid
+    const updated = displayUnits
+      .filter((u) => u.isAlive || !u.isSummoned)
+      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
 
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       // Actor animates
@@ -199,10 +198,22 @@
       if (aIdx !== -1) {
         updated[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
       }
-      const tIdx = updated.findIndex((u) => u.id === action.targetId);
-      if (tIdx !== -1 && action.damage !== undefined) {
-        updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
-        updated[tIdx].hitEffect = 'damage';
+      // AOE: apply per-target damage from aoeTargets array
+      if (action.aoeTargets && action.aoeTargets.length > 0) {
+        for (const aoe of action.aoeTargets) {
+          const tIdx = updated.findIndex((u) => u.id === aoe.id);
+          if (tIdx !== -1) {
+            updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage);
+            updated[tIdx].hitEffect = 'damage';
+          }
+        }
+      } else {
+        // Single target
+        const tIdx = updated.findIndex((u) => u.id === action.targetId);
+        if (tIdx !== -1 && action.damage !== undefined) {
+          updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+          updated[tIdx].hitEffect = 'damage';
+        }
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
@@ -241,6 +252,7 @@
         isAlive: true,
         sprites: su.sprites,
         animState: 'idle' as AnimState,
+        isSummoned: true,
       });
     }
 
@@ -268,16 +280,30 @@
   }
 
   function replayAction(units: DisplayUnit[], action: CombatAction): DisplayUnit[] {
-    const updated = units.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
+    // Filter out dead summoned units
+    const updated = units
+      .filter((u) => u.isAlive || !u.isSummoned)
+      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
       if (aIdx !== -1) {
         updated[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
       }
-      const tIdx = updated.findIndex((u) => u.id === action.targetId);
-      if (tIdx !== -1 && action.damage !== undefined) {
-        updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
-        updated[tIdx].hitEffect = 'damage';
+      // AOE: apply per-target damage
+      if (action.aoeTargets && action.aoeTargets.length > 0) {
+        for (const aoe of action.aoeTargets) {
+          const tIdx = updated.findIndex((u) => u.id === aoe.id);
+          if (tIdx !== -1) {
+            updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage);
+            updated[tIdx].hitEffect = 'damage';
+          }
+        }
+      } else {
+        const tIdx = updated.findIndex((u) => u.id === action.targetId);
+        if (tIdx !== -1 && action.damage !== undefined) {
+          updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+          updated[tIdx].hitEffect = 'damage';
+        }
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
@@ -316,6 +342,7 @@
         isAlive: true,
         sprites: su.sprites,
         animState: 'idle' as AnimState,
+        isSummoned: true,
       });
     }
     return updated;

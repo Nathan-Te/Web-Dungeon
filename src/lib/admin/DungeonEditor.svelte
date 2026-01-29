@@ -106,13 +106,37 @@
     });
   }
 
+  function getEnemy(templateId: string): EnemyTemplate | undefined {
+    return enemies.find((e) => e.id === templateId);
+  }
+
   function getEnemyName(templateId: string): string {
-    return enemies.find((e) => e.id === templateId)?.name ?? '(unknown)';
+    return getEnemy(templateId)?.name ?? '(unknown)';
   }
 
   function getEnemyRole(templateId: string): string {
-    return enemies.find((e) => e.id === templateId)?.role ?? '???';
+    return getEnemy(templateId)?.role ?? '???';
   }
+
+  const ROLE_COLORS: Record<string, string> = {
+    tank: 'bg-blue-900 border-blue-500',
+    warrior: 'bg-orange-900 border-orange-500',
+    archer: 'bg-green-900 border-green-500',
+    mage: 'bg-purple-900 border-purple-500',
+    assassin: 'bg-gray-800 border-gray-400',
+    healer: 'bg-emerald-900 border-emerald-500',
+    summoner: 'bg-teal-900 border-teal-500',
+  };
+
+  const ROLE_ICONS: Record<string, string> = {
+    tank: 'T',
+    warrior: 'W',
+    archer: 'A',
+    mage: 'M',
+    assassin: 'X',
+    healer: 'H',
+    summoner: 'S',
+  };
 </script>
 
 <div class="space-y-4">
@@ -246,15 +270,21 @@
                         Enemies ({room.enemies.length}/5)
                       </span>
                       {#if room.enemies.length > 0}
-                        <div class="space-y-0.5 mb-2">
+                        <div class="flex gap-2 flex-wrap mb-2">
                           {#each room.enemies as roomEnemy, ei}
-                            <div class="flex items-center gap-2 px-2 py-1 bg-slate-800 rounded text-xs">
-                              <span class="text-gray-500 w-3">{ei + 1}.</span>
-                              <span class="capitalize text-gray-400 w-14">{getEnemyRole(roomEnemy.enemyTemplateId)}</span>
-                              <span class="flex-1 text-red-300">{getEnemyName(roomEnemy.enemyTemplateId)}</span>
+                            {@const enemy = getEnemy(roomEnemy.enemyTemplateId)}
+                            <div class="relative w-16 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5
+                              {enemy ? (ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500') : 'bg-slate-800 border-slate-500'}">
+                              <span class="text-lg font-bold">{enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}</span>
+                              <span class="text-[9px] font-medium text-center leading-tight px-0.5 truncate w-full">
+                                {enemy?.name ?? '???'}
+                              </span>
+                              {#if enemy?.isBoss}
+                                <span class="absolute top-0 left-0 right-0 text-[8px] text-center text-red-400 font-bold">BOSS</span>
+                              {/if}
                               <button
                                 onclick={() => removeEnemyFromRoom(i, ei)}
-                                class="text-red-500 hover:text-red-400"
+                                class="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center rounded-full bg-red-800 hover:bg-red-600 text-[9px] leading-none"
                               >
                                 ✕
                               </button>
@@ -265,13 +295,19 @@
 
                       {#if room.enemies.length < 5}
                         {#if enemies.length > 0}
-                          <div class="flex gap-1 flex-wrap">
+                          <span class="block text-xs text-gray-500 mb-1">Add enemy:</span>
+                          <div class="flex gap-1.5 flex-wrap">
                             {#each enemies as enemy (enemy.id)}
                               <button
                                 onclick={() => addEnemyToRoom(i, enemy.id)}
-                                class="px-2 py-0.5 text-xs bg-red-900 hover:bg-red-800 rounded"
+                                class="w-14 h-16 rounded border-2 flex flex-col items-center justify-center gap-0.5 hover:brightness-125 transition-all
+                                  {ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500'}"
                               >
-                                + {enemy.name}
+                                <span class="text-sm font-bold">{ROLE_ICONS[enemy.role] ?? '?'}</span>
+                                <span class="text-[8px] text-center leading-tight px-0.5 truncate w-full">{enemy.name}</span>
+                                {#if enemy.isBoss}
+                                  <span class="text-[7px] text-red-400 font-bold -mt-0.5">BOSS</span>
+                                {/if}
                               </button>
                             {/each}
                           </div>
@@ -341,10 +377,26 @@
         {#if dungeon.rooms.length > 0}
           <div class="mt-2 flex gap-2 flex-wrap">
             {#each dungeon.rooms as room, i}
-              <span class="text-xs px-2 py-0.5 rounded
-                {room.isBoss ? 'bg-red-900 text-red-300' : 'bg-slate-700 text-gray-300'}">
-                {room.roomNumber}. {room.name} ({room.enemies.length} en.)
-              </span>
+              <div class="flex items-center gap-1 px-2 py-1 rounded
+                {room.isBoss ? 'bg-red-900/50' : 'bg-slate-700'}">
+                <span class="text-xs font-bold {room.isBoss ? 'text-red-300' : 'text-gray-300'}">
+                  {room.roomNumber}.
+                </span>
+                <div class="flex gap-0.5">
+                  {#each room.enemies as re}
+                    {@const enemy = getEnemy(re.enemyTemplateId)}
+                    <span class="w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold border
+                      {enemy ? (ROLE_COLORS[enemy.role] ?? 'bg-slate-800 border-slate-500') : 'bg-slate-800 border-slate-500'}"
+                      title={enemy?.name ?? '???'}
+                    >
+                      {enemy ? (ROLE_ICONS[enemy.role] ?? '?') : '?'}
+                    </span>
+                  {/each}
+                </div>
+                {#if room.enemies.length === 0}
+                  <span class="text-[9px] text-gray-500">empty</span>
+                {/if}
+              </div>
             {/each}
           </div>
         {/if}
