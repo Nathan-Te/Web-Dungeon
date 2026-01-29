@@ -32,6 +32,24 @@
   };
 
   let editingAbility: AbilityDefinition | null = $state(null);
+  let searchQuery = $state('');
+  let filterRole = $state('');
+  let filterTargeting = $state('');
+  let filterCooldown = $state('');
+
+  let filteredAbilities = $derived(
+    abilities.filter((a) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        if (!a.name.toLowerCase().includes(q) && !a.description.toLowerCase().includes(q)) return false;
+      }
+      if (filterRole && !a.allowedRoles.includes(filterRole as Role)) return false;
+      if (filterTargeting && a.targeting !== filterTargeting) return false;
+      if (filterCooldown === 'yes' && !(a.cooldown && a.cooldown > 0)) return false;
+      if (filterCooldown === 'no' && a.cooldown && a.cooldown > 0) return false;
+      return true;
+    })
+  );
 
   function startNew() {
     editingAbility = createBlankAbility();
@@ -79,14 +97,53 @@
 
 <div class="space-y-4">
   <!-- Toolbar -->
-  <div class="flex gap-3 items-center">
+  <div class="flex gap-3 items-center flex-wrap">
     <button
       onclick={startNew}
       class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
     >
       + New Spell
     </button>
-    <span class="text-gray-400 text-sm">{abilities.length} spells</span>
+    <span class="text-gray-400 text-sm">{filteredAbilities.length}/{abilities.length} spells</span>
+  </div>
+
+  <!-- Search / Filters -->
+  <div class="flex gap-2 items-end flex-wrap">
+    <div class="flex-1 min-w-[120px]">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Search</span>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Name or description..."
+        class="w-full px-3 py-1.5 bg-slate-700 rounded text-sm"
+      />
+    </div>
+    <div class="w-28">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Role</span>
+      <select bind:value={filterRole} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        {#each ROLES as r}
+          <option value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="w-36">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Targeting</span>
+      <select bind:value={filterTargeting} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        {#each TARGETING_OPTIONS as opt}
+          <option value={opt.value}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="w-28">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Cooldown</span>
+      <select bind:value={filterCooldown} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        <option value="yes">Has CD</option>
+        <option value="no">No CD</option>
+      </select>
+    </div>
   </div>
 
   <!-- Edit Form -->
@@ -250,7 +307,7 @@
 
   <!-- Spell List -->
   <div class="space-y-1">
-    {#each abilities as ability (ability.id)}
+    {#each filteredAbilities as ability (ability.id)}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
         <span class="font-medium text-purple-300 flex-1">{ability.name}</span>
 
@@ -267,11 +324,17 @@
         </span>
 
         {#if ability.cooldown && ability.cooldown > 0}
-          <span class="text-xs text-cyan-400">CD:{ability.cooldown}t</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-900 text-cyan-300 border border-cyan-700">
+            CD {ability.cooldown}t
+          </span>
+        {:else}
+          <span class="text-[10px] text-gray-600">no CD</span>
         {/if}
 
         {#if ability.ignoreDefense}
-          <span class="text-xs text-red-500">No DEF</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-300 border border-red-700">
+            No DEF
+          </span>
         {/if}
 
         <span class="text-xs text-gray-600">
@@ -298,7 +361,9 @@
     {/each}
   </div>
 
-  {#if abilities.length === 0}
-    <p class="text-gray-500 text-center py-8">No spells defined. Create one or reset to defaults!</p>
+  {#if filteredAbilities.length === 0}
+    <p class="text-gray-500 text-center py-4">
+      {abilities.length === 0 ? 'No spells defined. Create one or reset to defaults!' : 'No spells match your filters.'}
+    </p>
   {/if}
 </div>

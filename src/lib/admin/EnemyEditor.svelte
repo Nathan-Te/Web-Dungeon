@@ -31,6 +31,9 @@
 
   let editingEnemy: EnemyTemplate | null = $state(null);
   let searchQuery = $state('');
+  let filterRole = $state('');
+  let filterRarity = $state('');
+  let filterBoss = $state('');
 
   let filteredEnemies = $derived(
     enemies.filter((e) => {
@@ -38,6 +41,10 @@
         const q = searchQuery.trim().toLowerCase();
         if (!e.name.toLowerCase().includes(q) && !e.role.includes(q)) return false;
       }
+      if (filterRole && e.role !== filterRole) return false;
+      if (filterRarity && e.rarity !== filterRarity) return false;
+      if (filterBoss === 'boss' && !e.isBoss) return false;
+      if (filterBoss === 'normal' && e.isBoss) return false;
       return true;
     })
   );
@@ -94,20 +101,53 @@
 
 <div class="space-y-4">
   <!-- Toolbar -->
-  <div class="flex gap-3 items-center">
+  <div class="flex gap-3 items-center flex-wrap">
     <button
       onclick={startNew}
       class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
     >
       + New Enemy
     </button>
-    <input
-      type="text"
-      bind:value={searchQuery}
-      placeholder="Search..."
-      class="px-2 py-1.5 bg-slate-700 rounded text-sm w-36"
-    />
-    <span class="text-gray-400 text-sm">{filteredEnemies.length} enemies</span>
+    <span class="text-gray-400 text-sm">{filteredEnemies.length}/{enemies.length} enemies</span>
+  </div>
+
+  <!-- Search / Filters -->
+  <div class="flex gap-2 items-end flex-wrap">
+    <div class="flex-1 min-w-[120px]">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Search</span>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Name or role..."
+        class="w-full px-3 py-1.5 bg-slate-700 rounded text-sm"
+      />
+    </div>
+    <div class="w-28">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Role</span>
+      <select bind:value={filterRole} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        {#each ROLES as r}
+          <option value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="w-28">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Rarity</span>
+      <select bind:value={filterRarity} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        {#each RARITIES as r}
+          <option value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="w-24">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Type</span>
+      <select bind:value={filterBoss} class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm">
+        <option value="">All</option>
+        <option value="boss">Boss</option>
+        <option value="normal">Normal</option>
+      </select>
+    </div>
   </div>
 
   <!-- Edit Form -->
@@ -526,8 +566,8 @@
   </div>
 
   {#if filteredEnemies.length === 0}
-    <p class="text-gray-500 text-center py-8">
-      {enemies.length === 0 ? 'No enemies. Create enemy templates for dungeons!' : 'No enemies match your search.'}
+    <p class="text-gray-500 text-center py-4">
+      {enemies.length === 0 ? 'No enemies. Create enemy templates for dungeons!' : 'No enemies match your filters.'}
     </p>
   {/if}
 </div>
