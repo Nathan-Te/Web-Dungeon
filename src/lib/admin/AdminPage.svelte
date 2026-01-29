@@ -17,6 +17,9 @@
     deleteDungeon,
     upsertAbility,
     deleteAbility,
+    publishContentOnline,
+    getGitHubToken,
+    setGitHubToken,
   } from './contentStore';
   import CharacterEditor from './CharacterEditor.svelte';
   import EnemyEditor from './EnemyEditor.svelte';
@@ -37,6 +40,10 @@
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
   let importError = $state('');
+  let publishError = $state('');
+  let isPublishing = $state(false);
+  let showTokenInput = $state(false);
+  let tokenInput = $state('');
 
   onMount(() => {
     content = loadContent();
@@ -131,6 +138,38 @@
     if (confirm('Reset ALL content to defaults? This cannot be undone.')) {
       content = resetToDefaults();
       showStatus('Reset to defaults');
+    }
+  }
+
+  // Publish online
+  async function handlePublish() {
+    let token = getGitHubToken();
+    if (!token) {
+      showTokenInput = true;
+      return;
+    }
+    await doPublish(token);
+  }
+
+  function handleTokenSubmit() {
+    if (!tokenInput.trim()) return;
+    setGitHubToken(tokenInput.trim());
+    showTokenInput = false;
+    doPublish(tokenInput.trim());
+    tokenInput = '';
+  }
+
+  async function doPublish(token: string) {
+    isPublishing = true;
+    publishError = '';
+    const result = await publishContentOnline(content, token);
+    isPublishing = false;
+    if (result.success) {
+      content = { ...content, publishedAt: result.publishedAt };
+      saveContent(content);
+      showStatus('Publie en ligne !');
+    } else {
+      publishError = result.error;
     }
   }
 
@@ -261,6 +300,61 @@
             <div class="text-xs text-gray-400">Spells</div>
           </div>
         </div>
+      </div>
+
+      <!-- Publish Online -->
+      <div class="bg-slate-800 rounded-lg p-4">
+        <h3 class="font-bold mb-3">Publier en ligne</h3>
+        <p class="text-gray-400 text-sm mb-3">
+          Publie le contenu sur le site. Les joueurs recevront automatiquement la mise a jour.
+        </p>
+
+        {#if content.publishedAt}
+          <p class="text-xs text-gray-500 mb-3">
+            Derniere publication : {new Date(content.publishedAt).toLocaleString()}
+          </p>
+        {/if}
+
+        {#if showTokenInput}
+          <div class="flex gap-2 mb-3">
+            <input
+              type="password"
+              bind:value={tokenInput}
+              placeholder="GitHub Personal Access Token"
+              class="flex-1 px-3 py-2 bg-slate-900 border border-slate-600 rounded text-white text-sm
+                focus:outline-none focus:border-amber-500"
+            />
+            <button
+              onclick={handleTokenSubmit}
+              class="px-4 py-2 bg-amber-700 hover:bg-amber-600 rounded text-sm font-bold"
+            >
+              OK
+            </button>
+            <button
+              onclick={() => { showTokenInput = false; }}
+              class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            >
+              Annuler
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mb-3">
+            Token GitHub avec permission "Contents: Read and write" sur le repo.
+          </p>
+        {:else}
+          <button
+            onclick={handlePublish}
+            disabled={isPublishing}
+            class="px-4 py-2 bg-amber-700 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-wait rounded text-sm font-bold"
+          >
+            {isPublishing ? 'Publication...' : 'Publier en ligne'}
+          </button>
+        {/if}
+
+        {#if publishError}
+          <div class="mt-3 px-3 py-2 bg-red-900 rounded text-red-300 text-sm">
+            {publishError}
+          </div>
+        {/if}
       </div>
 
       <!-- Actions -->
