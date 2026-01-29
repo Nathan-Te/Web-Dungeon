@@ -3,14 +3,14 @@
   import {
     Character,
     AutoBattleSimulation,
-    CHARACTER_DEFINITIONS,
-    type CombatState,
+    type CharacterDefinition,
     type CombatAction,
     type BattleResult,
     type Role,
     type Position,
     ROLE_PREFERRED_ROW,
   } from '../game';
+  import { loadContent } from '../admin/contentStore';
   import BattleGrid from './BattleGrid.svelte';
   import BattleLog from './BattleLog.svelte';
 
@@ -41,22 +41,54 @@
   let displayUnits: DisplayUnit[] = $state([]);
   let actionLog: CombatAction[] = $state([]);
 
-  // Non-reactive lookup tables (only used internally, never in template directly)
-  let nameMap = new Map<string, string>();
-  let roleMap = new Map<string, Role>();
+  // Available characters loaded from content store
+  let allCharacters: CharacterDefinition[] = $state([]);
+  let playerTeamIds: string[] = $state([]);
+  let enemyTeamIds: string[] = $state([]);
+  let playerLevel = $state(10);
+  let enemyLevel = $state(10);
 
-  function createTestTeams() {
-    const playerTeam = [
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_001')!, 10, 0),
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_003')!, 10, 0),
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_004')!, 10, 0),
-    ];
-    const enemyTeam = [
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_002')!, 10, 0),
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_005')!, 10, 0),
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_008')!, 10, 0),
-    ];
+  function loadCharacters() {
+    const content = loadContent();
+    allCharacters = content.characters;
+
+    // Default selection: first 3 characters per team
+    if (playerTeamIds.length === 0 && allCharacters.length >= 3) {
+      playerTeamIds = allCharacters.slice(0, 3).map((c) => c.id);
+    }
+    if (enemyTeamIds.length === 0 && allCharacters.length >= 6) {
+      enemyTeamIds = allCharacters.slice(3, 6).map((c) => c.id);
+    }
+  }
+
+  function createTeamsFromSelection() {
+    const playerTeam = playerTeamIds
+      .map((id) => allCharacters.find((c) => c.id === id))
+      .filter((c): c is CharacterDefinition => c !== undefined)
+      .map((def) => new Character(def, playerLevel, 0));
+
+    const enemyTeam = enemyTeamIds
+      .map((id) => allCharacters.find((c) => c.id === id))
+      .filter((c): c is CharacterDefinition => c !== undefined)
+      .map((def) => new Character(def, enemyLevel, 0));
+
     return { playerTeam, enemyTeam };
+  }
+
+  function toggleCharInTeam(charId: string, team: 'player' | 'enemy') {
+    if (team === 'player') {
+      if (playerTeamIds.includes(charId)) {
+        playerTeamIds = playerTeamIds.filter((id) => id !== charId);
+      } else if (playerTeamIds.length < 5) {
+        playerTeamIds = [...playerTeamIds, charId];
+      }
+    } else {
+      if (enemyTeamIds.includes(charId)) {
+        enemyTeamIds = enemyTeamIds.filter((id) => id !== charId);
+      } else if (enemyTeamIds.length < 5) {
+        enemyTeamIds = [...enemyTeamIds, charId];
+      }
+    }
   }
 
   function buildDisplayUnits(playerTeam: Character[], enemyTeam: Character[]): DisplayUnit[] {
@@ -115,14 +147,8 @@
   }
 
   function runBattle() {
-    const { playerTeam, enemyTeam } = createTestTeams();
-
-    nameMap = new Map();
-    roleMap = new Map();
-    for (const char of [...playerTeam, ...enemyTeam]) {
-      nameMap.set(char.id, char.name);
-      roleMap.set(char.id, char.role);
-    }
+    const { playerTeam, enemyTeam } = createTeamsFromSelection();
+    if (playerTeam.length === 0 || enemyTeam.length === 0) return;
 
     const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed);
     battleResult = simulation.simulate();
@@ -170,7 +196,7 @@
 
   function stepBackward() {
     if (!battleResult || currentActionIndex < 0) return;
-    const { playerTeam, enemyTeam } = createTestTeams();
+    const { playerTeam, enemyTeam } = createTeamsFromSelection();
     const fresh = buildDisplayUnits(playerTeam, enemyTeam);
     const targetIndex = currentActionIndex - 1;
     // Replay up to targetIndex
@@ -233,8 +259,8 @@
   }
 
   function testDeterminism() {
-    const { playerTeam: t1p, enemyTeam: t1e } = createTestTeams();
-    const { playerTeam: t2p, enemyTeam: t2e } = createTestTeams();
+    const { playerTeam: t1p, enemyTeam: t1e } = createTeamsFromSelection();
+    const { playerTeam: t2p, enemyTeam: t2e } = createTeamsFromSelection();
 
     const testSeed = 42;
     const r1 = new AutoBattleSimulation(t1p, t1e, testSeed).simulate();
@@ -257,6 +283,7 @@
   }
 
   onMount(() => {
+    loadCharacters();
     runBattle();
   });
 
@@ -269,6 +296,59 @@
 
 <div class="max-w-4xl mx-auto p-4">
   <h1 class="text-3xl font-bold text-center mb-6">Auto-Chess Battle Demo</h1>
+
+  <!-- Team Selection -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <!-- Player Team -->
+    <div class="bg-slate-800 rounded-lg p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-bold text-blue-400 text-sm">Player Team ({playerTeamIds.length}/5)</h3>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-400">Lv</label>
+          <input type="number" min="1" max="100" bind:value={playerLevel}
+            class="w-14 px-1 py-0.5 bg-slate-700 rounded text-xs" />
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        {#each allCharacters as char (char.id)}
+          <button
+            onclick={() => toggleCharInTeam(char.id, 'player')}
+            class="px-2 py-1 rounded text-xs transition-colors
+              {playerTeamIds.includes(char.id)
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
+          >
+            {char.name}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Enemy Team -->
+    <div class="bg-slate-800 rounded-lg p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-bold text-red-400 text-sm">Enemy Team ({enemyTeamIds.length}/5)</h3>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-400">Lv</label>
+          <input type="number" min="1" max="100" bind:value={enemyLevel}
+            class="w-14 px-1 py-0.5 bg-slate-700 rounded text-xs" />
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        {#each allCharacters as char (char.id)}
+          <button
+            onclick={() => toggleCharInTeam(char.id, 'enemy')}
+            class="px-2 py-1 rounded text-xs transition-colors
+              {enemyTeamIds.includes(char.id)
+                ? 'bg-red-600 text-white'
+                : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
+          >
+            {char.name}
+          </button>
+        {/each}
+      </div>
+    </div>
+  </div>
 
   <!-- Controls -->
   <div class="flex flex-wrap gap-4 justify-center mb-6">
@@ -284,7 +364,8 @@
 
     <button
       onclick={resetBattle}
-      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold"
+      disabled={playerTeamIds.length === 0 || enemyTeamIds.length === 0}
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded font-bold"
     >
       New Battle
     </button>
