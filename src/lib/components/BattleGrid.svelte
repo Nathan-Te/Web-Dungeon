@@ -1,47 +1,49 @@
 <script lang="ts">
-  import type { CombatState, Role } from '../game/types';
+  import type { Role, Position } from '../game/types';
   import CharacterCard from './CharacterCard.svelte';
 
+  interface DisplayUnit {
+    id: string;
+    name: string;
+    role: Role;
+    currentHp: number;
+    maxHp: number;
+    position: Position;
+    team: 'player' | 'enemy';
+    isAlive: boolean;
+  }
+
   interface Props {
-    playerUnits: Map<string, CombatState>;
-    enemyUnits: Map<string, CombatState>;
-    characterNames: Map<string, string>;
-    characterRoles: Map<string, Role>;
+    playerDisplayUnits: DisplayUnit[];
+    enemyDisplayUnits: DisplayUnit[];
   }
 
-  let { playerUnits, enemyUnits, characterNames, characterRoles }: Props = $props();
+  let { playerDisplayUnits, enemyDisplayUnits }: Props = $props();
 
-  function getUnitAtPosition(
-    units: Map<string, CombatState>,
-    row: number,
-    col: number
-  ): CombatState | null {
-    for (const unit of units.values()) {
-      if (unit.position.row === row && unit.position.col === col) {
-        return unit;
-      }
-    }
-    return null;
+  function getUnitAtPosition(units: DisplayUnit[], row: number, col: number): DisplayUnit | undefined {
+    return units.find((u) => u.position.row === row && u.position.col === col);
   }
 
-  const rows = [0, 1, 2];
-  const cols = [0, 1, 2];
+  const rows = [0, 1, 2] as const;
+  const cols = [0, 1, 2] as const;
 </script>
 
 <div class="flex flex-col items-center gap-8">
   <!-- Enemy Grid (mirrored - row 2 at top, row 0 at bottom) -->
   <div class="flex flex-col gap-2">
     <h3 class="text-red-400 font-bold text-center mb-2">Enemy Team</h3>
-    {#each [...rows].reverse() as row}
+    {#each [2, 1, 0] as row}
       <div class="flex gap-2 justify-center">
         {#each cols as col}
-          {@const unit = getUnitAtPosition(enemyUnits, row, col)}
+          {@const unit = getUnitAtPosition(enemyDisplayUnits, row, col)}
           <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-center justify-center">
             {#if unit}
               <CharacterCard
-                {unit}
-                name={characterNames.get(unit.characterId) || '???'}
-                role={characterRoles.get(unit.characterId) || 'warrior'}
+                name={unit.name}
+                role={unit.role}
+                currentHp={unit.currentHp}
+                maxHp={unit.maxHp}
+                isAlive={unit.isAlive}
                 isPlayer={false}
               />
             {/if}
@@ -64,13 +66,15 @@
     {#each rows as row}
       <div class="flex gap-2 justify-center">
         {#each cols as col}
-          {@const unit = getUnitAtPosition(playerUnits, row, col)}
+          {@const unit = getUnitAtPosition(playerDisplayUnits, row, col)}
           <div class="w-20 h-24 border border-gray-700 rounded-lg flex items-center justify-center">
             {#if unit}
               <CharacterCard
-                {unit}
-                name={characterNames.get(unit.characterId) || '???'}
-                role={characterRoles.get(unit.characterId) || 'warrior'}
+                name={unit.name}
+                role={unit.role}
+                currentHp={unit.currentHp}
+                maxHp={unit.maxHp}
+                isAlive={unit.isAlive}
                 isPlayer={true}
               />
             {/if}

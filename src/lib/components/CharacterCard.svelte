@@ -1,14 +1,16 @@
 <script lang="ts">
-  import type { CombatState, Role } from '../game/types';
+  import type { Role } from '../game/types';
 
   interface Props {
-    unit: CombatState;
     name: string;
     role: Role;
+    currentHp: number;
+    maxHp: number;
+    isAlive: boolean;
     isPlayer: boolean;
   }
 
-  let { unit, name, role, isPlayer }: Props = $props();
+  let { name, role, currentHp, maxHp, isAlive, isPlayer }: Props = $props();
 
   const roleColors: Record<Role, string> = {
     tank: 'bg-blue-600',
@@ -20,16 +22,15 @@
   };
 
   const roleIcons: Record<Role, string> = {
-    tank: '🛡️',
-    warrior: '⚔️',
-    archer: '🏹',
-    mage: '🔮',
-    assassin: '🗡️',
-    healer: '💚',
+    tank: 'T',
+    warrior: 'W',
+    archer: 'A',
+    mage: 'M',
+    assassin: 'X',
+    healer: 'H',
   };
 
-  let hpPercent = $derived(Math.max(0, (unit.currentHp / unit.maxHp) * 100));
-  let isAlive = $derived(unit.isAlive);
+  let hpPercent = $derived(Math.max(0, (currentHp / maxHp) * 100));
 </script>
 
 <div
@@ -42,7 +43,7 @@
     {name}
   </div>
 
-  <div class="absolute top-5 left-0 right-0 text-center text-2xl">
+  <div class="absolute top-5 left-0 right-0 text-center text-2xl font-bold">
     {roleIcons[role]}
   </div>
 
@@ -57,6 +58,6 @@
   </div>
 
   <div class="absolute bottom-1 left-0 right-0 text-center text-xs">
-    {unit.currentHp}/{unit.maxHp}
+    {currentHp}/{maxHp}
   </div>
 </div>

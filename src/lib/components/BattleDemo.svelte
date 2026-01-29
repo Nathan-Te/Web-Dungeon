@@ -8,194 +8,202 @@
     type CombatAction,
     type BattleResult,
     type Role,
+    type Position,
+    ROLE_PREFERRED_ROW,
   } from '../game';
   import BattleGrid from './BattleGrid.svelte';
   import BattleLog from './BattleLog.svelte';
+
+  /** Flat display unit for the grid (no Maps, no deep proxies) */
+  interface DisplayUnit {
+    id: string;
+    name: string;
+    role: Role;
+    currentHp: number;
+    maxHp: number;
+    atk: number;
+    def: number;
+    spd: number;
+    position: Position;
+    team: 'player' | 'enemy';
+    isAlive: boolean;
+  }
 
   // Battle state
   let seed = $state(12345);
   let battleResult: BattleResult | null = $state(null);
   let currentActionIndex = $state(-1);
   let isPlaying = $state(false);
-  let playbackSpeed = $state(500); // ms per action
+  let playbackSpeed = $state(500);
+  let determinismResult = $state('');
 
-  // Unit tracking for grid display
-  let playerUnits: Map<string, CombatState> = $state(new Map());
-  let enemyUnits: Map<string, CombatState> = $state(new Map());
-  let characterNames: Map<string, string> = $state(new Map());
-  let characterRoles: Map<string, Role> = $state(new Map());
+  // Display data (flat arrays, no Maps)
+  let displayUnits: DisplayUnit[] = $state([]);
+  let actionLog: CombatAction[] = $state([]);
 
-  // Create test teams
+  // Non-reactive lookup tables (only used internally, never in template directly)
+  let nameMap = new Map<string, string>();
+  let roleMap = new Map<string, Role>();
+
   function createTestTeams() {
-    // Player team: Tank, Archer, Mage
     const playerTeam = [
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_001')!, 10, 0), // Bruno (Tank)
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_003')!, 10, 0), // Flynn (Archer)
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_004')!, 10, 0), // Mira (Mage)
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_001')!, 10, 0),
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_003')!, 10, 0),
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_004')!, 10, 0),
     ];
-
-    // Enemy team: Warrior, Assassin, Healer
     const enemyTeam = [
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_002')!, 10, 0), // Aria (Warrior)
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_005')!, 10, 0), // Shade (Assassin)
-      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_008')!, 10, 0), // Elara (Healer)
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_002')!, 10, 0),
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_005')!, 10, 0),
+      new Character(CHARACTER_DEFINITIONS.find((c) => c.id === 'char_008')!, 10, 0),
     ];
-
     return { playerTeam, enemyTeam };
   }
 
-  // Run battle simulation
-  function runBattle() {
-    const { playerTeam, enemyTeam } = createTestTeams();
+  function buildDisplayUnits(playerTeam: Character[], enemyTeam: Character[]): DisplayUnit[] {
+    const units: DisplayUnit[] = [];
 
-    // Store character info for display
-    characterNames = new Map();
-    characterRoles = new Map();
-    for (const char of [...playerTeam, ...enemyTeam]) {
-      characterNames.set(char.id, char.name);
-      characterRoles.set(char.id, char.role);
-    }
-
-    // Run simulation
-    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed);
-    battleResult = simulation.simulate();
-
-    // Extract initial states by re-creating simulation for display
-    const displaySimulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed);
-
-    // We need to access internal state - let's create a simpler approach
-    initializeDisplayState(playerTeam, enemyTeam);
-
-    currentActionIndex = -1;
-    isPlaying = false;
-  }
-
-  function initializeDisplayState(playerTeam: Character[], enemyTeam: Character[]) {
-    playerUnits = new Map();
-    enemyUnits = new Map();
-
-    // Simple positioning based on role preferences
-    const ROLE_PREFERRED_ROW: Record<Role, 0 | 1 | 2> = {
-      tank: 0,
-      warrior: 0,
-      archer: 2,
-      mage: 2,
-      assassin: 1,
-      healer: 2,
-    };
-
-    const assignPositions = (team: Character[], isPlayer: boolean) => {
+    const assignTeam = (team: Character[], teamType: 'player' | 'enemy') => {
       const sorted = [...team].sort(
         (a, b) => ROLE_PREFERRED_ROW[a.role] - ROLE_PREFERRED_ROW[b.role]
       );
-      const usedPositions = new Set<string>();
+      const used = new Set<string>();
 
-      sorted.forEach((char) => {
+      for (const char of sorted) {
         const preferredRow = ROLE_PREFERRED_ROW[char.role];
-        let position = null;
+        let pos: Position | null = null;
 
-        for (let col = 0; col <= 2 && !position; col++) {
-          const posKey = `${preferredRow},${col}`;
-          if (!usedPositions.has(posKey)) {
-            position = { row: preferredRow as 0 | 1 | 2, col: col as 0 | 1 | 2 };
-            usedPositions.add(posKey);
+        for (let col = 0; col <= 2 && !pos; col++) {
+          const key = `${preferredRow},${col}`;
+          if (!used.has(key)) {
+            pos = { row: preferredRow, col: col as 0 | 1 | 2 };
+            used.add(key);
           }
         }
-
-        if (!position) {
-          for (let row = 0; row <= 2 && !position; row++) {
-            for (let col = 0; col <= 2 && !position; col++) {
-              const posKey = `${row},${col}`;
-              if (!usedPositions.has(posKey)) {
-                position = { row: row as 0 | 1 | 2, col: col as 0 | 1 | 2 };
-                usedPositions.add(posKey);
+        if (!pos) {
+          for (let row = 0; row <= 2 && !pos; row++) {
+            for (let col = 0; col <= 2 && !pos; col++) {
+              const key = `${row},${col}`;
+              if (!used.has(key)) {
+                pos = { row: row as 0 | 1 | 2, col: col as 0 | 1 | 2 };
+                used.add(key);
               }
             }
           }
         }
 
-        if (position) {
-          const state: CombatState = {
-            characterId: char.id,
+        if (pos) {
+          units.push({
+            id: char.id,
+            name: char.name,
+            role: char.role,
             currentHp: char.hp,
             maxHp: char.hp,
             atk: char.atk,
             def: char.def,
             spd: char.spd,
-            position,
-            team: isPlayer ? 'player' : 'enemy',
+            position: pos,
+            team: teamType,
             isAlive: true,
-            level: char.level,
-            ascension: char.ascension,
-          };
-
-          if (isPlayer) {
-            playerUnits.set(char.id, state);
-          } else {
-            enemyUnits.set(char.id, state);
-          }
+          });
         }
-      });
+      }
     };
 
-    assignPositions(playerTeam, true);
-    assignPositions(enemyTeam, false);
+    assignTeam(playerTeam, 'player');
+    assignTeam(enemyTeam, 'enemy');
+    return units;
   }
 
-  // Apply action effects to display state
+  function runBattle() {
+    const { playerTeam, enemyTeam } = createTestTeams();
+
+    nameMap = new Map();
+    roleMap = new Map();
+    for (const char of [...playerTeam, ...enemyTeam]) {
+      nameMap.set(char.id, char.name);
+      roleMap.set(char.id, char.role);
+    }
+
+    const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, seed);
+    battleResult = simulation.simulate();
+    actionLog = battleResult.actionLog;
+    displayUnits = buildDisplayUnits(playerTeam, enemyTeam);
+    currentActionIndex = -1;
+    isPlaying = false;
+  }
+
   function applyAction(action: CombatAction) {
+    const idx = displayUnits.findIndex(
+      (u) => u.id === (action.targetId ?? action.actorId)
+    );
+    if (idx === -1) return;
+
+    // Clone array for reactivity
+    const updated = displayUnits.map((u) => ({ ...u }));
+
     if (action.actionType === 'attack' || action.actionType === 'ability') {
-      if (action.targetId && action.damage !== undefined) {
-        const targetUnit =
-          playerUnits.get(action.targetId) || enemyUnits.get(action.targetId);
-        if (targetUnit) {
-          targetUnit.currentHp = Math.max(0, targetUnit.currentHp - action.damage);
-        }
+      const tIdx = updated.findIndex((u) => u.id === action.targetId);
+      if (tIdx !== -1 && action.damage !== undefined) {
+        updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
       }
     } else if (action.actionType === 'heal') {
-      if (action.targetId && action.healing !== undefined) {
-        const targetUnit =
-          playerUnits.get(action.targetId) || enemyUnits.get(action.targetId);
-        if (targetUnit) {
-          targetUnit.currentHp = Math.min(
-            targetUnit.maxHp,
-            targetUnit.currentHp + action.healing
-          );
-        }
+      const tIdx = updated.findIndex((u) => u.id === action.targetId);
+      if (tIdx !== -1 && action.healing !== undefined) {
+        updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
       }
     } else if (action.actionType === 'death') {
-      const deadUnit =
-        playerUnits.get(action.actorId) || enemyUnits.get(action.actorId);
-      if (deadUnit) {
-        deadUnit.isAlive = false;
+      const dIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (dIdx !== -1) {
+        updated[dIdx].isAlive = false;
+        updated[dIdx].currentHp = 0;
       }
     }
 
-    // Trigger reactivity
-    playerUnits = new Map(playerUnits);
-    enemyUnits = new Map(enemyUnits);
+    displayUnits = updated;
   }
 
-  // Step through actions
   function stepForward() {
-    if (!battleResult || currentActionIndex >= battleResult.actionLog.length - 1) return;
+    if (!battleResult || currentActionIndex >= actionLog.length - 1) return;
     currentActionIndex++;
-    applyAction(battleResult.actionLog[currentActionIndex]);
+    applyAction(actionLog[currentActionIndex]);
   }
 
   function stepBackward() {
     if (!battleResult || currentActionIndex < 0) return;
-    // Re-run from start to previous action
     const { playerTeam, enemyTeam } = createTestTeams();
-    initializeDisplayState(playerTeam, enemyTeam);
-
-    for (let i = 0; i < currentActionIndex; i++) {
-      applyAction(battleResult.actionLog[i]);
+    const fresh = buildDisplayUnits(playerTeam, enemyTeam);
+    const targetIndex = currentActionIndex - 1;
+    // Replay up to targetIndex
+    let units = fresh;
+    for (let i = 0; i <= targetIndex; i++) {
+      units = replayAction(units, actionLog[i]);
     }
-    currentActionIndex--;
+    displayUnits = units;
+    currentActionIndex = targetIndex;
   }
 
-  // Auto-play
+  function replayAction(units: DisplayUnit[], action: CombatAction): DisplayUnit[] {
+    const updated = units.map((u) => ({ ...u }));
+    if (action.actionType === 'attack' || action.actionType === 'ability') {
+      const tIdx = updated.findIndex((u) => u.id === action.targetId);
+      if (tIdx !== -1 && action.damage !== undefined) {
+        updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+      }
+    } else if (action.actionType === 'heal') {
+      const tIdx = updated.findIndex((u) => u.id === action.targetId);
+      if (tIdx !== -1 && action.healing !== undefined) {
+        updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
+      }
+    } else if (action.actionType === 'death') {
+      const dIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (dIdx !== -1) {
+        updated[dIdx].isAlive = false;
+        updated[dIdx].currentHp = 0;
+      }
+    }
+    return updated;
+  }
+
   let playInterval: ReturnType<typeof setInterval> | null = null;
 
   function togglePlay() {
@@ -206,7 +214,7 @@
     } else {
       isPlaying = true;
       playInterval = setInterval(() => {
-        if (!battleResult || currentActionIndex >= battleResult.actionLog.length - 1) {
+        if (!battleResult || currentActionIndex >= actionLog.length - 1) {
           if (playInterval) clearInterval(playInterval);
           playInterval = null;
           isPlaying = false;
@@ -224,40 +232,39 @@
     runBattle();
   }
 
-  // Verify determinism
-  let determinismResult = $state('');
-
   function testDeterminism() {
-    const { playerTeam: team1_1, enemyTeam: team1_2 } = createTestTeams();
-    const { playerTeam: team2_1, enemyTeam: team2_2 } = createTestTeams();
+    const { playerTeam: t1p, enemyTeam: t1e } = createTestTeams();
+    const { playerTeam: t2p, enemyTeam: t2e } = createTestTeams();
 
     const testSeed = 42;
-    const sim1 = new AutoBattleSimulation(team1_1, team1_2, testSeed);
-    const sim2 = new AutoBattleSimulation(team2_1, team2_2, testSeed);
-
-    const result1 = sim1.simulate();
-    const result2 = sim2.simulate();
+    const r1 = new AutoBattleSimulation(t1p, t1e, testSeed).simulate();
+    const r2 = new AutoBattleSimulation(t2p, t2e, testSeed).simulate();
 
     const match =
-      result1.winner === result2.winner &&
-      result1.turns === result2.turns &&
-      result1.actionLog.length === result2.actionLog.length &&
-      result1.actionLog.every(
+      r1.winner === r2.winner &&
+      r1.turns === r2.turns &&
+      r1.actionLog.length === r2.actionLog.length &&
+      r1.actionLog.every(
         (a, i) =>
-          a.damage === result2.actionLog[i].damage &&
-          a.healing === result2.actionLog[i].healing &&
-          a.isCritical === result2.actionLog[i].isCritical
+          a.damage === r2.actionLog[i].damage &&
+          a.healing === r2.actionLog[i].healing &&
+          a.isCritical === r2.actionLog[i].isCritical
       );
 
     determinismResult = match
-      ? `PASS: Same seed (${testSeed}) produces identical results! Winner: ${result1.winner}, Turns: ${result1.turns}, Actions: ${result1.actionLog.length}`
+      ? `PASS: Same seed (${testSeed}) produces identical results! Winner: ${r1.winner}, Turns: ${r1.turns}, Actions: ${r1.actionLog.length}`
       : 'FAIL: Results do not match!';
   }
 
-  // Initialize on mount
   onMount(() => {
     runBattle();
   });
+
+  let playerDisplayUnits = $derived(displayUnits.filter((u) => u.team === 'player'));
+  let enemyDisplayUnits = $derived(displayUnits.filter((u) => u.team === 'enemy'));
+  let battleDone = $derived(
+    battleResult !== null && currentActionIndex >= actionLog.length - 1
+  );
 </script>
 
 <div class="max-w-4xl mx-auto p-4">
@@ -301,7 +308,7 @@
 
   <!-- Battle Grid -->
   <div class="mb-6">
-    <BattleGrid {playerUnits} {enemyUnits} {characterNames} {characterRoles} />
+    <BattleGrid {playerDisplayUnits} {enemyDisplayUnits} />
   </div>
 
   <!-- Playback Controls -->
@@ -311,7 +318,7 @@
       disabled={!battleResult || currentActionIndex < 0}
       class="px-4 py-2 bg-slate-600 hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed rounded"
     >
-      ⏮️ Prev
+      Prev
     </button>
 
     <button
@@ -319,15 +326,15 @@
       disabled={!battleResult}
       class="px-6 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded font-bold"
     >
-      {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+      {isPlaying ? 'Pause' : 'Play'}
     </button>
 
     <button
       onclick={stepForward}
-      disabled={!battleResult || currentActionIndex >= (battleResult?.actionLog.length ?? 0) - 1}
+      disabled={!battleResult || currentActionIndex >= actionLog.length - 1}
       class="px-4 py-2 bg-slate-600 hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed rounded"
     >
-      Next ⏭️
+      Next
     </button>
 
     <div class="flex items-center gap-2">
@@ -346,7 +353,7 @@
   </div>
 
   <!-- Battle Result -->
-  {#if battleResult && currentActionIndex >= battleResult.actionLog.length - 1}
+  {#if battleDone && battleResult}
     <div
       class="mb-4 p-4 rounded-lg text-center font-bold text-xl
         {battleResult.winner === 'player' ? 'bg-blue-900' : battleResult.winner === 'enemy' ? 'bg-red-900' : 'bg-gray-700'}"
@@ -362,16 +369,16 @@
   {/if}
 
   <!-- Action Log -->
-  <BattleLog actions={battleResult?.actionLog ?? []} currentIndex={currentActionIndex} />
+  <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
 
   <!-- Stats Panel -->
   {#if battleResult}
     <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
       <div class="bg-slate-800 p-3 rounded">
         <h4 class="font-bold text-blue-400 mb-2">Player Team Stats</h4>
-        {#each playerUnits.values() as unit}
+        {#each playerDisplayUnits as unit (unit.id)}
           <div class="flex justify-between">
-            <span>{characterNames.get(unit.characterId)}</span>
+            <span>{unit.name}</span>
             <span class="{unit.isAlive ? 'text-green-400' : 'text-red-400'}">
               {unit.currentHp}/{unit.maxHp} HP
             </span>
@@ -381,9 +388,9 @@
 
       <div class="bg-slate-800 p-3 rounded">
         <h4 class="font-bold text-red-400 mb-2">Enemy Team Stats</h4>
-        {#each enemyUnits.values() as unit}
+        {#each enemyDisplayUnits as unit (unit.id)}
           <div class="flex justify-between">
-            <span>{characterNames.get(unit.characterId)}</span>
+            <span>{unit.name}</span>
             <span class="{unit.isAlive ? 'text-green-400' : 'text-red-400'}">
               {unit.currentHp}/{unit.maxHp} HP
             </span>

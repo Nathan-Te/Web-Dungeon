@@ -5,7 +5,7 @@
 // RNG
 export { mulberry32, SeededRNG } from './rng';
 
-// Types
+// Types and constants
 export * from './types';
 
 // Character
