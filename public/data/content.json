@@ -225,7 +225,10 @@
       "rarity": "common",
       "level": 1,
       "ascension": 0,
-      "abilityId": "ability_heal"
+      "abilityId": "ability_heal",
+      "statOverrides": {
+        "hpMult": 0.5
+      }
     },
     {
       "id": "enemy_mkzlkcru_85py",
@@ -254,25 +257,10 @@
           "isBoss": false,
           "enemies": [
             {
-              "enemyTemplateId": "enemy_mkzlkcru_85py"
-            },
-            {
-              "enemyTemplateId": "enemy_mkzlkcru_85py"
+              "enemyTemplateId": "enemy_mkzl5ejn_tx2m"
             }
           ],
-          "difficultyMult": 1.1
-        },
-        {
-          "id": "room_mkzlldns_trh7",
-          "name": "Room 2",
-          "roomNumber": 2,
-          "isBoss": false,
-          "enemies": [
-            {
-              "enemyTemplateId": "enemy_mkza5n5l_bwpu"
-            }
-          ],
-          "difficultyMult": 1.1
+          "difficultyMult": 1
         }
       ]
     }
@@ -396,5 +384,5 @@
   "dailyDungeonSchedule": {
     "2026-01-29": "dungeon_migrated"
   },
-  "publishedAt": 1769728779838
+  "publishedAt": 1769729661579
 }
