@@ -23,6 +23,8 @@
   import DungeonEditor from './DungeonEditor.svelte';
   import SpellEditor from './SpellEditor.svelte';
   import RolesReference from './RolesReference.svelte';
+  import GachaConfigEditor from './GachaConfigEditor.svelte';
+  import type { GachaConfig } from './adminTypes';
 
   interface Props {
     onNavigate: (page: string) => void;
@@ -30,7 +32,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'data';
   let activeTab: Tab = $state('characters');
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
@@ -88,6 +90,14 @@
     save({ ...content, roleStats });
   }
 
+  // Gacha config
+  function onSaveGachaConfig(config: GachaConfig) {
+    save({ ...content, gachaConfig: config });
+  }
+  function onSaveDailyDungeon(id: string) {
+    save({ ...content, dailyDungeonId: id });
+  }
+
   // Data management
   function handleExport() {
     exportContentAsJson(content);
@@ -127,6 +137,7 @@
     { key: 'dungeons', label: 'Dungeons', count: () => content.dungeons.length },
     { key: 'spells', label: 'Spells', count: () => content.abilities.length },
     { key: 'roles', label: 'Roles', count: () => 0 },
+    { key: 'gacha', label: 'Gacha', count: () => content.gachaConfig?.characterPool.length ?? 0 },
     { key: 'data', label: 'Data', count: () => 0 },
   ];
 </script>
@@ -135,12 +146,26 @@
   <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold">Content Admin</h1>
-    <button
-      onclick={() => onNavigate('game')}
-      class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
-    >
-      Back to Game
-    </button>
+    <div class="flex gap-2">
+      <button
+        onclick={() => onNavigate('demo')}
+        class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs"
+      >
+        Battle Demo
+      </button>
+      <button
+        onclick={() => onNavigate('dungeon-test')}
+        class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs"
+      >
+        Dungeon Test
+      </button>
+      <button
+        onclick={() => onNavigate('player')}
+        class="px-3 py-2 bg-amber-700 hover:bg-amber-600 rounded text-xs font-bold"
+      >
+        Player
+      </button>
+    </div>
   </div>
 
   <!-- Status bar -->
@@ -200,6 +225,15 @@
     />
   {:else if activeTab === 'roles'}
     <RolesReference roleStats={content.roleStats} {onSaveRoleStats} />
+  {:else if activeTab === 'gacha'}
+    <GachaConfigEditor
+      characters={content.characters}
+      dungeons={content.dungeons}
+      gachaConfig={content.gachaConfig}
+      dailyDungeonId={content.dailyDungeonId}
+      onSave={onSaveGachaConfig}
+      onSaveDailyDungeon={onSaveDailyDungeon}
+    />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
       <!-- Summary -->

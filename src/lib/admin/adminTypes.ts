@@ -6,6 +6,16 @@
 import type { CharacterDefinition, Role, Rarity, SpriteSet, BaseStats } from '../game/types';
 import type { AbilityDefinition } from '../game/abilities';
 
+/** Gacha configuration set by admin */
+export interface GachaConfig {
+  /** IDs of characters available in the gacha pool */
+  characterPool: string[];
+  /** Pull rates per rarity (must sum to 1.0) */
+  rates: Record<Rarity, number>;
+  /** Number of duplicates required for each ascension level (index 0 = asc 0→1, etc.) */
+  ascensionCosts: number[];
+}
+
 /** Enemy template for dungeon encounters */
 export interface EnemyTemplate {
   id: string;
@@ -80,6 +90,10 @@ export interface GameContent {
   abilities: AbilityDefinition[];
   /** Custom base stats per role (overrides defaults from ROLE_BASE_STATS) */
   roleStats?: Partial<Record<Role, BaseStats>>;
+  /** Gacha system configuration */
+  gachaConfig?: GachaConfig;
+  /** ID of the dungeon used as today's daily dungeon (admin picks) */
+  dailyDungeonId?: string;
 }
 
 export const CURRENT_CONTENT_VERSION = 3;
