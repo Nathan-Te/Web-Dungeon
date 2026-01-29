@@ -45,12 +45,31 @@ export const ROLE_PREFERRED_ROW: Record<Role, 0 | 1 | 2> = {
 /** Animation state for sprites */
 export type AnimState = 'idle' | 'attack' | 'castAbility' | 'death';
 
-/** Sprite set with animation states (URL or base64 data URI per state) */
+/** Sprite sheet configuration for frame-based animation */
+export interface SpriteSheetConfig {
+  /** URL or base64 data URI of the sprite sheet image */
+  src: string;
+  /** Width of a single frame in px */
+  frameWidth: number;
+  /** Height of a single frame in px */
+  frameHeight: number;
+  /** Total number of frames in the sheet */
+  frameCount: number;
+  /** Number of frames per row in the sheet */
+  framesPerRow: number;
+}
+
+/** A sprite source: either a static image URL or a sprite sheet config */
+export type SpriteSource = string | SpriteSheetConfig;
+
+/** Sprite set with animation states — each slot is a static image or a sprite sheet */
 export interface SpriteSet {
-  idle?: string;
-  attack?: string;
-  castAbility?: string;
-  death?: string;
+  idle?: SpriteSource;
+  attack?: SpriteSource;
+  castAbility?: SpriteSource;
+  death?: SpriteSource;
+  /** Global animation speed in ms per frame (default 150) */
+  frameDuration?: number;
 }
 
 /** Character definition (static data) */

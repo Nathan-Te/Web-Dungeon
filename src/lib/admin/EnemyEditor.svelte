@@ -1,10 +1,16 @@
 <script lang="ts">
-  import type { Role, Rarity } from '../game/types';
+  import type { Role, Rarity, SpriteSource } from '../game/types';
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
   import type { EnemyTemplate } from './adminTypes';
   import { createBlankEnemy } from './adminTypes';
   import SpritePicker from './SpritePicker.svelte';
+
+  /** Extract preview URL from a SpriteSource (string or sheet config) */
+  function spritePreviewUrl(src: SpriteSource | undefined): string | undefined {
+    if (!src) return undefined;
+    return typeof src === 'string' ? src : src.src;
+  }
 
   interface Props {
     enemies: EnemyTemplate[];
@@ -316,8 +322,8 @@
     {#each enemies as enemy (enemy.id)}
       {@const base = ROLE_BASE_STATS[enemy.role]}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
-        {#if enemy.sprites?.idle || enemy.sprite}
-          <img src={enemy.sprites?.idle ?? enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+        {#if spritePreviewUrl(enemy.sprites?.idle) || enemy.sprite}
+          <img src={spritePreviewUrl(enemy.sprites?.idle) ?? enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
         {:else}
           <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
         {/if}

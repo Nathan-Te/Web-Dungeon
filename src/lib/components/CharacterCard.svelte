@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Role, SpriteSet, AnimState } from '../game/types';
+  import { onDestroy } from 'svelte';
+  import type { Role, SpriteSet, SpriteSource, SpriteSheetConfig, AnimState } from '../game/types';
 
   interface Props {
     name: string;
@@ -37,12 +38,33 @@
     hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500'
   );
 
-  /** Resolve the sprite for the current animation state, falling back idle → undefined */
-  let spriteSrc = $derived(
+  /** Check if a SpriteSource is a sprite sheet config */
+  function isSheet(src: SpriteSource | undefined): src is SpriteSheetConfig {
+    return typeof src === 'object' && src !== null && 'src' in src;
+  }
+
+  /** Resolve the sprite source for the current animation state, falling back idle → undefined */
+  let spriteSource = $derived<SpriteSource | undefined>(
     sprites
       ? (sprites[animState] ?? sprites.idle ?? undefined)
       : undefined
   );
+
+  /** Is the resolved sprite a sheet? */
+  let sourceIsSheet = $derived(isSheet(spriteSource));
+
+  /** Static image URL (only if not a sheet) */
+  let staticSrc = $derived(
+    spriteSource && !sourceIsSheet ? (spriteSource as string) : undefined
+  );
+
+  /** Sheet config (only if is a sheet) */
+  let sheetConfig = $derived(
+    sourceIsSheet ? (spriteSource as SpriteSheetConfig) : undefined
+  );
+
+  /** Has any sprite (static or sheet) */
+  let hasSprite = $derived(spriteSource !== undefined);
 
   /** CSS filter effect per animation state */
   let animClass = $derived(
@@ -51,18 +73,81 @@
     animState === 'death' ? 'rotate-12 brightness-50' :
     ''
   );
+
+  // --- Sprite sheet animation ---
+  let currentFrame = $state(0);
+  let frameTimer: ReturnType<typeof setInterval> | null = null;
+
+  function startFrameAnimation(cfg: SpriteSheetConfig) {
+    stopFrameAnimation();
+    currentFrame = 0;
+    const duration = sprites?.frameDuration ?? 150;
+    frameTimer = setInterval(() => {
+      currentFrame = (currentFrame + 1) % cfg.frameCount;
+    }, duration);
+  }
+
+  function stopFrameAnimation() {
+    if (frameTimer) {
+      clearInterval(frameTimer);
+      frameTimer = null;
+    }
+    currentFrame = 0;
+  }
+
+  // Watch for sheet config changes
+  $effect(() => {
+    if (sheetConfig) {
+      startFrameAnimation(sheetConfig);
+    } else {
+      stopFrameAnimation();
+    }
+  });
+
+  onDestroy(() => {
+    stopFrameAnimation();
+  });
+
+  /** Compute background-position for current frame in sheet */
+  let sheetBgPosition = $derived.by(() => {
+    if (!sheetConfig) return '0% 0%';
+    const col = currentFrame % sheetConfig.framesPerRow;
+    const row = Math.floor(currentFrame / sheetConfig.framesPerRow);
+    const totalCols = sheetConfig.framesPerRow;
+    const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow);
+    // percentage-based positioning
+    const xPct = totalCols > 1 ? (col / (totalCols - 1)) * 100 : 0;
+    const yPct = totalRows > 1 ? (row / (totalRows - 1)) * 100 : 0;
+    return `${xPct}% ${yPct}%`;
+  });
+
+  let sheetBgSize = $derived.by(() => {
+    if (!sheetConfig) return '100% 100%';
+    const totalCols = sheetConfig.framesPerRow;
+    const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow);
+    return `${totalCols * 100}% ${totalRows * 100}%`;
+  });
 </script>
 
-{#if spriteSrc}
+{#if hasSprite}
   <!-- Sprite layout: image dominant, info strip below -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
     <div class="w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
       {isPlayer ? 'border-blue-400' : 'border-red-400'}">
-      <img
-        src={spriteSrc}
-        alt={name}
-        class="w-full h-full object-contain transition-all duration-200 {animClass}"
-      />
+      {#if sheetConfig}
+        <!-- Animated sprite sheet -->
+        <div
+          class="w-full h-full transition-transform duration-200 {animClass}"
+          style="background-image: url({sheetConfig.src}); background-size: {sheetBgSize}; background-position: {sheetBgPosition};"
+        ></div>
+      {:else if staticSrc}
+        <!-- Static image -->
+        <img
+          src={staticSrc}
+          alt={name}
+          class="w-full h-full object-contain transition-all duration-200 {animClass}"
+        />
+      {/if}
     </div>
     <div class="w-24 -mt-0.5">
       <div class="text-center text-[11px] font-bold truncate leading-tight">{name}</div>
