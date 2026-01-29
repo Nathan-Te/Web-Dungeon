@@ -100,6 +100,8 @@ export interface GameContent {
   dailyDungeonSchedule?: Record<string, string>;
   /** Max team size for dungeon (default 6) */
   maxDungeonTeamSize?: number;
+  /** Timestamp of last online publish (ms since epoch) */
+  publishedAt?: number;
 }
 
 export const CURRENT_CONTENT_VERSION = 3;

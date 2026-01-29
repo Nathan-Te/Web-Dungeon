@@ -127,6 +127,118 @@ export function resetToDefaults(): GameContent {
   return content;
 }
 
+// --- Online publish via GitHub API ---
+
+const GITHUB_REPO = 'Nathan-Te/Web-Dungeon';
+const CONTENT_PATH = 'public/data/content.json';
+const GITHUB_TOKEN_KEY = 'dungeon-admin-github-token';
+
+/** Store GitHub token in sessionStorage */
+export function setGitHubToken(token: string): void {
+  sessionStorage.setItem(GITHUB_TOKEN_KEY, token);
+}
+
+/** Retrieve stored GitHub token */
+export function getGitHubToken(): string | null {
+  return sessionStorage.getItem(GITHUB_TOKEN_KEY);
+}
+
+/** Publish content to GitHub repo as a static JSON file */
+export async function publishContentOnline(
+  content: GameContent,
+  token: string,
+): Promise<{ success: true; publishedAt: number } | { success: false; error: string }> {
+  try {
+    const publishedAt = Date.now();
+    const published = { ...content, publishedAt };
+    const jsonStr = JSON.stringify(published, null, 2);
+    const base64Content = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    // Get current file SHA (required for updates)
+    const getRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${CONTENT_PATH}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } },
+    );
+
+    let sha: string | undefined;
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+    } else if (getRes.status !== 404) {
+      return { success: false, error: `GitHub GET error: ${getRes.status}` };
+    }
+
+    // Create or update the file
+    const putBody: Record<string, string> = {
+      message: `publish: update game content (${new Date(publishedAt).toISOString()})`,
+      content: base64Content,
+    };
+    if (sha) putBody.sha = sha;
+
+    const putRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${CONTENT_PATH}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(putBody),
+      },
+    );
+
+    if (!putRes.ok) {
+      const err = await putRes.text();
+      return { success: false, error: `GitHub PUT error ${putRes.status}: ${err}` };
+    }
+
+    return { success: true, publishedAt };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// --- Fetch published content (player side) ---
+
+const PUBLISHED_CONTENT_URL = import.meta.env.BASE_URL + 'data/content.json';
+
+/** Fetch the latest published content from the static file */
+export async function fetchPublishedContent(): Promise<GameContent | null> {
+  try {
+    const res = await fetch(PUBLISHED_CONTENT_URL, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.version || !Array.isArray(data.characters)) return null;
+    return data as GameContent;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Load content with online sync: fetch published content and use it
+ * if it's newer than what's in localStorage.
+ */
+export async function loadContentWithSync(): Promise<GameContent> {
+  const local = loadContent();
+  const remote = await fetchPublishedContent();
+
+  if (!remote || !remote.publishedAt) return local;
+
+  const localPublishedAt = local.publishedAt ?? 0;
+  if (remote.publishedAt > localPublishedAt) {
+    // Remote is newer — migrate if needed and save locally
+    const migrated = remote.version === CURRENT_CONTENT_VERSION && Array.isArray(remote.dungeons)
+      ? remote
+      : migrateContent(remote as unknown as Record<string, unknown>);
+    saveContent(migrated);
+    return migrated;
+  }
+
+  return local;
+}
+
 // --- CRUD helpers ---
 
 export function upsertCharacter(

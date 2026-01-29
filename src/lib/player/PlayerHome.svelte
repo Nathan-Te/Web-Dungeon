@@ -3,7 +3,7 @@
   import type { CharacterDefinition, Role, BaseStats } from '../game/types';
   import type { GameContent, GachaConfig, Dungeon, EnemyTemplate } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
-  import { loadContent } from '../admin/contentStore';
+  import { loadContent, loadContentWithSync } from '../admin/contentStore';
   import {
     loadPlayerSave,
     savePlayerSave,
@@ -46,9 +46,13 @@
   );
   let maxTeamSize = $derived(dailyDungeon?.maxTeamSize ?? 5);
 
-  onMount(() => {
+  onMount(async () => {
+    // Load local content immediately, then sync with online version
     content = loadContent();
     playerSave = loadPlayerSave();
+    // Async: fetch remote content and update if newer
+    const synced = await loadContentWithSync();
+    content = synced;
   });
 
   function handleGachaPull(characterId: string) {
