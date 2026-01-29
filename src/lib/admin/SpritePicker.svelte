@@ -35,13 +35,20 @@
     death: { frameWidth: DEFAULT_FRAME_WIDTH, frameHeight: DEFAULT_FRAME_HEIGHT, frameCount: DEFAULT_FRAME_COUNT, framesPerRow: DEFAULT_FRAMES_PER_ROW },
   });
 
+  const DEFAULT_SPRITE_SCALE = 1.0;
+
   /** Frame duration (global) */
   let frameDuration = $state(DEFAULT_FRAME_DURATION);
+  /** Sprite display scale */
+  let spriteScale = $state(DEFAULT_SPRITE_SCALE);
 
-  // Sync frameDuration from props on mount
+  // Sync frameDuration and spriteScale from props on mount
   $effect(() => {
     if (sprites?.frameDuration) {
       frameDuration = sprites.frameDuration;
+    }
+    if (sprites?.spriteScale) {
+      spriteScale = sprites.spriteScale;
     }
   });
 
@@ -78,9 +85,12 @@
     } else {
       delete updated[slot];
     }
-    // Preserve frameDuration
+    // Preserve global settings
     if (frameDuration !== DEFAULT_FRAME_DURATION) {
       updated.frameDuration = frameDuration;
+    }
+    if (spriteScale !== DEFAULT_SPRITE_SCALE) {
+      updated.spriteScale = spriteScale;
     }
     emitUpdate(updated);
   }
@@ -179,6 +189,15 @@
   function updateFrameDuration() {
     if (!sprites) return;
     const updated = { ...sprites, frameDuration: frameDuration };
+    onUpdate(updated);
+  }
+
+  function updateSpriteScale() {
+    if (!sprites) return;
+    const updated = { ...sprites, spriteScale: spriteScale };
+    if (spriteScale === DEFAULT_SPRITE_SCALE) {
+      delete updated.spriteScale;
+    }
     onUpdate(updated);
   }
 
@@ -298,6 +317,23 @@
         class="w-20 px-2 py-1 bg-slate-700 rounded text-xs"
       />
       <span class="text-xs text-gray-500">ms/frame</span>
+    </div>
+  {/if}
+
+  <!-- Sprite scale -->
+  {#if sprites}
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-400">Zoom:</span>
+      <input
+        type="range"
+        min="0.5"
+        max="3"
+        step="0.1"
+        bind:value={spriteScale}
+        oninput={updateSpriteScale}
+        class="flex-1 h-1 accent-blue-500"
+      />
+      <span class="text-xs text-gray-300 w-10 text-right">{spriteScale.toFixed(1)}x</span>
     </div>
   {/if}
 

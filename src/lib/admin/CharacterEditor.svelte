@@ -1,14 +1,12 @@
 <script lang="ts">
-  import type { CharacterDefinition, Role, Rarity, SpriteSource } from '../game/types';
+  import type { CharacterDefinition, Role, Rarity, SpriteSource, SpriteSheetConfig } from '../game/types';
   import { ROLE_BASE_STATS } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
   import { createBlankCharacter } from './adminTypes';
   import SpritePicker from './SpritePicker.svelte';
 
-  /** Extract preview URL from a SpriteSource (string or sheet config) */
-  function spritePreviewUrl(src: SpriteSource | undefined): string | undefined {
-    if (!src) return undefined;
-    return typeof src === 'string' ? src : src.src;
+  function isSheet(src: SpriteSource | undefined): src is SpriteSheetConfig {
+    return typeof src === 'object' && src !== null && 'src' in src;
   }
 
   interface Props {
@@ -278,8 +276,13 @@
   <div class="space-y-1">
     {#each filteredCharacters as char (char.id)}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
-        {#if spritePreviewUrl(char.sprites?.idle) || char.sprite}
-          <img src={spritePreviewUrl(char.sprites?.idle) ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+        {#if isSheet(char.sprites?.idle)}
+          {@const cfg = char.sprites.idle}
+          <div class="w-8 h-8 rounded bg-slate-900 overflow-hidden"
+            style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * 32}px auto; background-position: 0px 0px;">
+          </div>
+        {:else if (typeof char.sprites?.idle === 'string') || char.sprite}
+          <img src={(typeof char.sprites?.idle === 'string' ? char.sprites.idle : undefined) ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
         {:else}
           <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
         {/if}

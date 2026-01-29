@@ -1,15 +1,13 @@
 <script lang="ts">
-  import type { Role, Rarity, SpriteSource } from '../game/types';
+  import type { Role, Rarity, SpriteSource, SpriteSheetConfig } from '../game/types';
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
   import type { EnemyTemplate } from './adminTypes';
   import { createBlankEnemy } from './adminTypes';
   import SpritePicker from './SpritePicker.svelte';
 
-  /** Extract preview URL from a SpriteSource (string or sheet config) */
-  function spritePreviewUrl(src: SpriteSource | undefined): string | undefined {
-    if (!src) return undefined;
-    return typeof src === 'string' ? src : src.src;
+  function isSheet(src: SpriteSource | undefined): src is SpriteSheetConfig {
+    return typeof src === 'object' && src !== null && 'src' in src;
   }
 
   interface Props {
@@ -322,8 +320,13 @@
     {#each enemies as enemy (enemy.id)}
       {@const base = ROLE_BASE_STATS[enemy.role]}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
-        {#if spritePreviewUrl(enemy.sprites?.idle) || enemy.sprite}
-          <img src={spritePreviewUrl(enemy.sprites?.idle) ?? enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+        {#if isSheet(enemy.sprites?.idle)}
+          {@const cfg = enemy.sprites.idle}
+          <div class="w-8 h-8 rounded bg-slate-900 overflow-hidden"
+            style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * 32}px auto; background-position: 0px 0px;">
+          </div>
+        {:else if (typeof enemy.sprites?.idle === 'string') || enemy.sprite}
+          <img src={(typeof enemy.sprites?.idle === 'string' ? enemy.sprites.idle : undefined) ?? enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
         {:else}
           <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
         {/if}

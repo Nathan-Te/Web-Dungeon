@@ -298,8 +298,8 @@
   }
 
   function applyAction(action: CombatAction) {
-    // Reset all anim states, then apply current action
-    const updated = displayUnits.map((u) => ({ ...u, animState: 'idle' as AnimState }));
+    // Reset living units to idle, keep dead in death
+    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
     applyActionToUnits(updated, action);
     displayUnits = updated;
   }

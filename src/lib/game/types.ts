@@ -70,6 +70,8 @@ export interface SpriteSet {
   death?: SpriteSource;
   /** Global animation speed in ms per frame (default 150) */
   frameDuration?: number;
+  /** Display scale multiplier for sprites (default 1.0) */
+  spriteScale?: number;
 }
 
 /** Character definition (static data) */

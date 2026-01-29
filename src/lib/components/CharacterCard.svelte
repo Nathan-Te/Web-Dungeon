@@ -66,6 +66,9 @@
   /** Has any sprite (static or sheet) */
   let hasSprite = $derived(spriteSource !== undefined);
 
+  /** Display size for sprite container (base 88px, scaled) */
+  let displaySize = $derived(Math.round(88 * (sprites?.spriteScale ?? 1)));
+
   /** CSS filter effect per animation state */
   let animClass = $derived(
     animState === 'attack' ? 'scale-110 brightness-125' :
@@ -134,11 +137,12 @@
 {#if hasSprite}
   <!-- Sprite layout: image dominant, info strip below -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
-    <div class="w-[5.5rem] h-[5.5rem] rounded-lg border-2 overflow-hidden bg-slate-900
-      {isPlayer ? 'border-blue-400' : 'border-red-400'}">
+    <div class="rounded-lg border-2 overflow-hidden bg-slate-900
+      {isPlayer ? 'border-blue-400' : 'border-red-400'}"
+      style="width: {displaySize}px; height: {displaySize}px;">
       {#if sheetConfig}
         <!-- Animated sprite sheet: scale sheet so one frame fills the container -->
-        {@const scale = 88 / sheetConfig.frameWidth}
+        {@const scale = displaySize / sheetConfig.frameWidth}
         {@const totalCols = sheetConfig.framesPerRow}
         {@const totalRows = Math.ceil(sheetConfig.frameCount / sheetConfig.framesPerRow)}
         {@const scaledW = totalCols * sheetConfig.frameWidth * scale}
@@ -160,7 +164,7 @@
         />
       {/if}
     </div>
-    <div class="w-24 -mt-0.5">
+    <div style="width: {Math.max(displaySize, 80)}px;" class="-mt-0.5">
       <div class="text-center text-[11px] font-bold truncate leading-tight">{name}</div>
       <div class="h-1.5 bg-gray-900 rounded-full overflow-hidden mx-0.5">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>

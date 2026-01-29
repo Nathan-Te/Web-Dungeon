@@ -184,8 +184,8 @@
     );
     if (idx === -1) return;
 
-    // Clone array for reactivity — reset all anim states first
-    const updated = displayUnits.map((u) => ({ ...u, animState: 'idle' as AnimState }));
+    // Clone array for reactivity — reset living units to idle, keep dead in death
+    const updated = displayUnits.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
 
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       // Actor animates
@@ -239,7 +239,7 @@
   }
 
   function replayAction(units: DisplayUnit[], action: CombatAction): DisplayUnit[] {
-    const updated = units.map((u) => ({ ...u, animState: 'idle' as AnimState }));
+    const updated = units.map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState }));
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
       if (aIdx !== -1) {
