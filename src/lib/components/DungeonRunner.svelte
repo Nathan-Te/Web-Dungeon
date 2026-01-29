@@ -29,6 +29,7 @@
     position: Position;
     team: 'player' | 'enemy';
     isAlive: boolean;
+    sprite?: string;
   }
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
@@ -133,6 +134,7 @@
           rarity: template.rarity,
           abilityName: '',
           abilityDescription: '',
+          sprite: template.sprite,
         };
         const level = Math.max(1, Math.round(template.level * room.difficultyMult));
         return new Character(def, level, template.ascension);
@@ -191,6 +193,7 @@
             position: pos,
             team: teamType,
             isAlive: currentHp > 0,
+            sprite: char.definition.sprite,
           });
         }
       }

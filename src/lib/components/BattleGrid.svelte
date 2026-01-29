@@ -11,6 +11,7 @@
     position: Position;
     team: 'player' | 'enemy';
     isAlive: boolean;
+    sprite?: string;
   }
 
   interface Props {
@@ -45,6 +46,7 @@
                 maxHp={unit.maxHp}
                 isAlive={unit.isAlive}
                 isPlayer={false}
+                sprite={unit.sprite}
               />
             {/if}
           </div>
@@ -76,6 +78,7 @@
                 maxHp={unit.maxHp}
                 isAlive={unit.isAlive}
                 isPlayer={true}
+                sprite={unit.sprite}
               />
             {/if}
           </div>

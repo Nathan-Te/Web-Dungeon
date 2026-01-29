@@ -4,6 +4,7 @@
   import type { AbilityDefinition } from '../game/abilities';
   import type { EnemyTemplate } from './adminTypes';
   import { createBlankEnemy } from './adminTypes';
+  import SpritePicker from './SpritePicker.svelte';
 
   interface Props {
     enemies: EnemyTemplate[];
@@ -190,6 +191,14 @@
         </div>
       </div>
 
+      <!-- Sprite -->
+      <div class="mt-3">
+        <SpritePicker
+          sprite={editingEnemy.sprite}
+          onUpdate={(s) => { if (editingEnemy) editingEnemy = { ...editingEnemy, sprite: s }; }}
+        />
+      </div>
+
       <!-- Stat Overrides -->
       <div class="mt-3">
         <span class="block text-xs text-gray-400 mb-1">Stat Multipliers (default 1.0)</span>
@@ -307,6 +316,12 @@
     {#each enemies as enemy (enemy.id)}
       {@const base = ROLE_BASE_STATS[enemy.role]}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
+        {#if enemy.sprite}
+          <img src={enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900" />
+        {:else}
+          <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
+        {/if}
+
         <span class="w-6 text-center font-bold {RARITY_COLORS[enemy.rarity]} capitalize text-xs">
           {enemy.rarity.slice(0, 1).toUpperCase()}
         </span>

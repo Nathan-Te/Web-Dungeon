@@ -50,6 +50,8 @@ export interface CharacterDefinition {
   rarity: Rarity;
   abilityName: string;
   abilityDescription: string;
+  /** Sprite image (URL or base64 data URI) */
+  sprite?: string;
 }
 
 /** Combat state for a character during battle */

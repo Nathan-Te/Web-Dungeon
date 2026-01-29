@@ -41,6 +41,7 @@
     position: Position;
     team: 'player' | 'enemy';
     isAlive: boolean;
+    sprite?: string;
   }
 
   // Battle state
@@ -150,6 +151,7 @@
             position: pos,
             team: teamType,
             isAlive: true,
+            sprite: char.definition.sprite,
           });
         }
       }

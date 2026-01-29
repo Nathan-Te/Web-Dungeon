@@ -16,6 +16,8 @@ export interface EnemyTemplate {
   ascension: number;
   /** Reference to ability ID from the abilities list */
   abilityId: string;
+  /** Sprite image (URL or base64 data URI) */
+  sprite?: string;
   /** Optional stat overrides (multipliers applied to role base stats) */
   statOverrides?: {
     hpMult?: number;
