@@ -80,12 +80,14 @@
   // --- Sprite sheet animation ---
   let currentFrame = $state(0);
   let frameTimer: ReturnType<typeof setInterval> | null = null;
-  let holdingLastFrame = $state(false);
+
+  // Plain (non-reactive) flag — invisible to Svelte's $effect tracking,
+  // so it won't cause re-runs but reliably prevents death anim restart.
+  let deathAnimClaimed = false;
 
   function startFrameAnimation(cfg: SpriteSheetConfig, isDeath: boolean) {
-    stopFrameAnimation();
+    clearFrameTimer();
     currentFrame = 0;
-    holdingLastFrame = false;
     const duration = sprites?.frameDuration ?? 150;
 
     if (isDeath) {
@@ -94,12 +96,8 @@
         if (currentFrame < cfg.frameCount - 1) {
           currentFrame++;
         } else {
-          // Reached last frame — hold it
-          holdingLastFrame = true;
-          if (frameTimer) {
-            clearInterval(frameTimer);
-            frameTimer = null;
-          }
+          // Reached last frame — hold it permanently
+          clearFrameTimer();
         }
       }, duration);
     } else {
@@ -110,27 +108,30 @@
     }
   }
 
-  function stopFrameAnimation() {
+  function clearFrameTimer() {
     if (frameTimer) {
       clearInterval(frameTimer);
       frameTimer = null;
     }
-    currentFrame = 0;
-    holdingLastFrame = false;
   }
 
-  // Watch for sheet config changes — don't restart if already holding death's last frame
+  // Watch for sheet config / animState changes
   $effect(() => {
     if (sheetConfig) {
-      if (holdingLastFrame && animState === 'death') return;
-      startFrameAnimation(sheetConfig, animState === 'death');
+      const isDeath = animState === 'death';
+      if (isDeath && deathAnimClaimed) return; // Already started death, don't restart
+      if (isDeath) deathAnimClaimed = true;
+      else deathAnimClaimed = false;
+      startFrameAnimation(sheetConfig, isDeath);
     } else {
-      stopFrameAnimation();
+      deathAnimClaimed = false;
+      clearFrameTimer();
+      currentFrame = 0;
     }
   });
 
   onDestroy(() => {
-    stopFrameAnimation();
+    clearFrameTimer();
   });
 
 </script>

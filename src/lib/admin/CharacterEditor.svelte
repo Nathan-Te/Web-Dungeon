@@ -38,11 +38,16 @@
   let editingChar: CharacterDefinition | null = $state(null);
   let filterRole: Role | 'all' = $state('all');
   let filterRarity: Rarity | 'all' = $state('all');
+  let searchQuery = $state('');
 
   let filteredCharacters = $derived(
     characters.filter((c) => {
       if (filterRole !== 'all' && c.role !== filterRole) return false;
       if (filterRarity !== 'all' && c.rarity !== filterRarity) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        if (!c.name.toLowerCase().includes(q) && !c.role.includes(q) && !c.abilityName.toLowerCase().includes(q)) return false;
+      }
       return true;
     })
   );
@@ -145,6 +150,13 @@
         <option value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
       {/each}
     </select>
+
+    <input
+      type="text"
+      bind:value={searchQuery}
+      placeholder="Search..."
+      class="px-2 py-1.5 bg-slate-700 rounded text-sm w-36"
+    />
 
     <span class="text-gray-400 text-sm">{filteredCharacters.length} characters</span>
   </div>
@@ -279,18 +291,18 @@
         {#if isSheet(char.sprites?.idle)}
           {@const cfg = char.sprites.idle}
           {@const zoom = char.sprites?.spriteScale ?? 1}
-          {@const fScale = (32 / cfg.frameWidth) * zoom}
-          {@const offsetX = (32 - cfg.frameWidth * fScale) / 2}
-          {@const offsetY = (32 - cfg.frameHeight * fScale) / 2}
-          <div class="w-8 h-8 rounded bg-slate-900 overflow-hidden"
+          {@const fScale = (48 / cfg.frameWidth) * zoom}
+          {@const offsetX = (48 - cfg.frameWidth * fScale) / 2}
+          {@const offsetY = (48 - cfg.frameHeight * fScale) / 2}
+          <div class="w-12 h-12 rounded bg-slate-900 overflow-hidden flex-shrink-0"
             style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * cfg.frameWidth * fScale}px auto; background-position: {offsetX}px {offsetY}px;">
           </div>
         {:else if (typeof char.sprites?.idle === 'string') || char.sprite}
           {@const zoom = char.sprites?.spriteScale ?? 1}
-          <img src={(typeof char.sprites?.idle === 'string' ? char.sprites.idle : undefined) ?? char.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900"
+          <img src={(typeof char.sprites?.idle === 'string' ? char.sprites.idle : undefined) ?? char.sprite} alt="" class="w-12 h-12 rounded object-contain bg-slate-900 flex-shrink-0"
             style={zoom !== 1 ? `transform: scale(${zoom})` : ''} />
         {:else}
-          <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
+          <span class="w-12 h-12 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">--</span>
         {/if}
 
         <span class="w-6 text-center font-bold text-lg {RARITY_COLORS[char.rarity]}">

@@ -30,6 +30,17 @@
   };
 
   let editingEnemy: EnemyTemplate | null = $state(null);
+  let searchQuery = $state('');
+
+  let filteredEnemies = $derived(
+    enemies.filter((e) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        if (!e.name.toLowerCase().includes(q) && !e.role.includes(q)) return false;
+      }
+      return true;
+    })
+  );
 
   function abilitiesForRole(role: Role): AbilityDefinition[] {
     return abilities.filter((a) => a.allowedRoles.includes(role));
@@ -90,7 +101,13 @@
     >
       + New Enemy
     </button>
-    <span class="text-gray-400 text-sm">{enemies.length} enemies</span>
+    <input
+      type="text"
+      bind:value={searchQuery}
+      placeholder="Search..."
+      class="px-2 py-1.5 bg-slate-700 rounded text-sm w-36"
+    />
+    <span class="text-gray-400 text-sm">{filteredEnemies.length} enemies</span>
   </div>
 
   <!-- Edit Form -->
@@ -317,24 +334,24 @@
 
   <!-- Enemy List -->
   <div class="space-y-1">
-    {#each enemies as enemy (enemy.id)}
+    {#each filteredEnemies as enemy (enemy.id)}
       {@const base = ROLE_BASE_STATS[enemy.role]}
       <div class="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded hover:bg-slate-750 group">
         {#if isSheet(enemy.sprites?.idle)}
           {@const cfg = enemy.sprites.idle}
           {@const zoom = enemy.sprites?.spriteScale ?? 1}
-          {@const fScale = (32 / cfg.frameWidth) * zoom}
-          {@const offsetX = (32 - cfg.frameWidth * fScale) / 2}
-          {@const offsetY = (32 - cfg.frameHeight * fScale) / 2}
-          <div class="w-8 h-8 rounded bg-slate-900 overflow-hidden"
+          {@const fScale = (48 / cfg.frameWidth) * zoom}
+          {@const offsetX = (48 - cfg.frameWidth * fScale) / 2}
+          {@const offsetY = (48 - cfg.frameHeight * fScale) / 2}
+          <div class="w-12 h-12 rounded bg-slate-900 overflow-hidden flex-shrink-0"
             style="background-image: url({cfg.src}); background-size: {cfg.framesPerRow * cfg.frameWidth * fScale}px auto; background-position: {offsetX}px {offsetY}px;">
           </div>
         {:else if (typeof enemy.sprites?.idle === 'string') || enemy.sprite}
           {@const zoom = enemy.sprites?.spriteScale ?? 1}
-          <img src={(typeof enemy.sprites?.idle === 'string' ? enemy.sprites.idle : undefined) ?? enemy.sprite} alt="" class="w-8 h-8 rounded object-contain bg-slate-900"
+          <img src={(typeof enemy.sprites?.idle === 'string' ? enemy.sprites.idle : undefined) ?? enemy.sprite} alt="" class="w-12 h-12 rounded object-contain bg-slate-900 flex-shrink-0"
             style={zoom !== 1 ? `transform: scale(${zoom})` : ''} />
         {:else}
-          <span class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500">--</span>
+          <span class="w-12 h-12 rounded bg-slate-700 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">--</span>
         {/if}
 
         <span class="w-6 text-center font-bold {RARITY_COLORS[enemy.rarity]} capitalize text-xs">
@@ -373,7 +390,9 @@
     {/each}
   </div>
 
-  {#if enemies.length === 0}
-    <p class="text-gray-500 text-center py-8">No enemies. Create enemy templates for dungeons!</p>
+  {#if filteredEnemies.length === 0}
+    <p class="text-gray-500 text-center py-8">
+      {enemies.length === 0 ? 'No enemies. Create enemy templates for dungeons!' : 'No enemies match your search.'}
+    </p>
   {/if}
 </div>
