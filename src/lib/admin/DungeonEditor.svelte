@@ -1,66 +1,109 @@
 <script lang="ts">
-  import type { EnemyTemplate, DungeonRoom } from './adminTypes';
-  import { createBlankRoom, generateId } from './adminTypes';
+  import type { EnemyTemplate, DungeonRoom, Dungeon } from './adminTypes';
+  import { createBlankDungeon, createBlankRoom, generateId } from './adminTypes';
 
   interface Props {
-    rooms: DungeonRoom[];
+    dungeons: Dungeon[];
     enemies: EnemyTemplate[];
-    onSave: (room: DungeonRoom) => void;
+    onSave: (dungeon: Dungeon) => void;
     onDelete: (id: string) => void;
   }
 
-  let { rooms, enemies, onSave, onDelete }: Props = $props();
+  let { dungeons, enemies, onSave, onDelete }: Props = $props();
 
-  let editingRoom: DungeonRoom | null = $state(null);
+  let editingDungeon: Dungeon | null = $state(null);
+  let editingRoomIndex: number | null = $state(null);
 
-  let sortedRooms = $derived([...rooms].sort((a, b) => a.roomNumber - b.roomNumber));
-
-  function startNew() {
-    const nextNum = rooms.length > 0
-      ? Math.max(...rooms.map((r) => r.roomNumber)) + 1
-      : 1;
-    editingRoom = createBlankRoom(nextNum);
+  function startNewDungeon() {
+    editingDungeon = createBlankDungeon();
+    editingRoomIndex = null;
   }
 
-  function startEdit(room: DungeonRoom) {
-    editingRoom = {
-      ...room,
-      enemies: room.enemies.map((e) => ({ ...e })),
+  function startEditDungeon(dungeon: Dungeon) {
+    editingDungeon = {
+      ...dungeon,
+      rooms: dungeon.rooms.map((r) => ({
+        ...r,
+        enemies: r.enemies.map((e) => ({ ...e })),
+      })),
     };
+    editingRoomIndex = null;
   }
 
-  function handleSave() {
-    if (!editingRoom || !editingRoom.name.trim()) return;
-    onSave(editingRoom);
-    editingRoom = null;
+  function handleSaveDungeon() {
+    if (!editingDungeon || !editingDungeon.name.trim()) return;
+    onSave(editingDungeon);
+    editingDungeon = null;
+    editingRoomIndex = null;
   }
 
   function handleCancel() {
-    editingRoom = null;
+    editingDungeon = null;
+    editingRoomIndex = null;
   }
 
-  function handleDeleteRoom(id: string) {
-    if (confirm('Delete this room?')) {
+  function handleDeleteDungeon(id: string) {
+    if (confirm('Delete this dungeon and all its rooms?')) {
       onDelete(id);
-      if (editingRoom?.id === id) editingRoom = null;
+      if (editingDungeon?.id === id) {
+        editingDungeon = null;
+        editingRoomIndex = null;
+      }
     }
   }
 
-  function addEnemyToRoom(enemyId: string) {
-    if (!editingRoom) return;
-    if (editingRoom.enemies.length >= 5) return;
-    editingRoom = {
-      ...editingRoom,
-      enemies: [...editingRoom.enemies, { enemyTemplateId: enemyId }],
+  // --- Room management within editing dungeon ---
+
+  function addRoom() {
+    if (!editingDungeon) return;
+    const nextNum = editingDungeon.rooms.length + 1;
+    const room = createBlankRoom(nextNum);
+    editingDungeon = {
+      ...editingDungeon,
+      rooms: [...editingDungeon.rooms, room],
     };
+    editingRoomIndex = editingDungeon.rooms.length - 1;
   }
 
-  function removeEnemyFromRoom(index: number) {
-    if (!editingRoom) return;
-    editingRoom = {
-      ...editingRoom,
-      enemies: editingRoom.enemies.filter((_, i) => i !== index),
-    };
+  function removeRoom(index: number) {
+    if (!editingDungeon) return;
+    const rooms = editingDungeon.rooms.filter((_, i) => i !== index).map((r, i) => ({
+      ...r,
+      roomNumber: i + 1,
+      name: r.name.match(/^Room \d+$/) ? `Room ${i + 1}` : r.name,
+    }));
+    editingDungeon = { ...editingDungeon, rooms };
+    if (editingRoomIndex === index) editingRoomIndex = null;
+    else if (editingRoomIndex !== null && editingRoomIndex > index) editingRoomIndex--;
+  }
+
+  function selectRoom(index: number) {
+    editingRoomIndex = editingRoomIndex === index ? null : index;
+  }
+
+  function updateRoom(index: number, room: DungeonRoom) {
+    if (!editingDungeon) return;
+    const rooms = editingDungeon.rooms.map((r, i) => (i === index ? room : r));
+    editingDungeon = { ...editingDungeon, rooms };
+  }
+
+  function addEnemyToRoom(roomIndex: number, enemyId: string) {
+    if (!editingDungeon) return;
+    const room = editingDungeon.rooms[roomIndex];
+    if (room.enemies.length >= 5) return;
+    updateRoom(roomIndex, {
+      ...room,
+      enemies: [...room.enemies, { enemyTemplateId: enemyId }],
+    });
+  }
+
+  function removeEnemyFromRoom(roomIndex: number, enemyIndex: number) {
+    if (!editingDungeon) return;
+    const room = editingDungeon.rooms[roomIndex];
+    updateRoom(roomIndex, {
+      ...room,
+      enemies: room.enemies.filter((_, i) => i !== enemyIndex),
+    });
   }
 
   function getEnemyName(templateId: string): string {
@@ -76,116 +119,182 @@
   <!-- Toolbar -->
   <div class="flex gap-3 items-center">
     <button
-      onclick={startNew}
+      onclick={startNewDungeon}
       class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
     >
-      + New Room
+      + New Dungeon
     </button>
-    <span class="text-gray-400 text-sm">{rooms.length} rooms</span>
+    <span class="text-gray-400 text-sm">{dungeons.length} dungeons</span>
   </div>
 
-  <!-- Edit Form -->
-  {#if editingRoom}
+  <!-- Dungeon Edit Form -->
+  {#if editingDungeon}
     <div class="bg-slate-800 rounded-lg p-4 border border-amber-800">
       <h3 class="font-bold mb-3 text-amber-400">
-        {rooms.some((r) => r.id === editingRoom?.id) ? 'Edit' : 'New'} Room
+        {dungeons.some((d) => d.id === editingDungeon?.id) ? 'Edit' : 'New'} Dungeon
       </h3>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Name</label>
+          <span class="block text-xs text-gray-400 mb-1">Name</span>
           <input
             type="text"
-            bind:value={editingRoom.name}
+            bind:value={editingDungeon.name}
+            placeholder="Dungeon name"
             class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
           />
         </div>
-
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Room Number</label>
+          <span class="block text-xs text-gray-400 mb-1">Description</span>
           <input
-            type="number"
-            bind:value={editingRoom.roomNumber}
-            min="1"
-            max="10"
+            type="text"
+            bind:value={editingDungeon.description}
+            placeholder="Short description"
             class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
           />
-        </div>
-
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Difficulty Multiplier</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0.5"
-            max="5"
-            bind:value={editingRoom.difficultyMult}
-            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
-          />
-        </div>
-
-        <div class="flex items-center gap-2 pt-5">
-          <input
-            type="checkbox"
-            id="isBoss"
-            bind:checked={editingRoom.isBoss}
-            class="w-4 h-4"
-          />
-          <label for="isBoss" class="text-sm">Boss Room</label>
         </div>
       </div>
 
-      <!-- Enemy Composition -->
-      <div class="mt-4">
-        <label class="block text-xs text-gray-400 mb-2">
-          Enemies ({editingRoom.enemies.length}/5)
-        </label>
+      <!-- Rooms list -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-gray-400 font-bold">
+            Rooms ({editingDungeon.rooms.length})
+          </span>
+          <button
+            onclick={addRoom}
+            class="px-3 py-1 bg-amber-700 hover:bg-amber-600 rounded text-xs font-bold"
+          >
+            + Add Room
+          </button>
+        </div>
 
-        {#if editingRoom.enemies.length > 0}
-          <div class="space-y-1 mb-3">
-            {#each editingRoom.enemies as roomEnemy, i}
-              <div class="flex items-center gap-2 px-2 py-1 bg-slate-900 rounded text-sm">
-                <span class="text-gray-500 w-4">{i + 1}.</span>
-                <span class="capitalize text-xs text-gray-400 w-16">{getEnemyRole(roomEnemy.enemyTemplateId)}</span>
-                <span class="flex-1 text-red-300">{getEnemyName(roomEnemy.enemyTemplateId)}</span>
+        {#if editingDungeon.rooms.length === 0}
+          <p class="text-gray-500 text-xs py-2">No rooms yet. Add rooms to build your dungeon.</p>
+        {:else}
+          <div class="space-y-1">
+            {#each editingDungeon.rooms as room, i}
+              <div class="bg-slate-900 rounded overflow-hidden">
+                <!-- Room header (clickable) -->
                 <button
-                  onclick={() => removeEnemyFromRoom(i)}
-                  class="text-xs text-red-500 hover:text-red-400"
+                  onclick={() => selectRoom(i)}
+                  class="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 transition-colors text-left"
                 >
-                  Remove
+                  <span class="w-6 h-6 flex items-center justify-center rounded text-xs font-bold
+                    {room.isBoss ? 'bg-red-800 text-red-200' : 'bg-slate-700 text-gray-300'}">
+                    {room.roomNumber}
+                  </span>
+                  <span class="flex-1 text-sm font-medium">
+                    {room.name}
+                    {#if room.isBoss}
+                      <span class="text-xs text-red-400 ml-1">BOSS</span>
+                    {/if}
+                  </span>
+                  <span class="text-xs text-gray-500">x{room.difficultyMult.toFixed(1)}</span>
+                  <span class="text-xs text-gray-400">{room.enemies.length}/5</span>
+                  <span class="text-xs text-gray-600">{editingRoomIndex === i ? '▼' : '▶'}</span>
                 </button>
+                <span
+                  role="button"
+                  tabindex="0"
+                  onclick={(e) => { e.stopPropagation(); removeRoom(i); }}
+                  onkeydown={(e) => { if (e.key === 'Enter') removeRoom(i); }}
+                  class="px-1.5 py-0.5 text-xs bg-red-900 hover:bg-red-800 rounded cursor-pointer"
+                >
+                  ✕
+                </span>
+
+                <!-- Room detail (expanded) -->
+                {#if editingRoomIndex === i}
+                  <div class="px-3 pb-3 border-t border-slate-700 pt-2 space-y-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <span class="block text-xs text-gray-400 mb-0.5">Name</span>
+                        <input
+                          type="text"
+                          value={room.name}
+                          oninput={(e) => updateRoom(i, { ...room, name: e.currentTarget.value })}
+                          class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span class="block text-xs text-gray-400 mb-0.5">Difficulty</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.5"
+                          max="5"
+                          value={room.difficultyMult}
+                          oninput={(e) => updateRoom(i, { ...room, difficultyMult: parseFloat(e.currentTarget.value) || 1 })}
+                          class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
+                        />
+                      </div>
+                      <div class="flex items-end gap-1 pb-0.5">
+                        <input
+                          type="checkbox"
+                          checked={room.isBoss}
+                          onchange={(e) => updateRoom(i, { ...room, isBoss: e.currentTarget.checked })}
+                          class="w-3.5 h-3.5"
+                        />
+                        <span class="text-xs text-gray-400">Boss</span>
+                      </div>
+                    </div>
+
+                    <!-- Enemies in room -->
+                    <div>
+                      <span class="block text-xs text-gray-400 mb-1">
+                        Enemies ({room.enemies.length}/5)
+                      </span>
+                      {#if room.enemies.length > 0}
+                        <div class="space-y-0.5 mb-2">
+                          {#each room.enemies as roomEnemy, ei}
+                            <div class="flex items-center gap-2 px-2 py-1 bg-slate-800 rounded text-xs">
+                              <span class="text-gray-500 w-3">{ei + 1}.</span>
+                              <span class="capitalize text-gray-400 w-14">{getEnemyRole(roomEnemy.enemyTemplateId)}</span>
+                              <span class="flex-1 text-red-300">{getEnemyName(roomEnemy.enemyTemplateId)}</span>
+                              <button
+                                onclick={() => removeEnemyFromRoom(i, ei)}
+                                class="text-red-500 hover:text-red-400"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      {#if room.enemies.length < 5}
+                        {#if enemies.length > 0}
+                          <div class="flex gap-1 flex-wrap">
+                            {#each enemies as enemy (enemy.id)}
+                              <button
+                                onclick={() => addEnemyToRoom(i, enemy.id)}
+                                class="px-2 py-0.5 text-xs bg-red-900 hover:bg-red-800 rounded"
+                              >
+                                + {enemy.name}
+                              </button>
+                            {/each}
+                          </div>
+                        {:else}
+                          <p class="text-gray-500 text-xs">Create enemy templates first (Enemies tab)</p>
+                        {/if}
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
         {/if}
-
-        {#if editingRoom.enemies.length < 5}
-          {#if enemies.length > 0}
-            <div class="flex gap-2 flex-wrap">
-              {#each enemies as enemy (enemy.id)}
-                <button
-                  onclick={() => addEnemyToRoom(enemy.id)}
-                  class="px-2 py-1 text-xs bg-red-900 hover:bg-red-800 rounded"
-                >
-                  + {enemy.name} ({enemy.role})
-                </button>
-              {/each}
-            </div>
-          {:else}
-            <p class="text-gray-500 text-xs">Create enemy templates first (Enemies tab)</p>
-          {/if}
-        {:else}
-          <p class="text-amber-500 text-xs">Room is full (5/5)</p>
-        {/if}
       </div>
 
-      <div class="flex gap-2 mt-4">
+      <div class="flex gap-2">
         <button
-          onclick={handleSave}
-          disabled={!editingRoom.name.trim()}
+          onclick={handleSaveDungeon}
+          disabled={!editingDungeon.name.trim()}
           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm font-bold"
         >
-          Save
+          Save Dungeon
         </button>
         <button
           onclick={handleCancel}
@@ -197,46 +306,44 @@
     </div>
   {/if}
 
-  <!-- Room List -->
+  <!-- Dungeon List -->
   <div class="space-y-2">
-    {#each sortedRooms as room (room.id)}
+    {#each dungeons as dungeon (dungeon.id)}
       <div class="px-4 py-3 bg-slate-800 rounded group">
         <div class="flex items-center gap-3">
-          <span class="w-8 h-8 flex items-center justify-center rounded font-bold text-sm
-            {room.isBoss ? 'bg-red-800 text-red-200' : 'bg-slate-700 text-gray-300'}">
-            {room.roomNumber}
-          </span>
-
-          <span class="flex-1 font-medium">
-            {room.name}
-            {#if room.isBoss}
-              <span class="text-xs text-red-400 ml-2">BOSS</span>
+          <span class="flex-1">
+            <span class="font-medium">{dungeon.name}</span>
+            {#if dungeon.description}
+              <span class="text-xs text-gray-500 ml-2">{dungeon.description}</span>
             {/if}
           </span>
 
-          <span class="text-xs text-gray-500">x{room.difficultyMult.toFixed(1)}</span>
+          <span class="text-xs text-amber-400">{dungeon.rooms.length} rooms</span>
 
-          <span class="text-xs text-gray-400">{room.enemies.length} enemies</span>
+          <span class="text-xs text-gray-500">
+            {dungeon.rooms.reduce((n, r) => n + r.enemies.length, 0)} enemies total
+          </span>
 
           <button
-            onclick={() => startEdit(room)}
+            onclick={() => startEditDungeon(dungeon)}
             class="px-2 py-1 text-xs bg-slate-600 hover:bg-slate-500 rounded opacity-60 group-hover:opacity-100"
           >
             Edit
           </button>
           <button
-            onclick={() => handleDeleteRoom(room.id)}
+            onclick={() => handleDeleteDungeon(dungeon.id)}
             class="px-2 py-1 text-xs bg-red-800 hover:bg-red-700 rounded opacity-60 group-hover:opacity-100"
           >
             Del
           </button>
         </div>
 
-        {#if room.enemies.length > 0}
+        {#if dungeon.rooms.length > 0}
           <div class="mt-2 flex gap-2 flex-wrap">
-            {#each room.enemies as roomEnemy}
-              <span class="text-xs px-2 py-0.5 bg-slate-700 rounded text-red-300">
-                {getEnemyName(roomEnemy.enemyTemplateId)}
+            {#each dungeon.rooms as room, i}
+              <span class="text-xs px-2 py-0.5 rounded
+                {room.isBoss ? 'bg-red-900 text-red-300' : 'bg-slate-700 text-gray-300'}">
+                {room.roomNumber}. {room.name} ({room.enemies.length} en.)
               </span>
             {/each}
           </div>
@@ -245,7 +352,7 @@
     {/each}
   </div>
 
-  {#if rooms.length === 0}
-    <p class="text-gray-500 text-center py-8">No dungeon rooms. Create rooms and fill them with enemies!</p>
+  {#if dungeons.length === 0}
+    <p class="text-gray-500 text-center py-8">No dungeons. Create a dungeon and fill it with rooms!</p>
   {/if}
 </div>

@@ -10,6 +10,20 @@
     type Position,
     ROLE_PREFERRED_ROW,
   } from '../game';
+
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLE_COLORS: Record<Role, string> = {
+    tank: 'text-blue-400',
+    warrior: 'text-orange-400',
+    archer: 'text-green-400',
+    mage: 'text-purple-400',
+    assassin: 'text-gray-300',
+    healer: 'text-emerald-400',
+  };
+
+  function charactersByRole(role: Role): CharacterDefinition[] {
+    return allCharacters.filter((c) => c.role === role);
+  }
   import { loadContent } from '../admin/contentStore';
   import BattleGrid from './BattleGrid.svelte';
   import BattleLog from './BattleLog.svelte';
@@ -304,24 +318,32 @@
       <div class="flex items-center justify-between mb-2">
         <h3 class="font-bold text-blue-400 text-sm">Player Team ({playerTeamIds.length}/5)</h3>
         <div class="flex items-center gap-2">
-          <label class="text-xs text-gray-400">Lv</label>
+          <span class="text-xs text-gray-400">Lv</span>
           <input type="number" min="1" max="100" bind:value={playerLevel}
             class="w-14 px-1 py-0.5 bg-slate-700 rounded text-xs" />
         </div>
       </div>
-      <div class="flex flex-wrap gap-1">
-        {#each allCharacters as char (char.id)}
-          <button
-            onclick={() => toggleCharInTeam(char.id, 'player')}
-            class="px-2 py-1 rounded text-xs transition-colors
-              {playerTeamIds.includes(char.id)
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
-          >
-            {char.name}
-          </button>
-        {/each}
-      </div>
+      {#each ROLES as role}
+        {@const chars = charactersByRole(role)}
+        {#if chars.length > 0}
+          <div class="mb-1">
+            <span class="text-xs font-bold capitalize {ROLE_COLORS[role]}">{role}</span>
+            <div class="flex flex-wrap gap-1 mt-0.5">
+              {#each chars as char (char.id)}
+                <button
+                  onclick={() => toggleCharInTeam(char.id, 'player')}
+                  class="px-2 py-1 rounded text-xs transition-colors
+                    {playerTeamIds.includes(char.id)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
+                >
+                  {char.name}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/each}
     </div>
 
     <!-- Enemy Team -->
@@ -329,24 +351,32 @@
       <div class="flex items-center justify-between mb-2">
         <h3 class="font-bold text-red-400 text-sm">Enemy Team ({enemyTeamIds.length}/5)</h3>
         <div class="flex items-center gap-2">
-          <label class="text-xs text-gray-400">Lv</label>
+          <span class="text-xs text-gray-400">Lv</span>
           <input type="number" min="1" max="100" bind:value={enemyLevel}
             class="w-14 px-1 py-0.5 bg-slate-700 rounded text-xs" />
         </div>
       </div>
-      <div class="flex flex-wrap gap-1">
-        {#each allCharacters as char (char.id)}
-          <button
-            onclick={() => toggleCharInTeam(char.id, 'enemy')}
-            class="px-2 py-1 rounded text-xs transition-colors
-              {enemyTeamIds.includes(char.id)
-                ? 'bg-red-600 text-white'
-                : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
-          >
-            {char.name}
-          </button>
-        {/each}
-      </div>
+      {#each ROLES as role}
+        {@const chars = charactersByRole(role)}
+        {#if chars.length > 0}
+          <div class="mb-1">
+            <span class="text-xs font-bold capitalize {ROLE_COLORS[role]}">{role}</span>
+            <div class="flex flex-wrap gap-1 mt-0.5">
+              {#each chars as char (char.id)}
+                <button
+                  onclick={() => toggleCharInTeam(char.id, 'enemy')}
+                  class="px-2 py-1 rounded text-xs transition-colors
+                    {enemyTeamIds.includes(char.id)
+                      ? 'bg-red-600 text-white'
+                      : 'bg-slate-700 text-gray-400 hover:bg-slate-600'}"
+                >
+                  {char.name}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/each}
     </div>
   </div>
 

@@ -9,6 +9,7 @@ import {
   type GameContent,
   type EnemyTemplate,
   type DungeonRoom,
+  type Dungeon,
   CURRENT_CONTENT_VERSION,
 } from './adminTypes';
 
@@ -20,19 +21,34 @@ function createDefaultContent(): GameContent {
     version: CURRENT_CONTENT_VERSION,
     characters: [...CHARACTER_DEFINITIONS],
     enemies: [],
-    dungeonRooms: [],
+    dungeons: [],
     abilities: [...DEFAULT_ABILITIES],
   };
 }
 
-/** Migrate v1 content to v2 (add abilities array) */
+/** Migrate older content to current version */
 function migrateContent(parsed: Record<string, unknown>): GameContent {
-  const content = parsed as Partial<GameContent>;
+  const content = parsed as Partial<GameContent> & { dungeonRooms?: DungeonRoom[] };
+
+  // Migrate standalone dungeonRooms (v2) into a single dungeon (v3)
+  let dungeons: Dungeon[] = [];
+  if (Array.isArray(content.dungeons) && content.dungeons.length > 0) {
+    dungeons = content.dungeons;
+  } else if (Array.isArray(content.dungeonRooms) && content.dungeonRooms.length > 0) {
+    // Wrap old standalone rooms into one dungeon
+    dungeons = [{
+      id: 'dungeon_migrated',
+      name: 'Migrated Dungeon',
+      description: 'Auto-migrated from standalone rooms',
+      rooms: content.dungeonRooms,
+    }];
+  }
+
   return {
     version: CURRENT_CONTENT_VERSION,
     characters: Array.isArray(content.characters) ? content.characters : [...CHARACTER_DEFINITIONS],
     enemies: Array.isArray(content.enemies) ? content.enemies : [],
-    dungeonRooms: Array.isArray(content.dungeonRooms) ? content.dungeonRooms : [],
+    dungeons,
     abilities: Array.isArray(content.abilities) ? content.abilities : [...DEFAULT_ABILITIES],
   };
 }
@@ -43,8 +59,8 @@ export function loadContent(): GameContent {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.version === CURRENT_CONTENT_VERSION) {
-        // Ensure abilities array exists even on current version
+      if (parsed.version === CURRENT_CONTENT_VERSION && Array.isArray(parsed.dungeons)) {
+        // Ensure abilities array exists
         if (!Array.isArray(parsed.abilities)) {
           parsed.abilities = [...DEFAULT_ABILITIES];
         }
@@ -148,29 +164,32 @@ export function deleteEnemy(content: GameContent, id: string): GameContent {
   return {
     ...content,
     enemies: content.enemies.filter((e) => e.id !== id),
-    dungeonRooms: content.dungeonRooms.map((room) => ({
-      ...room,
-      enemies: room.enemies.filter((e) => e.enemyTemplateId !== id),
+    dungeons: content.dungeons.map((d) => ({
+      ...d,
+      rooms: d.rooms.map((room) => ({
+        ...room,
+        enemies: room.enemies.filter((e) => e.enemyTemplateId !== id),
+      })),
     })),
   };
 }
 
-export function upsertRoom(
+export function upsertDungeon(
   content: GameContent,
-  room: DungeonRoom
+  dungeon: Dungeon
 ): GameContent {
-  const idx = content.dungeonRooms.findIndex((r) => r.id === room.id);
-  const dungeonRooms =
+  const idx = content.dungeons.findIndex((d) => d.id === dungeon.id);
+  const dungeons =
     idx >= 0
-      ? content.dungeonRooms.map((r, i) => (i === idx ? room : r))
-      : [...content.dungeonRooms, room];
-  return { ...content, dungeonRooms };
+      ? content.dungeons.map((d, i) => (i === idx ? dungeon : d))
+      : [...content.dungeons, dungeon];
+  return { ...content, dungeons };
 }
 
-export function deleteRoom(content: GameContent, id: string): GameContent {
+export function deleteDungeon(content: GameContent, id: string): GameContent {
   return {
     ...content,
-    dungeonRooms: content.dungeonRooms.filter((r) => r.id !== id),
+    dungeons: content.dungeons.filter((d) => d.id !== id),
   };
 }
 

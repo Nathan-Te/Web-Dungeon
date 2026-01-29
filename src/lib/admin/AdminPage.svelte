@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { CharacterDefinition } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
-  import type { GameContent, EnemyTemplate, DungeonRoom } from './adminTypes';
+  import type { GameContent, EnemyTemplate, Dungeon } from './adminTypes';
   import {
     loadContent,
     saveContent,
@@ -13,8 +13,8 @@
     deleteCharacter,
     upsertEnemy,
     deleteEnemy,
-    upsertRoom,
-    deleteRoom,
+    upsertDungeon,
+    deleteDungeon,
     upsertAbility,
     deleteAbility,
   } from './contentStore';
@@ -32,7 +32,7 @@
 
   type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'data';
   let activeTab: Tab = $state('characters');
-  let content: GameContent = $state({ version: 2, characters: [], enemies: [], dungeonRooms: [], abilities: [] });
+  let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
   let importError = $state('');
 
@@ -67,12 +67,12 @@
     save(deleteEnemy(content, id));
   }
 
-  // Room CRUD
-  function onSaveRoom(room: DungeonRoom) {
-    save(upsertRoom(content, room));
+  // Dungeon CRUD
+  function onSaveDungeon(dungeon: Dungeon) {
+    save(upsertDungeon(content, dungeon));
   }
-  function onDeleteRoom(id: string) {
-    save(deleteRoom(content, id));
+  function onDeleteDungeon(id: string) {
+    save(deleteDungeon(content, id));
   }
 
   // Ability CRUD
@@ -119,7 +119,7 @@
   const tabs: { key: Tab; label: string; count: () => number }[] = [
     { key: 'characters', label: 'Characters', count: () => content.characters.length },
     { key: 'enemies', label: 'Enemies', count: () => content.enemies.length },
-    { key: 'dungeons', label: 'Dungeons', count: () => content.dungeonRooms.length },
+    { key: 'dungeons', label: 'Dungeons', count: () => content.dungeons.length },
     { key: 'spells', label: 'Spells', count: () => content.abilities.length },
     { key: 'roles', label: 'Roles', count: () => 0 },
     { key: 'data', label: 'Data', count: () => 0 },
@@ -182,10 +182,10 @@
     />
   {:else if activeTab === 'dungeons'}
     <DungeonEditor
-      rooms={content.dungeonRooms}
+      dungeons={content.dungeons}
       enemies={content.enemies}
-      onSave={onSaveRoom}
-      onDelete={onDeleteRoom}
+      onSave={onSaveDungeon}
+      onDelete={onDeleteDungeon}
     />
   {:else if activeTab === 'spells'}
     <SpellEditor
@@ -210,8 +210,8 @@
             <div class="text-xs text-gray-400">Enemies</div>
           </div>
           <div class="bg-slate-900 rounded p-3">
-            <div class="text-2xl font-bold text-amber-400">{content.dungeonRooms.length}</div>
-            <div class="text-xs text-gray-400">Rooms</div>
+            <div class="text-2xl font-bold text-amber-400">{content.dungeons.length}</div>
+            <div class="text-xs text-gray-400">Dungeons</div>
           </div>
           <div class="bg-slate-900 rounded p-3">
             <div class="text-2xl font-bold text-purple-400">{content.abilities.length}</div>

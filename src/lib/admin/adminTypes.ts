@@ -49,16 +49,26 @@ export interface CharacterWithAbility extends CharacterDefinition {
   abilityId: string;
 }
 
+/** A dungeon is a sequence of rooms the player progresses through */
+export interface Dungeon {
+  id: string;
+  name: string;
+  description: string;
+  rooms: DungeonRoom[];
+}
+
 /** Complete game content bundle (for export/import) */
 export interface GameContent {
   version: number;
   characters: CharacterDefinition[];
   enemies: EnemyTemplate[];
-  dungeonRooms: DungeonRoom[];
+  /** @deprecated Use dungeons instead. Kept for migration only. */
+  dungeonRooms?: DungeonRoom[];
+  dungeons: Dungeon[];
   abilities: AbilityDefinition[];
 }
 
-export const CURRENT_CONTENT_VERSION = 2;
+export const CURRENT_CONTENT_VERSION = 3;
 
 /** Generate a unique ID */
 export function generateId(prefix: string): string {
@@ -99,6 +109,16 @@ export function createBlankRoom(roomNumber: number): DungeonRoom {
     isBoss: roomNumber === 6,
     enemies: [],
     difficultyMult: 1 + (roomNumber - 1) * 0.1,
+  };
+}
+
+/** Create a blank dungeon */
+export function createBlankDungeon(): Dungeon {
+  return {
+    id: generateId('dungeon'),
+    name: '',
+    description: '',
+    rooms: [],
   };
 }
 
