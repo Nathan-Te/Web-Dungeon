@@ -53,6 +53,9 @@ export class AutoBattleSimulation {
     activeSummonIds: Set<string>;
   }> = new Map();
 
+  /** Custom role base stats (overrides ROLE_BASE_STATS) */
+  private customRoleStats?: Partial<Record<Role, { hp: number; atk: number; def: number; spd: number }>>;
+
   constructor(
     playerTeam: Character[],
     enemyTeam: Character[],
@@ -62,10 +65,13 @@ export class AutoBattleSimulation {
       bossAbilities?: Map<string, Role[]>;
       /** Summoner configs: characterId -> { templates, maxSummons } */
       summonerConfigs?: Map<string, { templates: SummonTemplate[]; maxSummons: number }>;
+      /** Custom role base stats */
+      customRoleStats?: Partial<Record<Role, { hp: number; atk: number; def: number; spd: number }>>;
     }
   ) {
     this.seed = seed;
     this.rng = new SeededRNG(seed);
+    this.customRoleStats = options?.customRoleStats;
     this.initializeTeams(playerTeam, enemyTeam);
 
     if (options?.bossAbilities) {
@@ -80,6 +86,11 @@ export class AutoBattleSimulation {
         });
       }
     }
+  }
+
+  /** Get base stats for a role (custom or default) */
+  private getRoleBaseStats(role: Role) {
+    return this.customRoleStats?.[role] ?? ROLE_BASE_STATS[role];
   }
 
   /**
@@ -489,7 +500,7 @@ export class AutoBattleSimulation {
       const ascMult = 1 + template.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
       return Math.floor(base * levelMult * ascMult * mult);
     };
-    const baseStats = ROLE_BASE_STATS[template.role];
+    const baseStats = this.getRoleBaseStats(template.role);
     const ov = template.statOverrides;
     const hp = calcStat(baseStats.hp, ov?.hpMult);
     const atk = calcStat(baseStats.atk, ov?.atkMult);

@@ -82,6 +82,29 @@
       </div>
     {:else}
       <!-- Normal 3x3 grid (mirrored - row 2 at top, row 0 at bottom) -->
+      <!-- Extra row 3 for summons shown first (above row 2) -->
+      {#if enemyDisplayUnits.some(u => u.position.row === 3)}
+        <div class="flex gap-3 justify-center">
+          {#each cols as col}
+            {@const unit = getUnitAtPosition(enemyDisplayUnits, 3, col)}
+            <div class="w-24 h-28 border border-gray-700 rounded-lg flex items-start justify-center overflow-visible pt-1">
+              {#if unit}
+                <CharacterCard
+                  name={unit.name}
+                  role={unit.role}
+                  currentHp={unit.currentHp}
+                  maxHp={unit.maxHp}
+                  isAlive={unit.isAlive}
+                  isPlayer={false}
+                  sprites={unit.sprites}
+                  animState={unit.animState}
+                  hitEffect={unit.hitEffect}
+                />
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
       {#each [2, 1, 0] as row}
         <div class="flex gap-3 justify-center">
           {#each cols as col}

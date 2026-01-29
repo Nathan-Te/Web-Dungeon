@@ -2,6 +2,7 @@ import {
   type CharacterDefinition,
   type CombatState,
   type Position,
+  type BaseStats,
   type Role,
   type Rarity,
   ROLE_BASE_STATS,
@@ -17,15 +18,18 @@ export class Character {
   readonly definition: CharacterDefinition;
   readonly level: number;
   readonly ascension: number;
+  private readonly customBaseStats?: Partial<Record<Role, BaseStats>>;
 
   constructor(
     definition: CharacterDefinition,
     level: number = 1,
-    ascension: number = 0
+    ascension: number = 0,
+    customBaseStats?: Partial<Record<Role, BaseStats>>
   ) {
     this.definition = definition;
     this.level = Math.max(1, Math.min(100, level));
     this.ascension = Math.max(0, Math.min(COMBAT_CONSTANTS.MAX_ASCENSION, ascension));
+    this.customBaseStats = customBaseStats;
   }
 
   get id(): string {
@@ -48,9 +52,9 @@ export class Character {
     return ROLE_PREFERRED_ROW[this.role];
   }
 
-  /** Base stats for this character's role */
+  /** Base stats for this character's role (uses custom overrides if provided) */
   private get baseStats() {
-    return ROLE_BASE_STATS[this.role];
+    return this.customBaseStats?.[this.role] ?? ROLE_BASE_STATS[this.role];
   }
 
   /**
@@ -116,7 +120,8 @@ export class Character {
 export function createCharacter(
   definition: CharacterDefinition,
   level: number = 1,
-  ascension: number = 0
+  ascension: number = 0,
+  customBaseStats?: Partial<Record<Role, BaseStats>>
 ): Character {
-  return new Character(definition, level, ascension);
+  return new Character(definition, level, ascension, customBaseStats);
 }

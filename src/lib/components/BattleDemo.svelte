@@ -65,6 +65,7 @@
 
   // Available characters loaded from content store
   let allCharacters: CharacterDefinition[] = $state([]);
+  let customRoleStats: Partial<Record<Role, import('../game/types').BaseStats>> | undefined = $state(undefined);
   let playerTeamIds: string[] = $state([]);
   let enemyTeamIds: string[] = $state([]);
   let playerLevel = $state(10);
@@ -73,6 +74,7 @@
   function loadCharacters() {
     const content = loadContent();
     allCharacters = content.characters;
+    customRoleStats = content.roleStats;
 
     // Default selection: first 3 characters per team
     if (playerTeamIds.length === 0 && allCharacters.length >= 3) {
@@ -87,12 +89,12 @@
     const playerTeam = playerTeamIds
       .map((id) => allCharacters.find((c) => c.id === id))
       .filter((c): c is CharacterDefinition => c !== undefined)
-      .map((def) => new Character(def, playerLevel, 0));
+      .map((def) => new Character(def, playerLevel, 0, customRoleStats));
 
     const enemyTeam = enemyTeamIds
       .map((id) => allCharacters.find((c) => c.id === id))
       .filter((c): c is CharacterDefinition => c !== undefined)
-      .map((def) => new Character(def, enemyLevel, 0));
+      .map((def) => new Character(def, enemyLevel, 0, customRoleStats));
 
     return { playerTeam, enemyTeam };
   }

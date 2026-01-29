@@ -3,7 +3,7 @@
  * Extends core game types with editor-specific data
  */
 
-import type { CharacterDefinition, Role, Rarity, SpriteSet } from '../game/types';
+import type { CharacterDefinition, Role, Rarity, SpriteSet, BaseStats } from '../game/types';
 import type { AbilityDefinition } from '../game/abilities';
 
 /** Enemy template for dungeon encounters */
@@ -78,6 +78,8 @@ export interface GameContent {
   dungeonRooms?: DungeonRoom[];
   dungeons: Dungeon[];
   abilities: AbilityDefinition[];
+  /** Custom base stats per role (overrides defaults from ROLE_BASE_STATS) */
+  roleStats?: Partial<Record<Role, BaseStats>>;
 }
 
 export const CURRENT_CONTENT_VERSION = 3;

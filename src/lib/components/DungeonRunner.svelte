@@ -16,6 +16,7 @@
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
   } from '../game';
+  import type { BaseStats } from '../game/types';
   import type { Dungeon, DungeonRoom, EnemyTemplate } from '../admin/adminTypes';
   import { loadContent } from '../admin/contentStore';
   import BattleGrid from './BattleGrid.svelte';
@@ -54,6 +55,7 @@
   let allCharacters: CharacterDefinition[] = $state([]);
   let allDungeons: Dungeon[] = $state([]);
   let allEnemies: EnemyTemplate[] = $state([]);
+  let customRoleStats: Partial<Record<Role, BaseStats>> | undefined = $state(undefined);
 
   // Selection
   let selectedDungeonId: string = $state('');
@@ -108,6 +110,7 @@
     allCharacters = content.characters;
     allDungeons = content.dungeons;
     allEnemies = content.enemies;
+    customRoleStats = content.roleStats;
     if (allDungeons.length > 0) selectedDungeonId = allDungeons[0].id;
     if (allCharacters.length >= 3) {
       playerTeamIds = allCharacters.slice(0, 3).map((c) => c.id);
@@ -127,7 +130,7 @@
     return playerTeamIds
       .map((id) => allCharacters.find((c) => c.id === id))
       .filter((c): c is CharacterDefinition => c !== undefined)
-      .map((def) => new Character(def, playerLevel, 0));
+      .map((def) => new Character(def, playerLevel, 0, customRoleStats));
   }
 
   /** Track which characters are bosses and their ability roles */
@@ -191,7 +194,7 @@
           });
         }
 
-        return new Character(def, level, template.ascension);
+        return new Character(def, level, template.ascension, customRoleStats);
       })
       .filter((c): c is Character => c !== null);
   }
@@ -333,6 +336,7 @@
     const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, roomSeed, {
       bossAbilities: bossAbilityMap.size > 0 ? bossAbilityMap : undefined,
       summonerConfigs: summonerConfigMap.size > 0 ? summonerConfigMap : undefined,
+      customRoleStats,
     });
     const result = simulation.simulate();
 

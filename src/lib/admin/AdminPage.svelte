@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { CharacterDefinition } from '../game/types';
+  import type { CharacterDefinition, BaseStats, Role } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
   import type { GameContent, EnemyTemplate, Dungeon } from './adminTypes';
   import {
@@ -81,6 +81,11 @@
   }
   function onDeleteAbility(id: string) {
     save(deleteAbility(content, id));
+  }
+
+  // Role stats
+  function onSaveRoleStats(roleStats: Partial<Record<Role, BaseStats>>) {
+    save({ ...content, roleStats });
   }
 
   // Data management
@@ -194,7 +199,7 @@
       onDelete={onDeleteAbility}
     />
   {:else if activeTab === 'roles'}
-    <RolesReference />
+    <RolesReference roleStats={content.roleStats} {onSaveRoleStats} />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
       <!-- Summary -->
