@@ -88,11 +88,14 @@
         {#if def}
           <button
             onclick={() => selectedCharId = selectedCharId === owned.characterId ? null : owned.characterId}
-            class="w-20 h-24 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
+            class="relative w-20 h-24 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
               {RARITY_BORDER[def.rarity]}
               {selectedCharId === owned.characterId ? 'ring-2 ring-white scale-105' : 'hover:brightness-125'}
               bg-slate-800"
           >
+            {#if canAscend(owned)}
+              <span class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[8px] font-bold text-black z-10">!</span>
+            {/if}
             <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14" />
             <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
             <span class="text-[8px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>

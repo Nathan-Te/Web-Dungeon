@@ -91,25 +91,30 @@
     summoner: 'bg-teal-900',
   };
 
-  // Level thresholds
-  const DEFAULT_THRESHOLDS = [10, 25, 50, 80, 120, 170, 230, 300, 400, 500, 620, 760, 920, 1100, 1300, 1520, 1760, 2020, 2300, 2600];
-  let thresholds: number[] = $state(
-    levelThresholds && levelThresholds.length > 0 ? [...levelThresholds] : [...DEFAULT_THRESHOLDS]
+  // Level thresholds — simplified: define max level, base XP, XP increment
+  function reverseEngineer(arr: number[]): { maxLevel: number; baseXp: number; xpIncrement: number } {
+    if (arr.length < 2) return { maxLevel: arr.length + 1, baseXp: arr[0] ?? 10, xpIncrement: 0 };
+    return { maxLevel: arr.length + 1, baseXp: arr[0], xpIncrement: arr[1] - arr[0] };
+  }
+
+  const DEFAULT_BASE_XP = 10;
+  const DEFAULT_XP_INCREMENT = 15;
+  const DEFAULT_MAX_LEVEL = 21;
+
+  let initParams = levelThresholds && levelThresholds.length > 0
+    ? reverseEngineer(levelThresholds)
+    : { maxLevel: DEFAULT_MAX_LEVEL, baseXp: DEFAULT_BASE_XP, xpIncrement: DEFAULT_XP_INCREMENT };
+
+  let maxLevel: number = $state(initParams.maxLevel);
+  let baseXp: number = $state(initParams.baseXp);
+  let xpIncrement: number = $state(initParams.xpIncrement);
+
+  let generatedThresholds = $derived(
+    Array.from({ length: maxLevel - 1 }, (_, i) => baseXp + i * xpIncrement)
   );
 
-  function updateThreshold(index: number, value: number) {
-    thresholds = thresholds.map((t, i) => i === index ? value : t);
-  }
-  function addThresholdLevel() {
-    const last = thresholds[thresholds.length - 1] ?? 100;
-    thresholds = [...thresholds, Math.round(last * 1.2)];
-  }
-  function removeLastThreshold() {
-    if (thresholds.length <= 1) return;
-    thresholds = thresholds.slice(0, -1);
-  }
   function handleSaveThresholds() {
-    onSaveLevelThresholds(thresholds);
+    onSaveLevelThresholds(generatedThresholds);
   }
 
   function getCharsByRarity(rarity: Rarity): CharacterDefinition[] {
@@ -229,36 +234,51 @@
   <!-- Level Thresholds -->
   <div class="bg-slate-800 rounded-lg p-4">
     <h3 class="font-bold mb-3 text-cyan-400">Level XP Thresholds</h3>
-    <p class="text-xs text-gray-500 mb-3">XP required to advance from each level to the next. Max level = number of thresholds + 1.</p>
-    <div class="flex gap-2 flex-wrap mb-3">
-      {#each thresholds as xp, i}
-        <div class="text-center">
-          <span class="block text-[10px] text-gray-500 mb-0.5">Lv{i + 1}→{i + 2}</span>
-          <input
-            type="number"
-            min="1"
-            value={xp}
-            oninput={(e) => updateThreshold(i, parseInt(e.currentTarget.value) || 1)}
-            class="w-16 px-2 py-1 bg-slate-700 rounded text-sm text-center"
-          />
-        </div>
-      {/each}
+    <p class="text-xs text-gray-500 mb-3">Define max level, base XP to reach level 2, and how much extra XP each subsequent level requires.</p>
+
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">Max Level</span>
+        <input
+          type="number"
+          min="2"
+          max="100"
+          bind:value={maxLevel}
+          class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">Base XP (Lv1→2)</span>
+        <input
+          type="number"
+          min="1"
+          bind:value={baseXp}
+          class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">XP Increment / Level</span>
+        <input
+          type="number"
+          min="0"
+          bind:value={xpIncrement}
+          class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
     </div>
-    <div class="flex gap-2 mb-3">
-      <button
-        onclick={addThresholdLevel}
-        class="px-3 py-1 bg-cyan-800 hover:bg-cyan-700 rounded text-xs"
-      >
-        + Level
-      </button>
-      <button
-        onclick={removeLastThreshold}
-        disabled={thresholds.length <= 1}
-        class="px-3 py-1 bg-red-900 hover:bg-red-800 disabled:opacity-50 rounded text-xs"
-      >
-        - Level
-      </button>
+
+    <!-- Preview -->
+    <div class="mb-4">
+      <span class="text-xs text-gray-500 font-medium">Preview ({generatedThresholds.length} levels):</span>
+      <div class="flex gap-1.5 flex-wrap mt-1">
+        {#each generatedThresholds as xp, i}
+          <span class="text-[10px] bg-slate-700 rounded px-1.5 py-0.5 text-gray-300">
+            Lv{i + 1}→{i + 2}: {xp}
+          </span>
+        {/each}
+      </div>
     </div>
+
     <button
       onclick={handleSaveThresholds}
       class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-bold"
