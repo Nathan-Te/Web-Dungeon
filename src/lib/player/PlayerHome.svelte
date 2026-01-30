@@ -17,11 +17,17 @@
     clearPendingGachaReward,
     claimPendingGachaReward,
     awardXp,
+    startExpedition,
+    removeExpedition,
     type PlayerSave,
+    type ActiveExpedition,
+    type ExpeditionResult,
   } from './playerStore';
+  import type { ExpeditionDuration } from '../admin/adminTypes';
   import GachaSection from './GachaSection.svelte';
   import CollectionSection from './CollectionSection.svelte';
   import DailyDungeonSection from './DailyDungeonSection.svelte';
+  import ExpeditionSection from './ExpeditionSection.svelte';
 
   interface Props {
     onNavigate: (page: string) => void;
@@ -29,7 +35,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Section = 'gacha' | 'dungeon' | 'collection';
+  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition';
   let activeSection: Section = $state('collection');
   let gachaAnimating = $state(false);
 
@@ -104,6 +110,31 @@
     savePlayerSave(playerSave);
   }
 
+  function handleStartExpedition(teamCharacterIds: string[], duration: ExpeditionDuration, teamPower: number) {
+    playerSave = startExpedition(playerSave, teamCharacterIds, duration, teamPower);
+    savePlayerSave(playerSave);
+  }
+
+  function handleCollectExpedition(expedition: ActiveExpedition, result: ExpeditionResult) {
+    // Remove the expedition
+    playerSave = removeExpedition(playerSave, expedition.id);
+    // Award XP to the team
+    if (result.xpEarned > 0) {
+      playerSave = awardXp(playerSave, expedition.teamCharacterIds, result.xpEarned, content.levelThresholds);
+    }
+    // Grant gacha pull if won
+    if (result.gachaPullWon) {
+      playerSave = {
+        ...playerSave,
+        daily: {
+          ...playerSave.daily,
+          gachaPullsRemaining: playerSave.daily.gachaPullsRemaining + 1,
+        },
+      };
+    }
+    savePlayerSave(playerSave);
+  }
+
   function handleResetSave() {
     if (confirm('Reset all your progress? This cannot be undone.')) {
       playerSave = resetPlayerSave();
@@ -127,10 +158,14 @@
     }
   }
 
+  let expeditionConfig = $derived(content.expeditionConfig);
+  let activeExpeditionCount = $derived((playerSave.expeditions ?? []).length);
+
   const sections: { key: Section; label: string; icon: string }[] = [
     { key: 'collection', label: 'Collection', icon: '' },
     { key: 'gacha', label: 'Gacha', icon: '' },
     { key: 'dungeon', label: 'Dungeon', icon: '' },
+    { key: 'expedition', label: 'Expedition', icon: '' },
   ];
 
   // Daily reset countdown timer
@@ -194,6 +229,9 @@
     </span>
     <span class="{playerSave.daily.dungeonCleared ? 'text-green-400' : playerSave.daily.dungeonAttemptsLeft > 0 ? 'text-amber-400' : 'text-red-400'}">
       Dungeon: {playerSave.daily.dungeonCleared ? 'Cleared' : `${playerSave.daily.dungeonAttemptsLeft}/3 attempts`}
+    </span>
+    <span class="{activeExpeditionCount > 0 ? 'text-emerald-400' : 'text-gray-500'}">
+      Expeditions: {activeExpeditionCount} active
     </span>
   </div>
 
@@ -261,6 +299,24 @@
     {:else}
       <div class="text-center text-gray-500 py-8">
         No daily dungeon is set. An admin needs to configure one.
+      </div>
+    {/if}
+
+  {:else if activeSection === 'expedition'}
+    {#if expeditionConfig}
+      <ExpeditionSection
+        {playerSave}
+        characters={content.characters}
+        {expeditionConfig}
+        roleStats={content.roleStats}
+        rarityMultipliers={content.rarityMultipliers}
+        levelThresholds={content.levelThresholds}
+        onStartExpedition={handleStartExpedition}
+        onCollectExpedition={handleCollectExpedition}
+      />
+    {:else}
+      <div class="text-center text-gray-500 py-8">
+        Expeditions are not configured yet. An admin needs to set them up.
       </div>
     {/if}
 
