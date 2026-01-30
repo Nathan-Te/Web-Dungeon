@@ -75,6 +75,8 @@ export interface PlayerSave {
   daily: DailyState;
   /** Currently active expeditions */
   expeditions?: ActiveExpedition[];
+  /** Pity counters: number of pulls since last occurrence of each rarity */
+  pityCounters?: Record<string, number>;
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
@@ -85,10 +87,10 @@ function getTodayString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function createFreshDaily(): DailyState {
+function createFreshDaily(dailyPulls: number = 1): DailyState {
   return {
     date: getTodayString(),
-    gachaPullsRemaining: 1,
+    gachaPullsRemaining: dailyPulls,
     dungeonAttemptsLeft: 3,
     dungeonCleared: false,
   };
@@ -102,6 +104,38 @@ function createDefaultSave(): PlayerSave {
   };
   // New players get 3 bonus gacha pulls on top of the daily pull
   save.daily.gachaPullsRemaining = 1 + 3;
+  return save;
+}
+
+/**
+ * Apply gacha config values (dailyPulls, initialBonusPulls) to a save.
+ * Call after loading both content and player save.
+ * - For brand-new saves (empty collection): set pulls to dailyPulls + initialBonusPulls
+ * - For daily resets: ensure dailyPulls are applied
+ */
+export function applyGachaConfig(save: PlayerSave, dailyPulls?: number, initialBonusPulls?: number): PlayerSave {
+  const dp = dailyPulls ?? 1;
+  const isNewSave = save.collection.length === 0;
+  const today = getTodayString();
+
+  if (isNewSave && save.daily.date === today) {
+    // New player: apply configured initial pulls
+    const bonus = initialBonusPulls ?? 3;
+    return {
+      ...save,
+      daily: { ...save.daily, gachaPullsRemaining: dp + bonus },
+    };
+  }
+
+  // Daily reset: apply configured daily pulls (only if it's a fresh daily)
+  if (save.daily.date === today && save.daily.gachaPullsRemaining === 1) {
+    // The default was 1, update to configured value
+    return {
+      ...save,
+      daily: { ...save.daily, gachaPullsRemaining: dp },
+    };
+  }
+
   return save;
 }
 
@@ -205,6 +239,23 @@ export function markGachaPulled(save: PlayerSave): PlayerSave {
       gachaPullsRemaining: Math.max(0, save.daily.gachaPullsRemaining - 1),
     },
   };
+}
+
+/** Update pity counters after a pull: increment all, reset the one that was obtained */
+export function updatePityCounters(save: PlayerSave, obtainedRarity: string): PlayerSave {
+  const counters = { ...(save.pityCounters ?? {}) };
+  // Increment all rarity counters
+  for (const rarity of ['epic', 'legendary']) {
+    counters[rarity] = (counters[rarity] ?? 0) + 1;
+  }
+  // Reset the obtained rarity counter
+  counters[obtainedRarity] = 0;
+  return { ...save, pityCounters: counters };
+}
+
+/** Get current pity count for a rarity */
+export function getPityCount(save: PlayerSave, rarity: string): number {
+  return save.pityCounters?.[rarity] ?? 0;
 }
 
 /** Use a dungeon attempt */

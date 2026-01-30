@@ -7,9 +7,11 @@
   import {
     loadPlayerSave,
     savePlayerSave,
+    applyGachaConfig,
     addCharacterToCollection,
     ascendCharacter,
     markGachaPulled,
+    updatePityCounters,
     useDungeonAttempt,
     markDungeonCleared,
     resetPlayerSave,
@@ -63,6 +65,13 @@
     // Load local content immediately, then sync with online version
     content = loadContent();
     playerSave = loadPlayerSave();
+    // Apply gacha config (daily pulls, initial bonus)
+    const gc = content.gachaConfig;
+    const configured = applyGachaConfig(playerSave, gc?.dailyPulls, gc?.initialBonusPulls);
+    if (configured !== playerSave) {
+      playerSave = configured;
+      savePlayerSave(playerSave);
+    }
     // Claim any pending gacha reward from a previous interrupted animation
     const claimed = claimPendingGachaReward(playerSave);
     if (claimed !== playerSave) {
@@ -74,9 +83,10 @@
     content = synced;
   });
 
-  function handleGachaPullStart(characterId: string) {
+  function handleGachaPullStart(characterId: string, rarity: string) {
     // Immediately consume the pull and store the pending reward — prevents refresh exploit
     playerSave = markGachaPulled(playerSave);
+    playerSave = updatePityCounters(playerSave, rarity);
     setPendingGachaReward(characterId);
     savePlayerSave(playerSave);
   }
@@ -232,6 +242,7 @@
       Dungeon Gacha Run
     </h1>
     <div class="flex gap-2">
+      <SaveSync {playerSave} onImport={handleSyncImport} />
       <button
         onclick={handleResetSave}
         class="px-3 py-1 bg-red-900 hover:bg-red-800 rounded text-xs text-red-300"
@@ -240,9 +251,6 @@
       </button>
     </div>
   </div>
-
-  <!-- Cross-device sync -->
-  <SaveSync {playerSave} onImport={handleSyncImport} />
 
   <!-- Summary bar -->
   <div class="bg-slate-800 rounded-lg px-4 py-2 mb-4 flex gap-6 text-sm">
