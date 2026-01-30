@@ -21,8 +21,8 @@ export interface OwnedCharacter {
 export interface DailyState {
   /** Date string (YYYY-MM-DD) for the current day */
   date: string;
-  /** Whether the player has used their daily gacha pull */
-  gachaPulled: boolean;
+  /** Number of gacha pulls remaining for today */
+  gachaPullsRemaining: number;
   /** Number of dungeon attempts remaining (starts at 3) */
   dungeonAttemptsLeft: number;
   /** Whether the daily dungeon has been cleared */
@@ -48,18 +48,21 @@ function getTodayString(): string {
 function createFreshDaily(): DailyState {
   return {
     date: getTodayString(),
-    gachaPulled: false,
+    gachaPullsRemaining: 1,
     dungeonAttemptsLeft: 3,
     dungeonCleared: false,
   };
 }
 
 function createDefaultSave(): PlayerSave {
-  return {
+  const save: PlayerSave = {
     version: CURRENT_PLAYER_VERSION,
     collection: [],
     daily: createFreshDaily(),
   };
+  // New players get 3 bonus gacha pulls on top of the daily pull
+  save.daily.gachaPullsRemaining = 1 + 3;
+  return save;
 }
 
 /** Load player save from localStorage */
@@ -72,6 +75,16 @@ export function loadPlayerSave(): PlayerSave {
     // Reset daily if it's a new day
     if (save.daily.date !== getTodayString()) {
       save.daily = createFreshDaily();
+    }
+
+    // Migrate old boolean gachaPulled to gachaPullsRemaining
+    if (typeof (save.daily as any).gachaPulled === 'boolean') {
+      save.daily.gachaPullsRemaining = (save.daily as any).gachaPulled ? 0 : 1;
+      delete (save.daily as any).gachaPulled;
+    }
+    // Ensure gachaPullsRemaining is a valid number
+    if (typeof save.daily.gachaPullsRemaining !== 'number') {
+      save.daily.gachaPullsRemaining = 1;
     }
 
     return save;
@@ -138,9 +151,15 @@ export function ascendCharacter(
   };
 }
 
-/** Mark daily gacha as used */
+/** Consume one gacha pull */
 export function markGachaPulled(save: PlayerSave): PlayerSave {
-  return { ...save, daily: { ...save.daily, gachaPulled: true } };
+  return {
+    ...save,
+    daily: {
+      ...save.daily,
+      gachaPullsRemaining: Math.max(0, save.daily.gachaPullsRemaining - 1),
+    },
+  };
 }
 
 /** Use a dungeon attempt */
@@ -156,7 +175,14 @@ export function useDungeonAttempt(save: PlayerSave): PlayerSave {
 
 /** Mark daily dungeon as cleared and grant a bonus gacha pull */
 export function markDungeonCleared(save: PlayerSave): PlayerSave {
-  return { ...save, daily: { ...save.daily, dungeonCleared: true, gachaPulled: false } };
+  return {
+    ...save,
+    daily: {
+      ...save.daily,
+      dungeonCleared: true,
+      gachaPullsRemaining: save.daily.gachaPullsRemaining + 1,
+    },
+  };
 }
 
 /** Reset player save completely */

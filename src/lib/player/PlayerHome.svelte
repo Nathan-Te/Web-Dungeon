@@ -55,8 +55,14 @@
     content = synced;
   });
 
+  function handleGachaPullStart() {
+    // Immediately consume the pull and save — prevents refresh exploit
+    playerSave = markGachaPulled(playerSave);
+    savePlayerSave(playerSave);
+  }
+
   function handleGachaPull(characterId: string) {
-    playerSave = markGachaPulled(addCharacterToCollection(playerSave, characterId));
+    playerSave = addCharacterToCollection(playerSave, characterId);
     savePlayerSave(playerSave);
   }
 
@@ -164,8 +170,8 @@
     <span class="text-blue-400">
       {playerSave.collection.length} Characters
     </span>
-    <span class="{playerSave.daily.gachaPulled ? 'text-gray-500' : 'text-yellow-400'}">
-      Gacha: {playerSave.daily.gachaPulled ? 'Used' : '1 pull'}
+    <span class="{playerSave.daily.gachaPullsRemaining <= 0 ? 'text-gray-500' : 'text-yellow-400'}">
+      Gacha: {playerSave.daily.gachaPullsRemaining <= 0 ? 'No pulls' : `${playerSave.daily.gachaPullsRemaining} pull${playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''}`}
     </span>
     <span class="{playerSave.daily.dungeonCleared ? 'text-green-400' : playerSave.daily.dungeonAttemptsLeft > 0 ? 'text-amber-400' : 'text-red-400'}">
       Dungeon: {playerSave.daily.dungeonCleared ? 'Cleared' : `${playerSave.daily.dungeonAttemptsLeft}/3 attempts`}
@@ -194,6 +200,7 @@
         {playerSave}
         characters={content.characters}
         {gachaConfig}
+        onPullStart={handleGachaPullStart}
         onPull={handleGachaPull}
       />
     {:else}
@@ -208,7 +215,7 @@
         <div class="text-center py-8">
           <div class="text-2xl font-bold text-green-400 mb-2">Daily Dungeon Cleared!</div>
           <div class="text-gray-400">Come back tomorrow for a new challenge.</div>
-          {#if !playerSave.daily.gachaPulled}
+          {#if playerSave.daily.gachaPullsRemaining > 0}
             <div class="text-yellow-400 mt-2 font-medium">You earned a bonus Gacha pull!</div>
           {/if}
         </div>
