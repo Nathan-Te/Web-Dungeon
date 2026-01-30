@@ -12,25 +12,29 @@
 
   let { expeditionConfig, onSave }: Props = $props();
 
+  function deepClone<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
   let config: ExpeditionConfig = $state(
-    expeditionConfig ? structuredClone(expeditionConfig) : createDefaultExpeditionConfig()
+    expeditionConfig ? deepClone(expeditionConfig) : createDefaultExpeditionConfig()
   );
 
   const durations: ExpeditionDuration[] = [4, 8, 12, 24];
 
   function handleSave() {
-    onSave(structuredClone(config));
+    onSave(deepClone(config));
   }
 
   function handleReset() {
     config = createDefaultExpeditionConfig();
-    onSave(structuredClone(config));
+    onSave(deepClone(config));
   }
 
   // Sync when prop changes
   $effect(() => {
     if (expeditionConfig) {
-      config = structuredClone(expeditionConfig);
+      config = deepClone(expeditionConfig);
     }
   });
 </script>
