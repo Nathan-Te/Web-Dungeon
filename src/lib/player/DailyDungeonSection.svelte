@@ -344,6 +344,7 @@
       customRoleStats: roleStats,
       abilityDefs: abilities,
       characterAbilityIds: characterAbilityIds.size > 0 ? characterAbilityIds : undefined,
+      bossIds: enemyBossIds.size > 0 ? enemyBossIds : undefined,
       playerHpOverrides: survivorHp.size > 0 ? survivorHp : undefined,
     });
     const result = simulation.simulate();
