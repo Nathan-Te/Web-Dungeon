@@ -12,7 +12,7 @@
 
   let { abilities, onSave, onDelete }: Props = $props();
 
-  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer'];
+  const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
 
   const TARGETING_OPTIONS: { value: AbilityTargeting; label: string }[] = [
     { value: 'single_closest', label: 'Single - Closest enemy' },

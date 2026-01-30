@@ -30,6 +30,8 @@ export interface DailyState {
   dungeonAttemptsLeft: number;
   /** Whether the daily dungeon has been cleared */
   dungeonCleared: boolean;
+  /** Room indices that have already awarded XP today (prevents replay exploit) */
+  xpAwardedRoomIndices?: number[];
 }
 
 /** An active expedition in progress */
@@ -298,6 +300,26 @@ export function claimPendingGachaReward(save: PlayerSave): PlayerSave {
   if (!pendingId) return save;
   clearPendingGachaReward();
   return addCharacterToCollection(save, pendingId);
+}
+
+// --- Dungeon XP tracking ---
+
+/** Mark a dungeon room index as having awarded XP (persisted in daily state) */
+export function markRoomXpAwarded(save: PlayerSave, roomIndex: number): PlayerSave {
+  const existing = save.daily.xpAwardedRoomIndices ?? [];
+  if (existing.includes(roomIndex)) return save;
+  return {
+    ...save,
+    daily: {
+      ...save.daily,
+      xpAwardedRoomIndices: [...existing, roomIndex],
+    },
+  };
+}
+
+/** Check if a room index has already awarded XP today */
+export function hasRoomAwardedXp(save: PlayerSave, roomIndex: number): boolean {
+  return (save.daily.xpAwardedRoomIndices ?? []).includes(roomIndex);
 }
 
 // --- Expedition helpers ---

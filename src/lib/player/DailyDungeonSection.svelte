@@ -21,7 +21,7 @@
   import type { Dungeon, DungeonRoom, EnemyTemplate, GachaConfig } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
-  import { getXpForLevel } from './playerStore';
+  import { getXpForLevel, hasRoomAwardedXp } from './playerStore';
   import BattleGrid from '../components/BattleGrid.svelte';
   import BattleLog from '../components/BattleLog.svelte';
 
@@ -40,9 +40,10 @@
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
+    onRoomXpAwarded: (roomIndex: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded }: Props = $props();
 
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
@@ -107,9 +108,6 @@
   let xpGains: XpGainEntry[] = $state([]);
   let showXpScreen = $state(false);
 
-  // Track which room indices have already awarded XP (persists across retries within the same day)
-  let xpAwardedRooms: Set<number> = $state(new Set());
-
   // Track boss/summoner
   let enemyBossIds: Set<string> = new Set();
   let bossAbilityMap: Map<string, Role[]> = new Map();
@@ -154,6 +152,29 @@
         if (currentRoomIndex > 0 && survivorHp.size > 0 && !survivorHp.has(id)) return null;
         const entry = ownedCharacters.find((x) => x.owned.characterId === id);
         if (!entry) return null;
+
+        // Register player summoner configs
+        if (entry.def.role === 'summoner' && entry.def.summonIds && entry.def.summonIds.length > 0) {
+          const templates: SummonTemplate[] = entry.def.summonIds
+            .map((sid) => {
+              const summonDef = characters.find((c) => c.id === sid);
+              if (!summonDef) return null;
+              // Summon at the summoner's level/ascension
+              return {
+                id: summonDef.id,
+                name: summonDef.name,
+                role: summonDef.role,
+                level: entry.owned.level,
+                ascension: entry.owned.ascension,
+                sprites: summonDef.sprites,
+              } satisfies SummonTemplate;
+            })
+            .filter((t): t is SummonTemplate => t !== null);
+          if (templates.length > 0) {
+            summonerConfigMap.set(id, { templates, maxSummons: entry.def.maxSummons ?? 1 });
+          }
+        }
+
         return new Character(entry.def, entry.owned.level, entry.owned.ascension, roleStats, rarityMultipliers);
       })
       .filter((c): c is Character => c !== null);
@@ -162,7 +183,7 @@
   function createEnemyTeamFromRoom(room: DungeonRoom): Character[] {
     enemyBossIds = new Set();
     bossAbilityMap = new Map();
-    summonerConfigMap = new Map();
+    // Note: summonerConfigMap is reset in runCurrentRoom() before both teams are built
     characterAbilityIds = new Map();
 
     return room.enemies
@@ -302,6 +323,9 @@
     const room = dungeon.rooms[currentRoomIndex];
     if (!room) return;
 
+    // Reset shared battle config maps before building teams
+    summonerConfigMap = new Map();
+
     const playerTeam = createPlayerTeam();
     if (playerTeam.length === 0) {
       // All player characters are dead — auto-fail
@@ -347,9 +371,9 @@
     // Award XP to survivors if room was won (skip if already awarded for this room index)
     if (result.winner === 'player') {
       const xp = room.xpReward ?? 0;
-      const alreadyAwarded = xpAwardedRooms.has(currentRoomIndex);
+      const alreadyAwarded = hasRoomAwardedXp(playerSave, currentRoomIndex);
       if (xp > 0 && !alreadyAwarded) {
-        xpAwardedRooms = new Set([...xpAwardedRooms, currentRoomIndex]);
+        onRoomXpAwarded(currentRoomIndex);
         const survivorIds = Array.from(survivorHp.keys());
         // Snapshot pre-XP state
         const preXpSnapshot = new Map<string, { xp: number; level: number }>();
