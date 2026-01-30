@@ -220,7 +220,7 @@
     },
     {
       "id": "enemy_ml1gdv6k_y925",
-      "name": "Appeentice Warrior Goblin ",
+      "name": "Apprentice Warrior Goblin ",
       "role": "warrior",
       "rarity": "common",
       "level": 1,
@@ -228,8 +228,8 @@
       "abilityId": "ability_cleave",
       "statOverrides": {
         "hpMult": 0.7,
-        "atkMult": 0.7,
-        "defMult": 0.7,
+        "atkMult": 0.5,
+        "defMult": 0.5,
         "spdMult": 0.8
       }
     },
@@ -420,7 +420,7 @@
   "dailyDungeonSchedule": {
     "2026-01-29": "dungeon_migrated"
   },
-  "publishedAt": 1769815002594,
+  "publishedAt": 1769815306330,
   "levelThresholds": [
     10,
     25,
