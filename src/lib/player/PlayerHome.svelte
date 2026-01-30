@@ -158,7 +158,7 @@
   });
 </script>
 
-<div class="max-w-4xl mx-auto p-4">
+<div class="max-w-4xl xl:max-w-7xl mx-auto p-4">
   <!-- Daily Reset Timer -->
   <div class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 mb-4 text-center text-sm">
     <span class="text-gray-400">Daily reset in </span>
