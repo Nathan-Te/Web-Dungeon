@@ -252,6 +252,43 @@
         {/if}
       </div>
 
+      <!-- Ability Sprites -->
+      <div class="sm:col-span-2 mt-1">
+        <span class="block text-xs text-gray-400 mb-2 font-bold">Ability VFX Sprites (optional)</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <span class="block text-xs text-gray-400 mb-1">Caster Sprite URL</span>
+            <input
+              type="text"
+              value={editingAbility.casterSprite && typeof editingAbility.casterSprite === 'string' ? editingAbility.casterSprite : ''}
+              oninput={(e) => {
+                if (!editingAbility) return;
+                const v = (e.target as HTMLInputElement).value.trim();
+                editingAbility = { ...editingAbility, casterSprite: v || undefined };
+              }}
+              placeholder="Image URL shown on caster"
+              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+            />
+            <span class="text-[10px] text-gray-600">Overlay on the character casting the ability</span>
+          </div>
+          <div>
+            <span class="block text-xs text-gray-400 mb-1">Target Sprite URL</span>
+            <input
+              type="text"
+              value={editingAbility.targetSprite && typeof editingAbility.targetSprite === 'string' ? editingAbility.targetSprite : ''}
+              oninput={(e) => {
+                if (!editingAbility) return;
+                const v = (e.target as HTMLInputElement).value.trim();
+                editingAbility = { ...editingAbility, targetSprite: v || undefined };
+              }}
+              placeholder="Image URL shown on target(s)"
+              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+            />
+            <span class="text-[10px] text-gray-600">Overlay on each target hit by the ability</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Allowed Roles -->
       <div class="mt-3">
         <span class="block text-xs text-gray-400 mb-2">Allowed Roles</span>
@@ -340,6 +377,12 @@
         <span class="text-xs text-gray-600">
           [{ability.allowedRoles.join(', ')}]
         </span>
+
+        {#if ability.casterSprite || ability.targetSprite}
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-900 text-indigo-300 border border-indigo-700">
+            VFX
+          </span>
+        {/if}
 
         {#if isBuiltIn(ability.id)}
           <span class="text-xs text-gray-600 italic">built-in</span>

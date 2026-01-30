@@ -132,6 +132,10 @@ export interface CombatAction {
   isCritical?: boolean;
   abilityUsed?: string;
   message: string;
+  /** Sprite overlay on the caster when using an ability */
+  abilityCasterSprite?: SpriteSource;
+  /** Sprite overlay on each target hit by an ability */
+  abilityTargetSprite?: SpriteSource;
   /** For AOE abilities: per-target damage data */
   aoeTargets?: { id: string; damage: number }[];
   /** For summon actions: the summoned unit data */

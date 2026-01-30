@@ -3,7 +3,7 @@
  * All hardcoded ability values are extracted here for admin editing
  */
 
-import type { Role } from './types';
+import type { Role, SpriteSource } from './types';
 
 /** Ability targeting modes */
 export type AbilityTargeting =
@@ -34,6 +34,10 @@ export interface AbilityDefinition {
   healThreshold: number;
   /** Cooldown in turns (0 = no cooldown, usable every turn if triggered) */
   cooldown?: number;
+  /** Sprite/spritesheet displayed on the caster when using this ability */
+  casterSprite?: SpriteSource;
+  /** Sprite/spritesheet displayed on each target hit by this ability */
+  targetSprite?: SpriteSource;
 }
 
 /** Built-in ability definitions */

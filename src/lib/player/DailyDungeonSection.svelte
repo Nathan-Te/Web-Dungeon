@@ -9,6 +9,7 @@
     type Role,
     type Position,
     type SpriteSet,
+    type SpriteSource,
     type AnimState,
     type HitEffect,
     type SummonTemplate,
@@ -71,6 +72,7 @@
     hitEffect?: HitEffect;
     isBoss?: boolean;
     isSummoned?: boolean;
+    abilityOverlay?: SpriteSource;
   }
 
   // Selection
@@ -84,7 +86,7 @@
   let actionLog: CombatAction[] = $state([]);
   let currentActionIndex = $state(-1);
   let isPlaying = $state(false);
-  let playbackSpeed = $state(250);
+  let playbackSpeed = $state(500);
   let playInterval: ReturnType<typeof setInterval> | null = null;
 
   // Carry-over HP
@@ -425,17 +427,21 @@
   function applyAction(action: CombatAction) {
     const updated = displayUnits
       .filter((u) => u.isAlive || !u.isSummoned)
-      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
+      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined, abilityOverlay: undefined as SpriteSource | undefined }));
 
     if (action.actionType === 'attack' || action.actionType === 'ability') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
-      if (aIdx !== -1) updated[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
+      if (aIdx !== -1) {
+        updated[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
       if (action.aoeTargets && action.aoeTargets.length > 0) {
         for (const aoe of action.aoeTargets) {
           const tIdx = updated.findIndex((u) => u.id === aoe.id);
           if (tIdx !== -1) {
             updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage);
             updated[tIdx].hitEffect = 'damage';
+            if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
             if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
           }
         }
@@ -444,20 +450,31 @@
         if (tIdx !== -1 && action.damage !== undefined) {
           updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
           updated[tIdx].hitEffect = 'damage';
+          if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
           if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
         }
       }
     } else if (action.actionType === 'heal') {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
-      if (aIdx !== -1) updated[aIdx].animState = 'castAbility';
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
       const tIdx = updated.findIndex((u) => u.id === action.targetId);
-      if (tIdx !== -1 && action.healing !== undefined) { updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing); updated[tIdx].hitEffect = 'heal'; }
+      if (tIdx !== -1 && action.healing !== undefined) {
+        updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
+        updated[tIdx].hitEffect = 'heal';
+        if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
+      }
     } else if (action.actionType === 'death') {
       const dIdx = updated.findIndex((u) => u.id === action.actorId);
       if (dIdx !== -1) { updated[dIdx].isAlive = false; updated[dIdx].currentHp = 0; updated[dIdx].animState = 'death'; }
     } else if (action.actionType === 'summon' && action.summonedUnit) {
       const aIdx = updated.findIndex((u) => u.id === action.actorId);
-      if (aIdx !== -1) updated[aIdx].animState = 'castAbility';
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
       const su = action.summonedUnit;
       updated.push({
         id: su.id, name: su.name, role: su.role,
@@ -561,23 +578,48 @@
 
   {:else if phase === 'running'}
     <!-- Battle in progress -->
-    <div class="text-center text-sm text-gray-400 mb-2">
-      Room {currentRoomIndex + 1}/{dungeon.rooms.length} — {currentRoom?.name ?? ''}
+    <div class="flex items-center justify-center gap-4 mb-2">
+      <span class="text-sm text-gray-400">
+        Room {currentRoomIndex + 1}/{dungeon.rooms.length} — {currentRoom?.name ?? ''}
+      </span>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500">Speed:</span>
+        <select
+          bind:value={playbackSpeed}
+          onchange={() => {
+            if (isPlaying) {
+              stopPlayback();
+              isPlaying = true;
+              playInterval = setInterval(() => {
+                if (currentActionIndex < actionLog.length - 1) {
+                  currentActionIndex++;
+                  applyAction(actionLog[currentActionIndex]);
+                } else { stopPlayback(); }
+              }, playbackSpeed);
+            }
+          }}
+          class="px-2 py-1 bg-slate-700 rounded text-xs text-white"
+        >
+          <option value={800}>Slow</option>
+          <option value={500}>Normal</option>
+          <option value={250}>Fast</option>
+        </select>
+      </div>
     </div>
 
     <!-- Desktop: 3-column layout (log | battle | xp), Mobile: stacked -->
     <div class="flex flex-col xl:flex-row xl:items-start xl:gap-4">
       <!-- Left column: Battle Log (desktop) -->
-      <div class="hidden xl:block xl:w-72 xl:flex-shrink-0 xl:order-1">
+      <div class="hidden xl:block xl:w-80 xl:flex-shrink-0 xl:order-1">
         <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
       </div>
 
       <!-- Center column: Battle Grid + controls -->
-      <div class="flex-1 xl:order-2">
+      <div class="flex-1 xl:order-2 flex flex-col items-center">
         <BattleGrid {playerDisplayUnits} {enemyDisplayUnits} />
 
         <!-- Mobile-only: Battle Log below grid -->
-        <div class="mt-4 xl:hidden">
+        <div class="mt-4 xl:hidden w-full">
           <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
         </div>
 
@@ -607,62 +649,64 @@
         {/if}
       </div>
 
-      <!-- Right column: XP Gained (desktop) / below grid (mobile) -->
-      {#if battleDone && canContinue && showXpScreen && xpGains.length > 0}
-        <div class="mt-4 xl:mt-0 xl:w-80 xl:flex-shrink-0 xl:order-3 bg-slate-800 rounded-lg p-4">
-          <h3 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h3>
-          <div class="space-y-3">
-            {#each xpGains as entry}
-              {@const xpNeeded = getXpForLevel(entry.newLevel, levelThresholds)}
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 flex-shrink-0 rounded bg-slate-700 overflow-hidden">
-                  <SpritePreview sprites={entry.sprites} fallback={ROLE_ICONS[entry.role]} class="w-10 h-10" />
-                </div>
-                <div class="flex-1">
-                  <div class="flex items-center justify-between text-sm">
-                    <span class="font-medium">{entry.name}</span>
-                    <span class="text-cyan-400 text-xs font-bold">+{entry.xpGained} XP</span>
+      <!-- Right column: XP Gained / placeholder to keep center balanced -->
+      <div class="xl:w-80 xl:flex-shrink-0 xl:order-3">
+        {#if battleDone && canContinue && showXpScreen && xpGains.length > 0}
+          <div class="mt-4 xl:mt-0 bg-slate-800 rounded-lg p-4">
+            <h3 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h3>
+            <div class="space-y-3">
+              {#each xpGains as entry}
+                {@const xpNeeded = getXpForLevel(entry.newLevel, levelThresholds)}
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 flex-shrink-0 rounded bg-slate-700 overflow-hidden">
+                    <SpritePreview sprites={entry.sprites} fallback={ROLE_ICONS[entry.role]} class="w-10 h-10" />
                   </div>
-                  {#if entry.newLevel > entry.prevLevel}
-                    <div class="text-xs text-yellow-400 font-bold">Level Up! Lv{entry.prevLevel} → Lv{entry.newLevel}</div>
-                  {/if}
-                  {#if xpNeeded !== null}
-                    <div class="w-full bg-slate-700 rounded-full h-2 mt-1">
-                      <div
-                        class="bg-cyan-500 h-2 rounded-full transition-all"
-                        style="width: {Math.min(100, (entry.newXp / xpNeeded) * 100)}%"
-                      ></div>
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between text-sm">
+                      <span class="font-medium">{entry.name}</span>
+                      <span class="text-cyan-400 text-xs font-bold">+{entry.xpGained} XP</span>
                     </div>
-                    <div class="text-[10px] text-gray-500 mt-0.5">
-                      Lv{entry.newLevel} — {entry.newXp}/{xpNeeded} XP
-                    </div>
-                  {:else}
-                    <div class="text-[10px] text-cyan-400 font-bold mt-0.5">Max Level</div>
-                  {/if}
+                    {#if entry.newLevel > entry.prevLevel}
+                      <div class="text-xs text-yellow-400 font-bold">Level Up! Lv{entry.prevLevel} → Lv{entry.newLevel}</div>
+                    {/if}
+                    {#if xpNeeded !== null}
+                      <div class="w-full bg-slate-700 rounded-full h-2 mt-1">
+                        <div
+                          class="bg-cyan-500 h-2 rounded-full transition-all"
+                          style="width: {Math.min(100, (entry.newXp / xpNeeded) * 100)}%"
+                        ></div>
+                      </div>
+                      <div class="text-[10px] text-gray-500 mt-0.5">
+                        Lv{entry.newLevel} — {entry.newXp}/{xpNeeded} XP
+                      </div>
+                    {:else}
+                      <div class="text-[10px] text-cyan-400 font-bold mt-0.5">Max Level</div>
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
+            <div class="flex justify-center mt-4">
+              <button
+                onclick={() => { showXpScreen = false; handleNextRoom(); }}
+                class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+              >
+                {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+              </button>
+            </div>
           </div>
-          <div class="flex justify-center mt-4">
+        {:else if battleDone && canContinue && !showXpScreen}
+          <!-- Desktop-only: Next Room button in right column -->
+          <div class="hidden xl:flex xl:items-center xl:justify-center xl:pt-8">
             <button
-              onclick={() => { showXpScreen = false; handleNextRoom(); }}
+              onclick={handleNextRoom}
               class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
             >
               {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
             </button>
           </div>
-        </div>
-      {:else if battleDone && canContinue && !showXpScreen}
-        <!-- Desktop-only: Next Room button in right column area -->
-        <div class="hidden xl:flex xl:w-80 xl:flex-shrink-0 xl:order-3 xl:items-center xl:justify-center">
-          <button
-            onclick={handleNextRoom}
-            class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
-          >
-            {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
-          </button>
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
 
   {:else if phase === 'complete'}
