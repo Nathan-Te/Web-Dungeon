@@ -33,13 +33,13 @@
   });
 </script>
 
-<div bind:this={scrollContainer} class="bg-slate-800 rounded-lg p-4 h-64 overflow-y-auto">
+<div bind:this={scrollContainer} class="bg-slate-800 rounded-lg p-4 h-96 overflow-y-auto">
   <h3 class="text-lg font-bold mb-2 sticky top-0 bg-slate-800">Battle Log</h3>
 
   {#if visibleActions.length === 0}
     <p class="text-gray-500 italic">Battle not started...</p>
   {:else}
-    <div class="space-y-1 text-sm">
+    <div class="space-y-1.5 text-base">
       {#each visibleActions as action, i}
         <div
           class="py-1 px-2 rounded transition-all duration-200

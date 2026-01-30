@@ -242,7 +242,7 @@
             maxHp: hp?.maxHp ?? char.hp,
             atk: char.atk, def: char.def, spd: char.spd,
             position: pos, team: teamType, isAlive: true,
-            sprites: char.sprites, isBoss,
+            sprites: char.sprites, animState: 'idle' as AnimState, isBoss,
           });
         }
       } else {
@@ -261,7 +261,7 @@
                   maxHp: hp?.maxHp ?? char.hp,
                   atk: char.atk, def: char.def, spd: char.spd,
                   position: { row: r as 0 | 1 | 2, col: c as 0 | 1 | 2 },
-                  team: teamType, isAlive: true, sprites: char.sprites,
+                  team: teamType, isAlive: true, sprites: char.sprites, animState: 'idle' as AnimState,
                 });
                 placed = true;
               }
