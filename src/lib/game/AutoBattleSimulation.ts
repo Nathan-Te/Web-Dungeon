@@ -142,19 +142,28 @@ export class AutoBattleSimulation {
 
   /** Attach ability sprites to the last action log entry for a character */
   private attachAbilitySprites(characterId: string): void {
+    const last = this.actionLog[this.actionLog.length - 1];
+    if (!last || !last.abilityUsed) return;
+
+    // First try by explicit characterAbilityIds mapping
     const abilityIds = this.characterAbilityIds.get(characterId);
-    if (!abilityIds || abilityIds.length === 0) return;
-    // Use first ability with sprite data
-    for (const aid of abilityIds) {
-      const def = this.abilityDefs.find((a) => a.id === aid);
-      if (def && (def.casterSprite || def.targetSprite)) {
-        const last = this.actionLog[this.actionLog.length - 1];
-        if (last) {
+    if (abilityIds && abilityIds.length > 0) {
+      for (const aid of abilityIds) {
+        const def = this.abilityDefs.find((a) => a.id === aid);
+        if (def && (def.casterSprite || def.targetSprite)) {
           if (def.casterSprite) last.abilityCasterSprite = def.casterSprite;
           if (def.targetSprite) last.abilityTargetSprite = def.targetSprite;
+          return;
         }
-        return;
       }
+    }
+
+    // Fallback: match by ability name (for built-in abilities like Taunt, Cleave, etc.)
+    const abilityName = last.abilityUsed.toLowerCase();
+    const def = this.abilityDefs.find((a) => a.name.toLowerCase() === abilityName);
+    if (def) {
+      if (def.casterSprite) last.abilityCasterSprite = def.casterSprite;
+      if (def.targetSprite) last.abilityTargetSprite = def.targetSprite;
     }
   }
 
