@@ -49,7 +49,7 @@
           "framesPerRow": 8
         },
         "frameDuration": 125,
-        "spriteScale": 2
+        "spriteScale": 2.2
       }
     },
     {
@@ -58,7 +58,10 @@
       "role": "summoner",
       "rarity": "common",
       "abilityName": "",
-      "abilityDescription": ""
+      "abilityDescription": "",
+      "summonIds": [
+        "char_001"
+      ]
     },
     {
       "id": "char_004",
@@ -376,14 +379,9 @@
   "dailyDungeonId": "dungeon_migrated",
   "gachaConfig": {
     "characterPool": [
-      "char_001",
-      "char_006",
-      "char_011",
-      "char_016",
-      "char_002",
       "char_003",
-      "char_007",
-      "char_017"
+      "char_002",
+      "char_001"
     ],
     "rates": {
       "common": 0.74,
@@ -403,7 +401,7 @@
   "dailyDungeonSchedule": {
     "2026-01-29": "dungeon_migrated"
   },
-  "publishedAt": 1769787128387,
+  "publishedAt": 1769791652430,
   "levelThresholds": [
     10,
     25,
@@ -504,5 +502,45 @@
     1450,
     1465,
     1480
-  ]
+  ],
+  "expeditionConfig": {
+    "maxTeamSize": 5,
+    "maxConcurrentExpeditions": 1,
+    "baseXpPerWave": 15,
+    "baseGachaChance": 0.05,
+    "gachaChanceMultiplier": {
+      "4": 1,
+      "8": 1.8,
+      "12": 2.5,
+      "24": 4
+    },
+    "powerRatioGachaBonus": 0.5,
+    "maxGachaChance": 0.6,
+    "durationTiers": {
+      "4": {
+        "totalWaves": 8,
+        "enemyPowerMult": 1,
+        "xpMultiplier": 1,
+        "requiredPower": 500
+      },
+      "8": {
+        "totalWaves": 16,
+        "enemyPowerMult": 1.5,
+        "xpMultiplier": 1.5,
+        "requiredPower": 1000
+      },
+      "12": {
+        "totalWaves": 24,
+        "enemyPowerMult": 2,
+        "xpMultiplier": 2,
+        "requiredPower": 2000
+      },
+      "24": {
+        "totalWaves": 40,
+        "enemyPowerMult": 3,
+        "xpMultiplier": 3,
+        "requiredPower": 4000
+      }
+    }
+  }
 }
