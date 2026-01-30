@@ -257,7 +257,7 @@
           "isBoss": false,
           "enemies": [
             {
-              "enemyTemplateId": "enemy_mkzl5ejn_tx2m"
+              "enemyTemplateId": "enemy_mkza5n5l_bwpu"
             }
           ],
           "difficultyMult": 1
@@ -384,5 +384,5 @@
   "dailyDungeonSchedule": {
     "2026-01-29": "dungeon_migrated"
   },
-  "publishedAt": 1769729661579
+  "publishedAt": 1769731787729
 }
