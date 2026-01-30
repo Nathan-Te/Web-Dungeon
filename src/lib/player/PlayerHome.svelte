@@ -19,6 +19,7 @@
     awardXp,
     startExpedition,
     removeExpedition,
+    markRoomXpAwarded,
     type PlayerSave,
     type ActiveExpedition,
     type ExpeditionResult,
@@ -107,6 +108,11 @@
 
   function handleXpAwarded(survivorIds: string[], xp: number) {
     playerSave = awardXp(playerSave, survivorIds, xp, content.levelThresholds);
+    savePlayerSave(playerSave);
+  }
+
+  function handleRoomXpAwarded(roomIndex: number) {
+    playerSave = markRoomXpAwarded(playerSave, roomIndex);
     savePlayerSave(playerSave);
   }
 
@@ -305,6 +311,7 @@
           onAttemptUsed={handleDungeonAttemptUsed}
           onDungeonCleared={handleDungeonCleared}
           onXpAwarded={handleXpAwarded}
+          onRoomXpAwarded={handleRoomXpAwarded}
         />
       {/if}
     {:else}
