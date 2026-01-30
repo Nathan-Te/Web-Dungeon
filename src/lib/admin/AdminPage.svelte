@@ -27,7 +27,8 @@
   import SpellEditor from './SpellEditor.svelte';
   import RolesReference from './RolesReference.svelte';
   import GachaConfigEditor from './GachaConfigEditor.svelte';
-  import type { GachaConfig } from './adminTypes';
+  import ExpeditionConfigEditor from './ExpeditionConfigEditor.svelte';
+  import type { GachaConfig, ExpeditionConfig } from './adminTypes';
 
   interface Props {
     onNavigate: (page: string) => void;
@@ -35,7 +36,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'data';
   let activeTab: Tab = $state('characters');
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
@@ -114,6 +115,11 @@
     save({ ...content, dailyDungeonSchedule: schedule });
   }
 
+  // Expedition config
+  function onSaveExpeditionConfig(config: ExpeditionConfig) {
+    save({ ...content, expeditionConfig: config });
+  }
+
   // Data management
   function handleExport() {
     exportContentAsJson(content);
@@ -186,6 +192,7 @@
     { key: 'spells', label: 'Spells', count: () => content.abilities.length },
     { key: 'roles', label: 'Roles', count: () => 0 },
     { key: 'gacha', label: 'Gacha', count: () => content.gachaConfig?.characterPool.length ?? 0 },
+    { key: 'expedition', label: 'Expedition', count: () => content.expeditionConfig ? 1 : 0 },
     { key: 'data', label: 'Data', count: () => 0 },
   ];
 </script>
@@ -286,6 +293,11 @@
       onSave={onSaveGachaConfig}
       {onSaveLevelThresholds}
       {onSaveRarityMultipliers}
+    />
+  {:else if activeTab === 'expedition'}
+    <ExpeditionConfigEditor
+      expeditionConfig={content.expeditionConfig}
+      onSave={onSaveExpeditionConfig}
     />
   {:else if activeTab === 'data'}
     <div class="space-y-6">

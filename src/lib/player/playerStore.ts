@@ -4,6 +4,7 @@
  */
 
 import type { Rarity, Role } from '../game/types';
+import type { ExpeditionDuration } from '../admin/adminTypes';
 
 /** A character owned by the player */
 export interface OwnedCharacter {
@@ -31,6 +32,38 @@ export interface DailyState {
   dungeonCleared: boolean;
 }
 
+/** An active expedition in progress */
+export interface ActiveExpedition {
+  /** Unique expedition ID */
+  id: string;
+  /** Character IDs sent on this expedition */
+  teamCharacterIds: string[];
+  /** Duration in hours */
+  duration: ExpeditionDuration;
+  /** Timestamp (ms) when the expedition started */
+  startedAt: number;
+  /** Timestamp (ms) when the expedition completes */
+  completesAt: number;
+  /** Team power at time of departure (for reward calculation) */
+  teamPower: number;
+}
+
+/** Result of a completed expedition */
+export interface ExpeditionResult {
+  /** How many waves the team cleared */
+  wavesCleared: number;
+  /** Total waves attempted */
+  totalWaves: number;
+  /** Whether the team cleared all waves */
+  fullClear: boolean;
+  /** XP earned (shared among team) */
+  xpEarned: number;
+  /** Whether the gacha pull was won */
+  gachaPullWon: boolean;
+  /** The gacha chance that was rolled against */
+  gachaChance: number;
+}
+
 /** Complete player save data */
 export interface PlayerSave {
   version: number;
@@ -38,6 +71,8 @@ export interface PlayerSave {
   collection: OwnedCharacter[];
   /** Daily tracking */
   daily: DailyState;
+  /** Currently active expeditions */
+  expeditions?: ActiveExpedition[];
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
@@ -263,4 +298,41 @@ export function claimPendingGachaReward(save: PlayerSave): PlayerSave {
   if (!pendingId) return save;
   clearPendingGachaReward();
   return addCharacterToCollection(save, pendingId);
+}
+
+// --- Expedition helpers ---
+
+/** Start a new expedition */
+export function startExpedition(
+  save: PlayerSave,
+  teamCharacterIds: string[],
+  duration: ExpeditionDuration,
+  teamPower: number,
+): PlayerSave {
+  const now = Date.now();
+  const expedition: ActiveExpedition = {
+    id: `exp_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    teamCharacterIds,
+    duration,
+    startedAt: now,
+    completesAt: now + duration * 3600 * 1000,
+    teamPower,
+  };
+  return {
+    ...save,
+    expeditions: [...(save.expeditions ?? []), expedition],
+  };
+}
+
+/** Remove a completed expedition from the active list */
+export function removeExpedition(save: PlayerSave, expeditionId: string): PlayerSave {
+  return {
+    ...save,
+    expeditions: (save.expeditions ?? []).filter(e => e.id !== expeditionId),
+  };
+}
+
+/** Check if a character is currently on an expedition */
+export function isCharacterOnExpedition(save: PlayerSave, characterId: string): boolean {
+  return (save.expeditions ?? []).some(exp => exp.teamCharacterIds.includes(characterId));
 }

@@ -83,6 +83,39 @@ export interface Dungeon {
   maxTeamSize?: number;
 }
 
+/** Expedition duration options in hours */
+export type ExpeditionDuration = 4 | 8 | 12 | 24;
+
+/** Admin-configurable expedition settings */
+export interface ExpeditionConfig {
+  /** Max units per expedition team (1-5) */
+  maxTeamSize: number;
+  /** Difficulty settings per duration tier */
+  durationTiers: Record<ExpeditionDuration, ExpeditionDurationTier>;
+  /** Base XP reward per wave cleared */
+  baseXpPerWave: number;
+  /** Base gacha pull chance (0-1) for a 4h expedition at power ratio 1.0 */
+  baseGachaChance: number;
+  /** Gacha chance multiplier per duration tier (applied to baseGachaChance) */
+  gachaChanceMultiplier: Record<ExpeditionDuration, number>;
+  /** Power ratio thresholds: ratio = teamPower / requiredPower */
+  powerRatioGachaBonus: number;
+  /** Max gacha chance cap (0-1) */
+  maxGachaChance: number;
+}
+
+/** Per-duration expedition tier settings */
+export interface ExpeditionDurationTier {
+  /** Number of waves the team attempts */
+  totalWaves: number;
+  /** Enemy power level (multiplier on base enemy stats) */
+  enemyPowerMult: number;
+  /** XP multiplier applied to baseXpPerWave */
+  xpMultiplier: number;
+  /** Required team power to clear all waves (approximate) */
+  requiredPower: number;
+}
+
 /** Complete game content bundle (for export/import) */
 export interface GameContent {
   version: number;
@@ -96,6 +129,8 @@ export interface GameContent {
   roleStats?: Partial<Record<Role, BaseStats>>;
   /** Gacha system configuration */
   gachaConfig?: GachaConfig;
+  /** Expedition system configuration */
+  expeditionConfig?: ExpeditionConfig;
   /** ID of the dungeon used as today's daily dungeon (admin picks) */
   dailyDungeonId?: string;
   /** Calendar schedule: date (YYYY-MM-DD) → dungeon ID */
@@ -177,5 +212,23 @@ export function createBlankAbility(): AbilityDefinition {
     targetCount: 1,
     ignoreDefense: false,
     healThreshold: 0,
+  };
+}
+
+/** Create default expedition config */
+export function createDefaultExpeditionConfig(): ExpeditionConfig {
+  return {
+    maxTeamSize: 5,
+    baseXpPerWave: 15,
+    baseGachaChance: 0.05,
+    gachaChanceMultiplier: { 4: 1.0, 8: 1.8, 12: 2.5, 24: 4.0 },
+    powerRatioGachaBonus: 0.5,
+    maxGachaChance: 0.60,
+    durationTiers: {
+      4: { totalWaves: 8, enemyPowerMult: 1.0, xpMultiplier: 1.0, requiredPower: 500 },
+      8: { totalWaves: 16, enemyPowerMult: 1.5, xpMultiplier: 1.5, requiredPower: 1000 },
+      12: { totalWaves: 24, enemyPowerMult: 2.0, xpMultiplier: 2.0, requiredPower: 2000 },
+      24: { totalWaves: 40, enemyPowerMult: 3.0, xpMultiplier: 3.0, requiredPower: 4000 },
+    },
   };
 }
