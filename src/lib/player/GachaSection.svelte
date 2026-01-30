@@ -1,15 +1,16 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import type { CharacterDefinition, Rarity, Role } from '../game/types';
-  import type { GachaConfig } from '../admin/adminTypes';
+  import type { GachaConfig, PityRule } from '../admin/adminTypes';
   import type { PlayerSave } from './playerStore';
+  import { getPityCount } from './playerStore';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
     gachaConfig: GachaConfig;
-    onPullStart: (characterId: string) => void;
+    onPullStart: (characterId: string, rarity: Rarity) => void;
     onPull: (characterId: string) => void;
     onAnimatingChange?: (animating: boolean) => void;
   }
@@ -83,6 +84,24 @@
     return strip;
   }
 
+  /** Check pity rules and return a forced rarity if any rule triggers */
+  function checkPity(): Rarity | null {
+    const rules = gachaConfig.pityRules;
+    if (!rules || rules.length === 0) return null;
+    // Check from highest rarity first
+    const priority: Rarity[] = ['legendary', 'epic', 'rare'];
+    for (const rarity of priority) {
+      const rule = rules.find(r => r.rarity === rarity);
+      if (rule && getPityCount(playerSave, rarity) + 1 >= rule.pullsRequired) {
+        // Check that we actually have characters of this rarity in the pool
+        if (poolCharacters.some(c => c.rarity === rarity)) {
+          return rarity;
+        }
+      }
+    }
+    return null;
+  }
+
   function performPull() {
     if (playerSave.daily.gachaPullsRemaining <= 0 || gachaConfig.characterPool.length === 0) return;
 
@@ -92,15 +111,23 @@
     showResult = false;
     carouselLanded = false;
 
-    // Determine rarity by weighted random
-    const roll = Math.random();
-    let cumulative = 0;
-    let selectedRarity: Rarity = 'common';
-    for (const rarity of ['legendary', 'epic', 'rare', 'common'] as Rarity[]) {
-      cumulative += gachaConfig.rates[rarity] ?? 0;
-      if (roll < cumulative) {
-        selectedRarity = rarity;
-        break;
+    // Check pity guarantee first
+    const pityRarity = checkPity();
+    let selectedRarity: Rarity;
+
+    if (pityRarity) {
+      selectedRarity = pityRarity;
+    } else {
+      // Determine rarity by weighted random
+      const roll = Math.random();
+      let cumulative = 0;
+      selectedRarity = 'common';
+      for (const rarity of ['legendary', 'epic', 'rare', 'common'] as Rarity[]) {
+        cumulative += gachaConfig.rates[rarity] ?? 0;
+        if (roll < cumulative) {
+          selectedRarity = rarity;
+          break;
+        }
       }
     }
 
@@ -112,7 +139,7 @@
     const picked = pool[Math.floor(Math.random() * pool.length)];
 
     // Save pending reward and consume pull BEFORE animation — prevents refresh exploit
-    onPullStart(picked.id);
+    onPullStart(picked.id, selectedRarity);
 
     // Build strip
     carouselItems = buildCarouselStrip(picked);
@@ -288,6 +315,28 @@
             </div>
           {/each}
         </div>
+        {#if gachaConfig.pityRules && gachaConfig.pityRules.length > 0}
+          <div class="mt-3 pt-3 border-t border-slate-700">
+            <h4 class="text-xs text-gray-500 mb-2 text-center">Pity Guarantee</h4>
+            <div class="space-y-1">
+              {#each gachaConfig.pityRules as rule}
+                {@const current = getPityCount(playerSave, rule.rarity)}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="capitalize {RARITY_TEXT[rule.rarity as Rarity]}">{rule.rarity} garanti</span>
+                  <span class="text-gray-400">
+                    {current}/{rule.pullsRequired} tirages
+                  </span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-1.5">
+                  <div
+                    class="h-1.5 rounded-full transition-all {rule.rarity === 'legendary' ? 'bg-yellow-500' : rule.rarity === 'epic' ? 'bg-purple-500' : 'bg-blue-500'}"
+                    style="width: {Math.min(100, (current / rule.pullsRequired) * 100)}%"
+                  ></div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Obtainable Characters -->

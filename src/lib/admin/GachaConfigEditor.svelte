@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { CharacterDefinition, Rarity, Role } from '../game/types';
-  import type { GachaConfig } from './adminTypes';
+  import type { GachaConfig, PityRule } from './adminTypes';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
@@ -78,8 +78,38 @@
     config = { ...config, ascensionCosts: config.ascensionCosts.slice(0, -1) };
   }
 
+  // Pity rules
+  let pityRules: PityRule[] = $state(
+    config.pityRules ? config.pityRules.map(r => ({ ...r })) : []
+  );
+
+  function addPityRule() {
+    pityRules = [...pityRules, { rarity: 'legendary', pullsRequired: 90 }];
+  }
+
+  function removePityRule(index: number) {
+    pityRules = pityRules.filter((_, i) => i !== index);
+  }
+
+  function updatePityRarity(index: number, rarity: Rarity) {
+    pityRules = pityRules.map((r, i) => i === index ? { ...r, rarity } : r);
+  }
+
+  function updatePityPulls(index: number, pulls: number) {
+    pityRules = pityRules.map((r, i) => i === index ? { ...r, pullsRequired: pulls } : r);
+  }
+
+  // Daily / Initial pulls
+  let dailyPulls: number = $state(config.dailyPulls ?? 1);
+  let initialBonusPulls: number = $state(config.initialBonusPulls ?? 3);
+
   function handleSave() {
-    onSave(config);
+    onSave({
+      ...config,
+      pityRules: pityRules.length > 0 ? pityRules : undefined,
+      dailyPulls,
+      initialBonusPulls,
+    });
   }
 
   const ROLE_ICONS: Record<Role, string> = {
@@ -196,6 +226,88 @@
         - Level
       </button>
     </div>
+  </div>
+
+  <!-- Daily & Initial Pulls -->
+  <div class="bg-slate-800 rounded-lg p-4">
+    <h3 class="font-bold mb-3 text-green-400">Tirages Gacha</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">Tirages par jour</span>
+        <input
+          type="number"
+          min="1"
+          max="99"
+          bind:value={dailyPulls}
+          class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
+      <div>
+        <span class="block text-xs text-gray-400 mb-1">Tirages bonus (nouveau joueur)</span>
+        <input
+          type="number"
+          min="0"
+          max="99"
+          bind:value={initialBonusPulls}
+          class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+        />
+      </div>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">
+      Nouveau joueur = {dailyPulls} + {initialBonusPulls} = {dailyPulls + initialBonusPulls} tirages au premier jour.
+      Ensuite {dailyPulls} tirage{dailyPulls > 1 ? 's' : ''} par jour.
+    </p>
+  </div>
+
+  <!-- Pity Rules -->
+  <div class="bg-slate-800 rounded-lg p-4">
+    <h3 class="font-bold mb-3 text-orange-400">Pity (garanties)</h3>
+    <p class="text-xs text-gray-500 mb-3">
+      Apres X tirages sans obtenir une rarete, le prochain tirage la garantit.
+    </p>
+
+    {#if pityRules.length > 0}
+      <div class="space-y-2 mb-3">
+        {#each pityRules as rule, i}
+          <div class="flex gap-2 items-center">
+            <select
+              value={rule.rarity}
+              onchange={(e) => updatePityRarity(i, e.currentTarget.value as Rarity)}
+              class="px-2 py-1 bg-slate-700 rounded text-sm"
+            >
+              <option value="rare">Rare</option>
+              <option value="epic">Epic</option>
+              <option value="legendary">Legendary</option>
+            </select>
+            <span class="text-xs text-gray-400">garanti apres</span>
+            <input
+              type="number"
+              min="1"
+              max="999"
+              value={rule.pullsRequired}
+              oninput={(e) => updatePityPulls(i, parseInt(e.currentTarget.value) || 1)}
+              class="w-20 px-2 py-1 bg-slate-700 rounded text-sm text-center"
+            />
+            <span class="text-xs text-gray-400">tirages sans</span>
+            <button
+              onclick={() => removePityRule(i)}
+              class="px-2 py-1 bg-red-900 hover:bg-red-800 rounded text-xs"
+            >
+              X
+            </button>
+          </div>
+        {/each}
+      </div>
+    {:else}
+      <p class="text-xs text-gray-500 mb-3 italic">Aucune regle de pity configuree.</p>
+    {/if}
+
+    <button
+      onclick={addPityRule}
+      class="px-3 py-1 bg-orange-800 hover:bg-orange-700 rounded text-xs"
+    >
+      + Ajouter une regle
+    </button>
   </div>
 
   <!-- Character Pool -->

@@ -6,6 +6,14 @@
 import type { CharacterDefinition, Role, Rarity, SpriteSet, BaseStats } from '../game/types';
 import type { AbilityDefinition } from '../game/abilities';
 
+/** Pity guarantee: after N pulls without the target rarity, guarantee it */
+export interface PityRule {
+  /** Target rarity that is guaranteed */
+  rarity: Rarity;
+  /** Number of pulls without this rarity before it's guaranteed */
+  pullsRequired: number;
+}
+
 /** Gacha configuration set by admin */
 export interface GachaConfig {
   /** IDs of characters available in the gacha pool */
@@ -14,6 +22,12 @@ export interface GachaConfig {
   rates: Record<Rarity, number>;
   /** Number of duplicates required for each ascension level (index 0 = asc 0→1, etc.) */
   ascensionCosts: number[];
+  /** Pity rules: guaranteed rarity after N pulls without it */
+  pityRules?: PityRule[];
+  /** Number of gacha pulls per day (default 1) */
+  dailyPulls?: number;
+  /** Bonus pulls for new players (default 3) */
+  initialBonusPulls?: number;
 }
 
 /** Enemy template for dungeon encounters */
