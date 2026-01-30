@@ -29,6 +29,7 @@
   import RolesReference from './RolesReference.svelte';
   import GachaConfigEditor from './GachaConfigEditor.svelte';
   import ExpeditionConfigEditor from './ExpeditionConfigEditor.svelte';
+  import SaveEditor from './SaveEditor.svelte';
   import type { GachaConfig, ExpeditionConfig } from './adminTypes';
 
   interface Props {
@@ -37,7 +38,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'saves' | 'data';
   let activeTab: Tab = $state('characters');
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
@@ -194,6 +195,7 @@
     { key: 'roles', label: 'Roles', count: () => 0 },
     { key: 'gacha', label: 'Gacha', count: () => content.gachaConfig?.characterPool.length ?? 0 },
     { key: 'expedition', label: 'Expedition', count: () => content.expeditionConfig ? 1 : 0 },
+    { key: 'saves', label: 'Save Editor', count: () => 0 },
     { key: 'data', label: 'Data', count: () => 0 },
   ];
 </script>
@@ -300,6 +302,8 @@
       expeditionConfig={content.expeditionConfig}
       onSave={onSaveExpeditionConfig}
     />
+  {:else if activeTab === 'saves'}
+    <SaveEditor characters={content.characters} />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
       <!-- Summary -->
