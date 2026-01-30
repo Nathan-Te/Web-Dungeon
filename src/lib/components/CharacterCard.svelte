@@ -13,9 +13,10 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    abilityOverlay?: SpriteSource;
   }
 
-  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect, isBoss = false }: Props = $props();
+  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect, isBoss = false, abilityOverlay }: Props = $props();
 
   /** Cell size in px — bosses get 3x the space */
   let cellSize = $derived(isBoss ? 264 : 88);
@@ -146,6 +147,33 @@
 
   onDestroy(() => {
     clearFrameTimer();
+    clearOverlayTimer();
+  });
+
+  // --- Ability overlay animation ---
+  let overlayIsSheet = $derived(isSheet(abilityOverlay));
+  let overlaySheetConfig = $derived(overlayIsSheet ? (abilityOverlay as SpriteSheetConfig) : undefined);
+  let overlayStaticSrc = $derived(abilityOverlay && !overlayIsSheet ? (abilityOverlay as string) : undefined);
+
+  let overlayFrame = $state(0);
+  let overlayTimer: ReturnType<typeof setInterval> | null = null;
+
+  function clearOverlayTimer() {
+    if (overlayTimer) { clearInterval(overlayTimer); overlayTimer = null; }
+  }
+
+  $effect(() => {
+    if (overlaySheetConfig) {
+      clearOverlayTimer();
+      overlayFrame = 0;
+      const dur = overlaySheetConfig.frameCount > 1 ? 100 : 150;
+      overlayTimer = setInterval(() => {
+        overlayFrame = (overlayFrame + 1) % overlaySheetConfig!.frameCount;
+      }, dur);
+    } else {
+      clearOverlayTimer();
+      overlayFrame = 0;
+    }
   });
 
 </script>
@@ -159,6 +187,28 @@
       style="width: {cellSize}px; height: {cellSize}px;">
       {#if hitOverlayClass}
         <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
+      {/if}
+      {#if overlaySheetConfig}
+        {@const oCfg = overlaySheetConfig}
+        {@const oScale = cellSize / oCfg.frameWidth}
+        {@const oTotalCols = oCfg.framesPerRow}
+        {@const oTotalRows = Math.ceil(oCfg.frameCount / oCfg.framesPerRow)}
+        {@const oScaledW = oTotalCols * oCfg.frameWidth * oScale}
+        {@const oScaledH = oTotalRows * oCfg.frameHeight * oScale}
+        {@const oCol = overlayFrame % oCfg.framesPerRow}
+        {@const oRow = Math.floor(overlayFrame / oCfg.framesPerRow)}
+        {@const oPosX = oCol * oCfg.frameWidth * oScale}
+        {@const oPosY = oRow * oCfg.frameHeight * oScale}
+        {@const oOffX = (cellSize - oCfg.frameWidth * oScale) / 2}
+        {@const oOffY = (cellSize - oCfg.frameHeight * oScale) / 2}
+        <div
+          class="absolute inset-0 z-20 pointer-events-none opacity-80"
+          style="background-image: url({oCfg.src}); background-size: {oScaledW}px {oScaledH}px; background-position: {oOffX - oPosX}px {oOffY - oPosY}px;"
+        ></div>
+      {:else if overlayStaticSrc}
+        <div class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center opacity-80">
+          <img src={overlayStaticSrc} alt="ability" class="w-full h-full object-contain" />
+        </div>
       {/if}
       {#if sheetConfig}
         <!-- Animated sprite sheet: scale sheet so one frame fills the container, apply zoom -->
@@ -208,6 +258,11 @@
   >
     {#if hitOverlayClass}
       <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
+    {/if}
+    {#if overlayStaticSrc}
+      <div class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center opacity-80">
+        <img src={overlayStaticSrc} alt="ability" class="w-full h-full object-contain" />
+      </div>
     {/if}
     <div class="absolute top-0.5 left-0 right-0 text-center text-xs font-bold truncate px-1">
       {name}

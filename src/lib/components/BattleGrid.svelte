@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Role, Position, SpriteSet, AnimState, HitEffect } from '../game/types';
+  import type { Role, Position, SpriteSet, SpriteSource, AnimState, HitEffect } from '../game/types';
   import CharacterCard from './CharacterCard.svelte';
 
   interface DisplayUnit {
@@ -15,6 +15,7 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    abilityOverlay?: SpriteSource;
   }
 
   interface Props {
@@ -56,6 +57,7 @@
             animState={bossUnit.animState}
             hitEffect={bossUnit.hitEffect}
             isBoss={true}
+            abilityOverlay={bossUnit.abilityOverlay}
           />
         </div>
       </div>
@@ -75,6 +77,7 @@
                 sprites={unit.sprites}
                 animState={unit.animState}
                 hitEffect={unit.hitEffect}
+                abilityOverlay={unit.abilityOverlay}
               />
             {/if}
           </div>
@@ -99,6 +102,7 @@
                   sprites={unit.sprites}
                   animState={unit.animState}
                   hitEffect={unit.hitEffect}
+                  abilityOverlay={unit.abilityOverlay}
                 />
               {/if}
             </div>
@@ -121,6 +125,7 @@
                   sprites={unit.sprites}
                   animState={unit.animState}
                   hitEffect={unit.hitEffect}
+                  abilityOverlay={unit.abilityOverlay}
                 />
               {/if}
             </div>
@@ -156,6 +161,7 @@
                 sprites={unit.sprites}
                 animState={unit.animState}
                 hitEffect={unit.hitEffect}
+                abilityOverlay={unit.abilityOverlay}
               />
             {/if}
           </div>
@@ -179,6 +185,7 @@
                 sprites={unit.sprites}
                 animState={unit.animState}
                 hitEffect={unit.hitEffect}
+                abilityOverlay={unit.abilityOverlay}
               />
             {/if}
           </div>

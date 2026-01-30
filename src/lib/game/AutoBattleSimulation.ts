@@ -140,6 +140,24 @@ export class AutoBattleSimulation {
     }
   }
 
+  /** Attach ability sprites to the last action log entry for a character */
+  private attachAbilitySprites(characterId: string): void {
+    const abilityIds = this.characterAbilityIds.get(characterId);
+    if (!abilityIds || abilityIds.length === 0) return;
+    // Use first ability with sprite data
+    for (const aid of abilityIds) {
+      const def = this.abilityDefs.find((a) => a.id === aid);
+      if (def && (def.casterSprite || def.targetSprite)) {
+        const last = this.actionLog[this.actionLog.length - 1];
+        if (last) {
+          if (def.casterSprite) last.abilityCasterSprite = def.casterSprite;
+          if (def.targetSprite) last.abilityTargetSprite = def.targetSprite;
+        }
+        return;
+      }
+    }
+  }
+
   /** Get base stats for a role (custom or default) */
   private getRoleBaseStats(role: Role) {
     return this.customRoleStats?.[role] ?? ROLE_BASE_STATS[role];
@@ -275,6 +293,7 @@ export class AutoBattleSimulation {
         if (sumData.activeSummonIds.size < sumData.maxSummons &&
             this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE)) {
           this.executeSummon(actor, sumData, actorName);
+          this.attachAbilitySprites(actor.characterId);
           this.setAbilityCooldown(actor.characterId);
           return;
         }
@@ -286,6 +305,7 @@ export class AutoBattleSimulation {
       const healTarget = this.findHealTarget(actor);
       if (healTarget && this.rng.chance(COMBAT_CONSTANTS.ABILITY_TRIGGER_CHANCE)) {
         this.executeHeal(actor, healTarget, actorName);
+        this.attachAbilitySprites(actor.characterId);
         this.setAbilityCooldown(actor.characterId);
         return;
       }
@@ -356,30 +376,25 @@ export class AutoBattleSimulation {
 
     switch (role) {
       case 'tank':
-        // Taunt - reduced damage attack but draws aggro (simulated as extra defense)
         this.executeTauntAttack(actor, target, actorName, targetName);
         break;
       case 'warrior':
-        // Cleave - AoE damage to multiple targets
         this.executeCleave(actor, actorName);
         break;
       case 'archer':
-        // Multi-shot - attack 2 targets
         this.executeMultishot(actor, actorName);
         break;
       case 'mage':
-        // Fireball - high burst damage
         this.executeFireball(actor, target, actorName, targetName);
         break;
       case 'assassin':
-        // Backstab - ignore defense
         this.executeBackstab(actor, target, actorName, targetName);
         break;
       case 'summoner':
       default:
-        // Fallback to basic attack
         this.executeBasicAttack(actor, target, actorName);
     }
+    this.attachAbilitySprites(actor.characterId);
   }
 
   private executeTauntAttack(
