@@ -133,14 +133,40 @@ const GITHUB_REPO = 'Nathan-Te/Web-Dungeon';
 const CONTENT_PATH = 'public/data/content.json';
 const GITHUB_TOKEN_KEY = 'dungeon-admin-github-token';
 
-/** Store GitHub token in sessionStorage */
-export function setGitHubToken(token: string): void {
-  sessionStorage.setItem(GITHUB_TOKEN_KEY, token);
+/**
+ * Simple XOR obfuscation key — not encryption, but prevents the token
+ * from being stored as plain text visible in DevTools sessionStorage.
+ */
+const OBFUSCATION_KEY = 'dGcha-0bfu5k';
+
+function xorObfuscate(input: string, key: string): string {
+  let result = '';
+  for (let i = 0; i < input.length; i++) {
+    result += String.fromCharCode(input.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return result;
 }
 
-/** Retrieve stored GitHub token */
+/** Store GitHub token in sessionStorage (XOR-obfuscated) */
+export function setGitHubToken(token: string): void {
+  const obfuscated = btoa(xorObfuscate(token, OBFUSCATION_KEY));
+  sessionStorage.setItem(GITHUB_TOKEN_KEY, obfuscated);
+}
+
+/** Retrieve stored GitHub token (de-obfuscated) */
 export function getGitHubToken(): string | null {
-  return sessionStorage.getItem(GITHUB_TOKEN_KEY);
+  const stored = sessionStorage.getItem(GITHUB_TOKEN_KEY);
+  if (!stored) return null;
+  try {
+    return xorObfuscate(atob(stored), OBFUSCATION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Clear the stored GitHub token */
+export function clearGitHubToken(): void {
+  sessionStorage.removeItem(GITHUB_TOKEN_KEY);
 }
 
 /** Publish content to GitHub repo as a static JSON file */

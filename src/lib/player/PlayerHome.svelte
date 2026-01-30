@@ -29,6 +29,7 @@
   import CollectionSection from './CollectionSection.svelte';
   import DailyDungeonSection from './DailyDungeonSection.svelte';
   import ExpeditionSection from './ExpeditionSection.svelte';
+  import SaveSync from './SaveSync.svelte';
 
   interface Props {
     onNavigate: (page: string) => void;
@@ -157,6 +158,10 @@
     }
   }
 
+  function handleSyncImport(imported: import('./playerStore').PlayerSave) {
+    playerSave = imported;
+  }
+
   // Hidden admin access: triple-click on the title
   let titleClickCount = $state(0);
   let titleClickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -235,6 +240,9 @@
       </button>
     </div>
   </div>
+
+  <!-- Cross-device sync -->
+  <SaveSync {playerSave} onImport={handleSyncImport} />
 
   <!-- Summary bar -->
   <div class="bg-slate-800 rounded-lg px-4 py-2 mb-4 flex gap-6 text-sm">
