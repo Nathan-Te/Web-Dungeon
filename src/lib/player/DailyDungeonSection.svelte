@@ -565,16 +565,51 @@
       Room {currentRoomIndex + 1}/{dungeon.rooms.length} — {currentRoom?.name ?? ''}
     </div>
 
-    <BattleGrid {playerDisplayUnits} {enemyDisplayUnits} />
+    <!-- Desktop: 3-column layout (log | battle | xp), Mobile: stacked -->
+    <div class="flex flex-col xl:flex-row xl:items-start xl:gap-4">
+      <!-- Left column: Battle Log (desktop) -->
+      <div class="hidden xl:block xl:w-72 xl:flex-shrink-0 xl:order-1">
+        <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
+      </div>
 
-    <div class="mt-4">
-      <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
-    </div>
+      <!-- Center column: Battle Grid + controls -->
+      <div class="flex-1 xl:order-2">
+        <BattleGrid {playerDisplayUnits} {enemyDisplayUnits} />
 
-    {#if battleDone}
-      {#if canContinue && showXpScreen && xpGains.length > 0}
-        <!-- XP Gain Summary -->
-        <div class="mt-4 bg-slate-800 rounded-lg p-4 max-w-md mx-auto">
+        <!-- Mobile-only: Battle Log below grid -->
+        <div class="mt-4 xl:hidden">
+          <BattleLog actions={actionLog} currentIndex={currentActionIndex} />
+        </div>
+
+        {#if battleDone}
+          {#if canContinue && !showXpScreen}
+            <div class="flex justify-center gap-3 mt-4 xl:hidden">
+              <button
+                onclick={handleNextRoom}
+                class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+              >
+                {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+              </button>
+            </div>
+          {:else if !canContinue}
+            <div class="flex justify-center gap-3 mt-4">
+              <div class="text-center">
+                <div class="text-red-400 font-bold mb-2">Defeated!</div>
+                <button
+                  onclick={handleDefeat}
+                  class="px-6 py-3 bg-slate-600 hover:bg-slate-500 rounded"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          {/if}
+        {/if}
+      </div>
+
+      <!-- Right column: XP Gained (desktop) / below grid (mobile) -->
+      {#if battleDone && canContinue && showXpScreen && xpGains.length > 0}
+        <div class="mt-4 xl:mt-0 xl:w-80 xl:flex-shrink-0 xl:order-3 bg-slate-800 rounded-lg p-4">
           <h3 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h3>
           <div class="space-y-3">
             {#each xpGains as entry}
@@ -617,8 +652,9 @@
             </button>
           </div>
         </div>
-      {:else if canContinue}
-        <div class="flex justify-center gap-3 mt-4">
+      {:else if battleDone && canContinue && !showXpScreen}
+        <!-- Desktop-only: Next Room button in right column area -->
+        <div class="hidden xl:flex xl:w-80 xl:flex-shrink-0 xl:order-3 xl:items-center xl:justify-center">
           <button
             onclick={handleNextRoom}
             class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
@@ -626,20 +662,8 @@
             {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
           </button>
         </div>
-      {:else}
-        <div class="flex justify-center gap-3 mt-4">
-          <div class="text-center">
-            <div class="text-red-400 font-bold mb-2">Defeated!</div>
-            <button
-              onclick={handleDefeat}
-              class="px-6 py-3 bg-slate-600 hover:bg-slate-500 rounded"
-            >
-              Back
-            </button>
-          </div>
-        </div>
       {/if}
-    {/if}
+    </div>
 
   {:else if phase === 'complete'}
     <div class="text-center py-8">
