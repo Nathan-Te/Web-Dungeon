@@ -9,6 +9,7 @@
     type Role,
     type Position,
     type SpriteSet,
+    type SpriteSource,
     type AnimState,
     type HitEffect,
     type SummonTemplate,
@@ -39,6 +40,7 @@
     hitEffect?: HitEffect;
     isBoss?: boolean;
     isSummoned?: boolean;
+    abilityOverlay?: SpriteSource;
   }
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
@@ -456,12 +458,66 @@
   }
 
   function applyAction(action: CombatAction) {
-    // Reset living units to idle, keep dead in death, clear hit effects
+    // Reset living units to idle, keep dead in death, clear hit effects and overlays
     // Filter out dead summoned units so they disappear from the grid
     const updated = displayUnits
       .filter((u) => u.isAlive || !u.isSummoned)
-      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined }));
-    applyActionToUnits(updated, action);
+      .map((u) => ({ ...u, animState: (u.isAlive ? 'idle' : 'death') as AnimState, hitEffect: undefined as HitEffect | undefined, abilityOverlay: undefined as SpriteSource | undefined }));
+
+    if (action.actionType === 'attack' || action.actionType === 'ability') {
+      const aIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        updated[aIdx].animState = action.actionType === 'ability' ? 'castAbility' : 'attack';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
+      if (action.aoeTargets && action.aoeTargets.length > 0) {
+        for (const aoe of action.aoeTargets) {
+          const tIdx = updated.findIndex((u) => u.id === aoe.id);
+          if (tIdx !== -1) {
+            updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - aoe.damage);
+            updated[tIdx].hitEffect = 'damage';
+            if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
+            if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
+          }
+        }
+      } else {
+        const tIdx = updated.findIndex((u) => u.id === action.targetId);
+        if (tIdx !== -1 && action.damage !== undefined) {
+          updated[tIdx].currentHp = Math.max(0, updated[tIdx].currentHp - action.damage);
+          updated[tIdx].hitEffect = 'damage';
+          if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
+          if (updated[tIdx].currentHp <= 0) { updated[tIdx].isAlive = false; updated[tIdx].animState = 'death'; }
+        }
+      }
+    } else if (action.actionType === 'heal') {
+      const aIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
+      const tIdx = updated.findIndex((u) => u.id === action.targetId);
+      if (tIdx !== -1 && action.healing !== undefined) {
+        updated[tIdx].currentHp = Math.min(updated[tIdx].maxHp, updated[tIdx].currentHp + action.healing);
+        updated[tIdx].hitEffect = 'heal';
+        if (action.abilityTargetSprite) updated[tIdx].abilityOverlay = action.abilityTargetSprite;
+      }
+    } else if (action.actionType === 'death') {
+      const dIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (dIdx !== -1) { updated[dIdx].isAlive = false; updated[dIdx].currentHp = 0; updated[dIdx].animState = 'death'; }
+    } else if (action.actionType === 'summon' && action.summonedUnit) {
+      const aIdx = updated.findIndex((u) => u.id === action.actorId);
+      if (aIdx !== -1) {
+        updated[aIdx].animState = 'castAbility';
+        if (action.abilityCasterSprite) updated[aIdx].abilityOverlay = action.abilityCasterSprite;
+      }
+      const su = action.summonedUnit;
+      updated.push({
+        id: su.id, name: su.name, role: su.role,
+        currentHp: su.hp, maxHp: su.hp, atk: su.atk, def: su.def, spd: su.spd,
+        position: su.position, team: su.team, isAlive: true, sprites: su.sprites,
+        animState: 'idle' as AnimState, isSummoned: true,
+      });
+    }
     displayUnits = updated;
   }
 

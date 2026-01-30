@@ -140,10 +140,19 @@ export class AutoBattleSimulation {
     }
   }
 
-  /** Attach ability sprites to the last action log entry for a character */
+  /** Attach ability sprites to the most recent ability/heal/summon action log entry for a character */
   private attachAbilitySprites(characterId: string): void {
-    const last = this.actionLog[this.actionLog.length - 1];
-    if (!last || !last.abilityUsed) return;
+    // Search backwards for the most recent action with abilityUsed from this actor
+    // (death actions from checkDeath may have been appended after the ability action)
+    let last: CombatAction | undefined;
+    for (let i = this.actionLog.length - 1; i >= 0; i--) {
+      const entry = this.actionLog[i];
+      if (entry.actorId === characterId && entry.abilityUsed) {
+        last = entry;
+        break;
+      }
+    }
+    if (!last) return;
 
     // First try by explicit characterAbilityIds mapping
     const abilityIds = this.characterAbilityIds.get(characterId);
@@ -159,7 +168,7 @@ export class AutoBattleSimulation {
     }
 
     // Fallback: match by ability name (for built-in abilities like Taunt, Cleave, etc.)
-    const abilityName = last.abilityUsed.toLowerCase();
+    const abilityName = last.abilityUsed!.toLowerCase();
     const def = this.abilityDefs.find((a) => a.name.toLowerCase() === abilityName);
     if (def) {
       if (def.casterSprite) last.abilityCasterSprite = def.casterSprite;
