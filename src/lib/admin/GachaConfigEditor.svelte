@@ -7,11 +7,13 @@
     characters: CharacterDefinition[];
     gachaConfig?: GachaConfig;
     levelThresholds?: number[];
+    rarityMultipliers?: Record<Rarity, number>;
     onSave: (config: GachaConfig) => void;
     onSaveLevelThresholds: (thresholds: number[]) => void;
+    onSaveRarityMultipliers: (multipliers: Record<Rarity, number>) => void;
   }
 
-  let { characters, gachaConfig, levelThresholds, onSave, onSaveLevelThresholds }: Props = $props();
+  let { characters, gachaConfig, levelThresholds, rarityMultipliers, onSave, onSaveLevelThresholds, onSaveRarityMultipliers }: Props = $props();
 
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
   const RARITY_COLORS: Record<Rarity, string> = {
@@ -115,6 +117,20 @@
 
   function handleSaveThresholds() {
     onSaveLevelThresholds(generatedThresholds);
+  }
+
+  // Rarity stat multipliers
+  const DEFAULT_RARITY_MULTS: Record<Rarity, number> = { common: 1.0, rare: 1.15, epic: 1.3, legendary: 1.5 };
+  let rarityMults: Record<Rarity, number> = $state(
+    rarityMultipliers ? { ...rarityMultipliers } : { ...DEFAULT_RARITY_MULTS }
+  );
+
+  function updateRarityMult(rarity: Rarity, value: number) {
+    rarityMults = { ...rarityMults, [rarity]: value };
+  }
+
+  function handleSaveRarityMults() {
+    onSaveRarityMultipliers(rarityMults);
   }
 
   function getCharsByRarity(rarity: Rarity): CharacterDefinition[] {
@@ -284,6 +300,33 @@
       class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-bold"
     >
       Save Level Thresholds
+    </button>
+  </div>
+
+  <!-- Rarity Stat Multipliers -->
+  <div class="bg-slate-800 rounded-lg p-4">
+    <h3 class="font-bold mb-3 text-amber-400">Rarity Stat Multipliers</h3>
+    <p class="text-xs text-gray-500 mb-3">Multiplier applied to all base stats depending on character rarity. A value of 1.0 means no change.</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      {#each RARITIES as rarity}
+        <div>
+          <span class="block text-xs mb-1 capitalize {RARITY_COLORS[rarity]}">{rarity}</span>
+          <input
+            type="number"
+            step="0.05"
+            min="0.1"
+            value={rarityMults[rarity]}
+            oninput={(e) => updateRarityMult(rarity, parseFloat(e.currentTarget.value) || 1)}
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          />
+        </div>
+      {/each}
+    </div>
+    <button
+      onclick={handleSaveRarityMults}
+      class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-bold"
+    >
+      Save Rarity Multipliers
     </button>
   </div>
 </div>

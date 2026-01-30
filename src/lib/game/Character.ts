@@ -19,17 +19,20 @@ export class Character {
   readonly level: number;
   readonly ascension: number;
   private readonly customBaseStats?: Partial<Record<Role, BaseStats>>;
+  private readonly rarityMultipliers?: Partial<Record<Rarity, number>>;
 
   constructor(
     definition: CharacterDefinition,
     level: number = 1,
     ascension: number = 0,
-    customBaseStats?: Partial<Record<Role, BaseStats>>
+    customBaseStats?: Partial<Record<Role, BaseStats>>,
+    rarityMultipliers?: Partial<Record<Rarity, number>>
   ) {
     this.definition = definition;
     this.level = Math.max(1, Math.min(100, level));
     this.ascension = Math.max(0, Math.min(COMBAT_CONSTANTS.MAX_ASCENSION, ascension));
     this.customBaseStats = customBaseStats;
+    this.rarityMultipliers = rarityMultipliers;
   }
 
   get id(): string {
@@ -58,13 +61,14 @@ export class Character {
   }
 
   /**
-   * Calculate stat with level and ascension scaling
-   * Formula: baseStat * (1 + (level-1) * 0.1) * (1 + ascension * 0.15)
+   * Calculate stat with rarity, level and ascension scaling
+   * Formula: baseStat * rarityMult * (1 + (level-1) * 0.1) * (1 + ascension * 0.15)
    */
   private calculateStat(baseStat: number): number {
+    const rarityMult = this.rarityMultipliers?.[this.rarity] ?? 1;
     const levelMultiplier = 1 + (this.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
     const ascensionMultiplier = 1 + this.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
-    return Math.floor(baseStat * levelMultiplier * ascensionMultiplier);
+    return Math.floor(baseStat * rarityMult * levelMultiplier * ascensionMultiplier);
   }
 
   /** Calculated HP (scales with level and ascension) */
@@ -121,7 +125,8 @@ export function createCharacter(
   definition: CharacterDefinition,
   level: number = 1,
   ascension: number = 0,
-  customBaseStats?: Partial<Record<Role, BaseStats>>
+  customBaseStats?: Partial<Record<Role, BaseStats>>,
+  rarityMultipliers?: Partial<Record<Rarity, number>>
 ): Character {
-  return new Character(definition, level, ascension, customBaseStats);
+  return new Character(definition, level, ascension, customBaseStats, rarityMultipliers);
 }

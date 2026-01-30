@@ -16,10 +16,11 @@
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
   } from '../game';
-  import type { BaseStats } from '../game/types';
+  import type { BaseStats, Rarity } from '../game/types';
   import type { Dungeon, DungeonRoom, EnemyTemplate, GachaConfig } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
+  import { getXpForLevel } from './playerStore';
   import BattleGrid from '../components/BattleGrid.svelte';
   import BattleLog from '../components/BattleLog.svelte';
 
@@ -32,13 +33,15 @@
     enemies: EnemyTemplate[];
     abilities: AbilityDefinition[];
     roleStats?: Partial<Record<Role, BaseStats>>;
+    rarityMultipliers?: Partial<Record<Rarity, number>>;
+    levelThresholds?: number[];
     maxTeamSize?: number;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded }: Props = $props();
 
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
@@ -87,6 +90,24 @@
   // Carry-over HP
   let survivorHp: Map<string, { currentHp: number; maxHp: number }> = $state(new Map());
 
+  // XP gain display after room win
+  interface XpGainEntry {
+    characterId: string;
+    name: string;
+    prevXp: number;
+    prevLevel: number;
+    newXp: number;
+    newLevel: number;
+    xpGained: number;
+    sprites?: import('../game/types').SpriteSet;
+    role: Role;
+  }
+  let xpGains: XpGainEntry[] = $state([]);
+  let showXpScreen = $state(false);
+
+  // Track which room indices have already awarded XP (persists across retries within the same day)
+  let xpAwardedRooms: Set<number> = $state(new Set());
+
   // Track boss/summoner
   let enemyBossIds: Set<string> = new Set();
   let bossAbilityMap: Map<string, Role[]> = new Map();
@@ -131,7 +152,7 @@
         if (currentRoomIndex > 0 && survivorHp.size > 0 && !survivorHp.has(id)) return null;
         const entry = ownedCharacters.find((x) => x.owned.characterId === id);
         if (!entry) return null;
-        return new Character(entry.def, entry.owned.level, entry.owned.ascension, roleStats);
+        return new Character(entry.def, entry.owned.level, entry.owned.ascension, roleStats, rarityMultipliers);
       })
       .filter((c): c is Character => c !== null);
   }
@@ -189,7 +210,7 @@
           summonerConfigMap.set(charId, { templates, maxSummons: template.maxSummons ?? 1 });
         }
 
-        return new Character(def, level, template.ascension, roleStats);
+        return new Character(def, level, template.ascension, roleStats, rarityMultipliers);
       })
       .filter((c): c is Character => c !== null);
   }
@@ -321,12 +342,49 @@
       }
     }
 
-    // Award XP to survivors if room was won
+    // Award XP to survivors if room was won (skip if already awarded for this room index)
     if (result.winner === 'player') {
       const xp = room.xpReward ?? 0;
-      if (xp > 0) {
+      const alreadyAwarded = xpAwardedRooms.has(currentRoomIndex);
+      if (xp > 0 && !alreadyAwarded) {
+        xpAwardedRooms = new Set([...xpAwardedRooms, currentRoomIndex]);
         const survivorIds = Array.from(survivorHp.keys());
+        // Snapshot pre-XP state
+        const preXpSnapshot = new Map<string, { xp: number; level: number }>();
+        for (const sid of survivorIds) {
+          const owned = playerSave.collection.find((c) => c.characterId === sid);
+          if (owned) preXpSnapshot.set(sid, { xp: owned.xp ?? 0, level: owned.level });
+        }
         onXpAwarded(survivorIds, xp);
+        // Build XP gain entries by comparing with updated playerSave (will be updated by callback)
+        // We compute expected new values locally
+        const xpEach = Math.floor(xp / survivorIds.length);
+        xpGains = survivorIds.map((sid) => {
+          const pre = preXpSnapshot.get(sid);
+          const def = characters.find((c) => c.id === sid);
+          if (!pre || !def) return null;
+          // Simulate level-up logic locally for display
+          let newXp = pre.xp + xpEach;
+          let newLevel = pre.level;
+          while (true) {
+            const needed = getXpForLevel(newLevel, levelThresholds);
+            if (needed === null || newXp < needed) break;
+            newXp -= needed;
+            newLevel++;
+          }
+          return {
+            characterId: sid,
+            name: def.name,
+            prevXp: pre.xp,
+            prevLevel: pre.level,
+            newXp,
+            newLevel,
+            xpGained: xpEach,
+            sprites: def.sprites,
+            role: def.role,
+          };
+        }).filter((e): e is XpGainEntry => e !== null);
+        showXpScreen = true;
       }
     }
 
@@ -470,7 +528,7 @@
           {#each ownedCharacters as { owned, def }}
             <button
               onclick={() => toggleSelect(owned.characterId)}
-              class="w-24 h-32 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
+              class="w-28 h-36 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {selectedIds.includes(owned.characterId)
                   ? 'border-green-400 ring-2 ring-green-400 scale-105'
                   : selectedIds.length >= maxTeamSize
@@ -478,10 +536,10 @@
                     : 'border-slate-600 hover:border-slate-400'}
                 {ROLE_COLORS[def.role]}"
             >
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-16 h-16 mt-1" />
-              <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
-              <span class="text-[8px] capitalize text-gray-400">{def.role}</span>
-              <span class="text-[8px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20 mt-1" />
+              <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
+              <span class="text-[9px] capitalize text-gray-400">{def.role}</span>
+              <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
             </button>
           {/each}
         </div>
@@ -514,15 +572,62 @@
     </div>
 
     {#if battleDone}
-      <div class="flex justify-center gap-3 mt-4">
-        {#if canContinue}
+      {#if canContinue && showXpScreen && xpGains.length > 0}
+        <!-- XP Gain Summary -->
+        <div class="mt-4 bg-slate-800 rounded-lg p-4 max-w-md mx-auto">
+          <h3 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h3>
+          <div class="space-y-3">
+            {#each xpGains as entry}
+              {@const xpNeeded = getXpForLevel(entry.newLevel, levelThresholds)}
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 flex-shrink-0 rounded bg-slate-700 overflow-hidden">
+                  <SpritePreview sprites={entry.sprites} fallback={ROLE_ICONS[entry.role]} class="w-10 h-10" />
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="font-medium">{entry.name}</span>
+                    <span class="text-cyan-400 text-xs font-bold">+{entry.xpGained} XP</span>
+                  </div>
+                  {#if entry.newLevel > entry.prevLevel}
+                    <div class="text-xs text-yellow-400 font-bold">Level Up! Lv{entry.prevLevel} → Lv{entry.newLevel}</div>
+                  {/if}
+                  {#if xpNeeded !== null}
+                    <div class="w-full bg-slate-700 rounded-full h-2 mt-1">
+                      <div
+                        class="bg-cyan-500 h-2 rounded-full transition-all"
+                        style="width: {Math.min(100, (entry.newXp / xpNeeded) * 100)}%"
+                      ></div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">
+                      Lv{entry.newLevel} — {entry.newXp}/{xpNeeded} XP
+                    </div>
+                  {:else}
+                    <div class="text-[10px] text-cyan-400 font-bold mt-0.5">Max Level</div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+          <div class="flex justify-center mt-4">
+            <button
+              onclick={() => { showXpScreen = false; handleNextRoom(); }}
+              class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+            >
+              {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+            </button>
+          </div>
+        </div>
+      {:else if canContinue}
+        <div class="flex justify-center gap-3 mt-4">
           <button
             onclick={handleNextRoom}
             class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
           >
             {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
           </button>
-        {:else}
+        </div>
+      {:else}
+        <div class="flex justify-center gap-3 mt-4">
           <div class="text-center">
             <div class="text-red-400 font-bold mb-2">Defeated!</div>
             <button
@@ -532,8 +637,8 @@
               Back
             </button>
           </div>
-        {/if}
-      </div>
+        </div>
+      {/if}
     {/if}
 
   {:else if phase === 'complete'}

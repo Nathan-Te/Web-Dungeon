@@ -31,6 +31,7 @@
 
   type Section = 'gacha' | 'dungeon' | 'collection';
   let activeSection: Section = $state('collection');
+  let gachaAnimating = $state(false);
 
   // Game content (admin-defined)
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
@@ -200,11 +201,14 @@
   <div class="flex gap-1 mb-6 border-b border-slate-700 pb-1">
     {#each sections as section}
       <button
-        onclick={() => (activeSection = section.key)}
+        onclick={() => { if (!gachaAnimating) activeSection = section.key; }}
+        disabled={gachaAnimating && section.key !== 'gacha'}
         class="px-4 py-2 rounded-t text-sm font-medium transition-colors
           {activeSection === section.key
             ? 'bg-slate-700 text-white'
-            : 'text-gray-400 hover:text-gray-300 hover:bg-slate-800'}"
+            : gachaAnimating && section.key !== 'gacha'
+              ? 'text-gray-600 cursor-not-allowed'
+              : 'text-gray-400 hover:text-gray-300 hover:bg-slate-800'}"
       >
         {section.icon} {section.label}
       </button>
@@ -220,6 +224,7 @@
         {gachaConfig}
         onPullStart={handleGachaPullStart}
         onPull={handleGachaPull}
+        onAnimatingChange={(v) => gachaAnimating = v}
       />
     {:else}
       <div class="text-center text-gray-500 py-8">
@@ -245,6 +250,8 @@
           enemies={content.enemies}
           abilities={content.abilities}
           roleStats={content.roleStats}
+          rarityMultipliers={content.rarityMultipliers}
+          levelThresholds={content.levelThresholds}
           {maxTeamSize}
           onAttemptUsed={handleDungeonAttemptUsed}
           onDungeonCleared={handleDungeonCleared}
@@ -263,6 +270,7 @@
       characters={content.characters}
       {gachaConfig}
       roleStats={content.roleStats}
+      rarityMultipliers={content.rarityMultipliers}
       levelThresholds={content.levelThresholds}
       onAscend={handleAscend}
     />

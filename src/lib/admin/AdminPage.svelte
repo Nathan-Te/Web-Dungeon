@@ -104,6 +104,9 @@
   function onSaveLevelThresholds(thresholds: number[]) {
     save({ ...content, levelThresholds: thresholds });
   }
+  function onSaveRarityMultipliers(multipliers: Record<import('../game/types').Rarity, number>) {
+    save({ ...content, rarityMultipliers: multipliers });
+  }
   function onSaveDailyDungeon(id: string) {
     save({ ...content, dailyDungeonId: id });
   }
@@ -279,8 +282,10 @@
       characters={content.characters}
       gachaConfig={content.gachaConfig}
       levelThresholds={content.levelThresholds}
+      rarityMultipliers={content.rarityMultipliers}
       onSave={onSaveGachaConfig}
       {onSaveLevelThresholds}
+      {onSaveRarityMultipliers}
     />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
