@@ -81,6 +81,8 @@ export class AutoBattleSimulation {
       abilityDefs?: AbilityDefinition[];
       /** Character ability ID mapping: characterId -> abilityId(s) */
       characterAbilityIds?: Map<string, string[]>;
+      /** HP overrides for player units (carry-over from previous rooms) */
+      playerHpOverrides?: Map<string, { currentHp: number; maxHp: number }>;
     }
   ) {
     this.seed = seed;
@@ -88,6 +90,17 @@ export class AutoBattleSimulation {
     this.customRoleStats = options?.customRoleStats;
     this.abilityDefs = options?.abilityDefs ?? [];
     this.initializeTeams(playerTeam, enemyTeam);
+
+    // Apply HP overrides for player units (dungeon carry-over)
+    if (options?.playerHpOverrides) {
+      for (const [charId, hp] of options.playerHpOverrides) {
+        const unit = this.playerUnits.get(charId);
+        if (unit) {
+          unit.currentHp = hp.currentHp;
+          unit.maxHp = hp.maxHp;
+        }
+      }
+    }
 
     if (options?.bossAbilities) {
       this.bossAbilityRoles = options.bossAbilities;

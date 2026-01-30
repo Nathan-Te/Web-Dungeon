@@ -9,10 +9,11 @@
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
     gachaConfig: GachaConfig;
+    onPullStart: () => void;
     onPull: (characterId: string) => void;
   }
 
-  let { playerSave, characters, gachaConfig, onPull }: Props = $props();
+  let { playerSave, characters, gachaConfig, onPullStart, onPull }: Props = $props();
 
   const RARITY_COLORS: Record<Rarity, string> = {
     common: 'border-gray-400 bg-gray-800',
@@ -82,7 +83,10 @@
   }
 
   function performPull() {
-    if (playerSave.daily.gachaPulled || gachaConfig.characterPool.length === 0) return;
+    if (playerSave.daily.gachaPullsRemaining <= 0 || gachaConfig.characterPool.length === 0) return;
+
+    // Immediately mark pull as used and save — prevents refresh exploit
+    onPullStart();
 
     isAnimating = true;
     pullResult = null;
@@ -233,12 +237,12 @@
   {:else}
     <!-- Pull Button -->
     <div class="flex flex-col items-center gap-4">
-      {#if playerSave.daily.gachaPulled}
+      {#if playerSave.daily.gachaPullsRemaining <= 0}
         <div class="text-center text-gray-400 py-4">
-          You already used your daily pull. Come back tomorrow!
+          No pulls remaining. Come back tomorrow!
         </div>
       {:else}
-        <div class="text-sm text-gray-400">You have 1 free pull available today</div>
+        <div class="text-sm text-gray-400">You have {playerSave.daily.gachaPullsRemaining} pull{playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''} available today</div>
         <button
           onclick={performPull}
           disabled={isAnimating}

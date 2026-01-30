@@ -126,6 +126,8 @@
   function createPlayerTeam(): Character[] {
     return selectedIds
       .map((id) => {
+        // After room 0, only include survivors (characters still in survivorHp)
+        if (currentRoomIndex > 0 && survivorHp.size > 0 && !survivorHp.has(id)) return null;
         const entry = ownedCharacters.find((x) => x.owned.characterId === id);
         if (!entry) return null;
         return new Character(entry.def, entry.owned.level, entry.owned.ascension, roleStats);
@@ -277,8 +279,13 @@
     if (!room) return;
 
     const playerTeam = createPlayerTeam();
+    if (playerTeam.length === 0) {
+      // All player characters are dead — auto-fail
+      phase = 'failed';
+      return;
+    }
     const enemyTeam = createEnemyTeamFromRoom(room);
-    if (playerTeam.length === 0 || enemyTeam.length === 0) return;
+    if (enemyTeam.length === 0) return;
 
     const roomSeed = Date.now() + currentRoomIndex * 1000;
     const simulation = new AutoBattleSimulation(playerTeam, enemyTeam, roomSeed, {
@@ -287,6 +294,7 @@
       customRoleStats: roleStats,
       abilityDefs: abilities,
       characterAbilityIds: characterAbilityIds.size > 0 ? characterAbilityIds : undefined,
+      playerHpOverrides: survivorHp.size > 0 ? survivorHp : undefined,
     });
     const result = simulation.simulate();
 
