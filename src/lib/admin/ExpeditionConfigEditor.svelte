@@ -73,6 +73,16 @@
         />
       </label>
       <label class="block">
+        <span class="text-xs text-gray-400">Max Concurrent Expeditions</span>
+        <input
+          type="number"
+          min="1"
+          max="10"
+          bind:value={config.maxConcurrentExpeditions}
+          class="mt-1 w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded text-sm"
+        />
+      </label>
+      <label class="block">
         <span class="text-xs text-gray-400">Base XP / Wave</span>
         <input
           type="number"

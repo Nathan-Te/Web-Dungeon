@@ -115,6 +115,16 @@
     savePlayerSave(playerSave);
   }
 
+  function handleForceCompleteExpedition(expeditionId: string) {
+    const expeditions = (playerSave.expeditions ?? []).map(exp =>
+      exp.id === expeditionId
+        ? { ...exp, completesAt: Date.now() + 10_000 }
+        : exp
+    );
+    playerSave = { ...playerSave, expeditions };
+    savePlayerSave(playerSave);
+  }
+
   function handleCollectExpedition(expedition: ActiveExpedition, result: ExpeditionResult) {
     // Remove the expedition
     playerSave = removeExpedition(playerSave, expedition.id);
@@ -160,6 +170,7 @@
 
   let expeditionConfig = $derived(content.expeditionConfig);
   let activeExpeditionCount = $derived((playerSave.expeditions ?? []).length);
+  let isAdmin = $derived(sessionStorage.getItem('dungeon-admin-auth') === 'true');
 
   const sections: { key: Section; label: string; icon: string }[] = [
     { key: 'collection', label: 'Collection', icon: '' },
@@ -311,8 +322,10 @@
         roleStats={content.roleStats}
         rarityMultipliers={content.rarityMultipliers}
         levelThresholds={content.levelThresholds}
+        {isAdmin}
         onStartExpedition={handleStartExpedition}
         onCollectExpedition={handleCollectExpedition}
+        onForceCompleteExpedition={handleForceCompleteExpedition}
       />
     {:else}
       <div class="text-center text-gray-500 py-8">
