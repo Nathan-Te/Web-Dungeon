@@ -5,6 +5,7 @@ import {
   type BaseStats,
   type Role,
   type Rarity,
+  type SpriteSet,
   ROLE_BASE_STATS,
   ROLE_PREFERRED_ROW,
   COMBAT_CONSTANTS,
@@ -49,6 +50,10 @@ export class Character {
 
   get rarity(): Rarity {
     return this.definition.rarity;
+  }
+
+  get sprites(): SpriteSet | undefined {
+    return this.definition.sprites ?? (this.definition.sprite ? { idle: this.definition.sprite } : undefined);
   }
 
   get preferredRow(): 0 | 1 | 2 {
