@@ -15,8 +15,10 @@
     roleStats?: Partial<Record<Role, BaseStats>>;
     rarityMultipliers?: Partial<Record<Rarity, number>>;
     levelThresholds?: number[];
+    isAdmin?: boolean;
     onStartExpedition: (teamCharacterIds: string[], duration: ExpeditionDuration, teamPower: number) => void;
     onCollectExpedition: (expedition: ActiveExpedition, result: ExpeditionResult) => void;
+    onForceCompleteExpedition?: (expeditionId: string) => void;
   }
 
   let {
@@ -26,8 +28,10 @@
     roleStats,
     rarityMultipliers,
     levelThresholds,
+    isAdmin = false,
     onStartExpedition,
     onCollectExpedition,
+    onForceCompleteExpedition,
   }: Props = $props();
 
   const RARITY_BORDER: Record<Rarity, string> = {
@@ -40,6 +44,16 @@
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
     assassin: 'X', healer: 'H', summoner: 'S',
+  };
+
+  const ROLE_LABELS: Record<Role, string> = {
+    tank: 'Tank', warrior: 'Warrior', archer: 'Archer', mage: 'Mage',
+    assassin: 'Assassin', healer: 'Healer', summoner: 'Summoner',
+  };
+
+  const ROLE_COLORS: Record<Role, string> = {
+    tank: 'text-blue-400', warrior: 'text-orange-400', archer: 'text-green-400', mage: 'text-purple-400',
+    assassin: 'text-red-400', healer: 'text-pink-400', summoner: 'text-teal-400',
   };
 
   type ViewState = 'list' | 'setup' | 'result';
@@ -77,6 +91,9 @@
       })
       .filter((x): x is { owned: OwnedCharacter; def: CharacterDefinition } => x !== null)
   );
+
+  let maxConcurrent = $derived(expeditionConfig.maxConcurrentExpeditions ?? 3);
+  let canStartNew = $derived(activeExpeditions.length < maxConcurrent && availableCharacters.length > 0);
 
   function getStats(owned: OwnedCharacter, def: CharacterDefinition) {
     const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
@@ -353,48 +370,71 @@
     <div class="space-y-4">
       <!-- Active Expeditions -->
       {#if activeExpeditions.length > 0}
-        <div class="space-y-3">
+        <div class="text-xs text-gray-500 text-center mb-1">
+          {activeExpeditions.length}/{maxConcurrent} expedition slots used
+        </div>
+        <div class="space-y-4">
           {#each activeExpeditions as exp}
             {@const complete = isExpeditionComplete(exp)}
-            <div class="bg-slate-800 rounded-lg p-4 border {complete ? 'border-emerald-600' : 'border-slate-700'}">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-bold text-emerald-400">{exp.duration}h Expedition</span>
+            <div class="bg-slate-800 rounded-lg p-5 border {complete ? 'border-emerald-600' : 'border-slate-700'}">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-base font-bold text-emerald-400">{exp.duration}h Expedition</span>
                   <span class="text-xs text-gray-500">Power: {exp.teamPower}</span>
                 </div>
                 {#if complete}
                   <span class="text-xs font-bold text-emerald-400 bg-emerald-900/50 px-2 py-0.5 rounded">COMPLETE</span>
                 {:else}
-                  <span class="text-xs font-mono text-amber-400">{formatTimeRemaining(exp.completesAt)}</span>
+                  <span class="text-sm font-mono text-amber-400">{formatTimeRemaining(exp.completesAt)}</span>
                 {/if}
               </div>
 
-              <!-- Team avatars -->
-              <div class="flex gap-1.5 mb-3">
+              <!-- Team members with names + roles -->
+              <div class="flex gap-3 flex-wrap mb-4">
                 {#each exp.teamCharacterIds as charId}
                   {@const def = getCharDef(charId)}
+                  {@const owned = playerSave.collection.find(c => c.characterId === charId)}
                   {#if def}
-                    <div class="w-10 h-10 rounded border {RARITY_BORDER[def.rarity]} bg-slate-900 flex items-center justify-center overflow-hidden">
-                      <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-8 h-8" />
+                    <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 border {RARITY_BORDER[def.rarity]}">
+                      <div class="w-10 h-10 rounded overflow-hidden flex-shrink-0">
+                        <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-10 h-10" />
+                      </div>
+                      <div class="min-w-0">
+                        <div class="text-sm font-medium truncate">{def.name}</div>
+                        <div class="flex items-center gap-1.5 text-[10px]">
+                          <span class="{ROLE_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
+                          {#if owned}
+                            <span class="text-yellow-400">Lv{owned.level}</span>
+                          {/if}
+                        </div>
+                      </div>
                     </div>
                   {/if}
                 {/each}
               </div>
 
-              <!-- Progress bar -->
+              <!-- Progress bar + actions -->
               {#if !complete}
                 {@const elapsed = now - exp.startedAt}
                 {@const total = exp.completesAt - exp.startedAt}
-                <div class="w-full bg-slate-700 rounded-full h-1.5">
+                <div class="w-full bg-slate-700 rounded-full h-2">
                   <div
-                    class="bg-emerald-500 h-1.5 rounded-full transition-all"
+                    class="bg-emerald-500 h-2 rounded-full transition-all"
                     style="width: {Math.min(100, (elapsed / total) * 100)}%"
                   ></div>
                 </div>
+                {#if isAdmin && onForceCompleteExpedition}
+                  <button
+                    onclick={() => onForceCompleteExpedition!(exp.id)}
+                    class="mt-2 px-3 py-1 bg-amber-900 hover:bg-amber-800 border border-amber-600 rounded text-xs text-amber-300"
+                  >
+                    [Admin] Force complete (10s)
+                  </button>
+                {/if}
               {:else}
                 <button
                   onclick={() => handleCollect(exp)}
-                  class="w-full px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded text-sm font-bold"
+                  class="w-full px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded font-bold text-sm"
                 >
                   Collect Rewards
                 </button>
@@ -411,12 +451,16 @@
       <!-- New Expedition Button -->
       <button
         onclick={() => { viewState = 'setup'; selectedTeam = []; }}
-        disabled={availableCharacters.length === 0}
+        disabled={!canStartNew}
         class="w-full px-4 py-3 bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-bold border border-emerald-600"
       >
-        {availableCharacters.length === 0
-          ? 'No Characters Available'
-          : 'New Expedition'}
+        {#if activeExpeditions.length >= maxConcurrent}
+          Max Expeditions Reached ({maxConcurrent}/{maxConcurrent})
+        {:else if availableCharacters.length === 0}
+          No Characters Available
+        {:else}
+          New Expedition ({activeExpeditions.length}/{maxConcurrent})
+        {/if}
       </button>
 
       {#if playerSave.collection.length === 0}

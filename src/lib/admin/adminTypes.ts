@@ -90,6 +90,8 @@ export type ExpeditionDuration = 4 | 8 | 12 | 24;
 export interface ExpeditionConfig {
   /** Max units per expedition team (1-5) */
   maxTeamSize: number;
+  /** Max concurrent expeditions a player can run */
+  maxConcurrentExpeditions: number;
   /** Difficulty settings per duration tier */
   durationTiers: Record<ExpeditionDuration, ExpeditionDurationTier>;
   /** Base XP reward per wave cleared */
@@ -219,6 +221,7 @@ export function createBlankAbility(): AbilityDefinition {
 export function createDefaultExpeditionConfig(): ExpeditionConfig {
   return {
     maxTeamSize: 5,
+    maxConcurrentExpeditions: 3,
     baseXpPerWave: 15,
     baseGachaChance: 0.05,
     gachaChanceMultiplier: { 4: 1.0, 8: 1.8, 12: 2.5, 24: 4.0 },
