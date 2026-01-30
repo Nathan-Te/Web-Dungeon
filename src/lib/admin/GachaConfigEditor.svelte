@@ -6,10 +6,12 @@
   interface Props {
     characters: CharacterDefinition[];
     gachaConfig?: GachaConfig;
+    levelThresholds?: number[];
     onSave: (config: GachaConfig) => void;
+    onSaveLevelThresholds: (thresholds: number[]) => void;
   }
 
-  let { characters, gachaConfig, onSave }: Props = $props();
+  let { characters, gachaConfig, levelThresholds, onSave, onSaveLevelThresholds }: Props = $props();
 
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
   const RARITY_COLORS: Record<Rarity, string> = {
@@ -88,6 +90,27 @@
     mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
     summoner: 'bg-teal-900',
   };
+
+  // Level thresholds
+  const DEFAULT_THRESHOLDS = [10, 25, 50, 80, 120, 170, 230, 300, 400, 500, 620, 760, 920, 1100, 1300, 1520, 1760, 2020, 2300, 2600];
+  let thresholds: number[] = $state(
+    levelThresholds && levelThresholds.length > 0 ? [...levelThresholds] : [...DEFAULT_THRESHOLDS]
+  );
+
+  function updateThreshold(index: number, value: number) {
+    thresholds = thresholds.map((t, i) => i === index ? value : t);
+  }
+  function addThresholdLevel() {
+    const last = thresholds[thresholds.length - 1] ?? 100;
+    thresholds = [...thresholds, Math.round(last * 1.2)];
+  }
+  function removeLastThreshold() {
+    if (thresholds.length <= 1) return;
+    thresholds = thresholds.slice(0, -1);
+  }
+  function handleSaveThresholds() {
+    onSaveLevelThresholds(thresholds);
+  }
 
   function getCharsByRarity(rarity: Rarity): CharacterDefinition[] {
     return characters.filter((c) => c.rarity === rarity);
@@ -202,4 +225,45 @@
   >
     Save Gacha Config
   </button>
+
+  <!-- Level Thresholds -->
+  <div class="bg-slate-800 rounded-lg p-4">
+    <h3 class="font-bold mb-3 text-cyan-400">Level XP Thresholds</h3>
+    <p class="text-xs text-gray-500 mb-3">XP required to advance from each level to the next. Max level = number of thresholds + 1.</p>
+    <div class="flex gap-2 flex-wrap mb-3">
+      {#each thresholds as xp, i}
+        <div class="text-center">
+          <span class="block text-[10px] text-gray-500 mb-0.5">Lv{i + 1}→{i + 2}</span>
+          <input
+            type="number"
+            min="1"
+            value={xp}
+            oninput={(e) => updateThreshold(i, parseInt(e.currentTarget.value) || 1)}
+            class="w-16 px-2 py-1 bg-slate-700 rounded text-sm text-center"
+          />
+        </div>
+      {/each}
+    </div>
+    <div class="flex gap-2 mb-3">
+      <button
+        onclick={addThresholdLevel}
+        class="px-3 py-1 bg-cyan-800 hover:bg-cyan-700 rounded text-xs"
+      >
+        + Level
+      </button>
+      <button
+        onclick={removeLastThreshold}
+        disabled={thresholds.length <= 1}
+        class="px-3 py-1 bg-red-900 hover:bg-red-800 disabled:opacity-50 rounded text-xs"
+      >
+        - Level
+      </button>
+    </div>
+    <button
+      onclick={handleSaveThresholds}
+      class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded font-bold"
+    >
+      Save Level Thresholds
+    </button>
+  </div>
 </div>

@@ -489,7 +489,7 @@
                 <!-- Room detail (expanded) -->
                 {#if editingRoomIndex === i}
                   <div class="px-3 pb-3 border-t border-slate-700 pt-2 space-y-2">
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div>
                         <span class="block text-xs text-gray-400 mb-0.5">Name</span>
                         <input
@@ -508,6 +508,17 @@
                           max="5"
                           value={room.difficultyMult}
                           oninput={(e) => updateRoom(i, { ...room, difficultyMult: parseFloat(e.currentTarget.value) || 1 })}
+                          class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
+                        />
+                      </div>
+                      <div>
+                        <span class="block text-xs text-gray-400 mb-0.5">XP Reward</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="9999"
+                          value={room.xpReward ?? 0}
+                          oninput={(e) => updateRoom(i, { ...room, xpReward: parseInt(e.currentTarget.value) || 0 })}
                           class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
                         />
                       </div>

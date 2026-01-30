@@ -3,6 +3,7 @@
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { GachaConfig } from '../admin/adminTypes';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
+  import { getXpForLevel } from './playerStore';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
@@ -10,10 +11,11 @@
     characters: CharacterDefinition[];
     gachaConfig?: GachaConfig;
     roleStats?: Partial<Record<Role, BaseStats>>;
+    levelThresholds?: number[];
     onAscend: (characterId: string) => void;
   }
 
-  let { playerSave, characters, gachaConfig, roleStats, onAscend }: Props = $props();
+  let { playerSave, characters, gachaConfig, roleStats, levelThresholds, onAscend }: Props = $props();
 
   const RARITY_BORDER: Record<Rarity, string> = {
     common: 'border-gray-500',
@@ -121,6 +123,22 @@
               <span class="text-gray-500 mx-1">|</span>
               <span class="text-gray-300">Level {selectedOwned.level}</span>
             </div>
+            {#if getXpForLevel(selectedOwned.level, levelThresholds) !== null}
+              {@const xpNeeded = getXpForLevel(selectedOwned.level, levelThresholds)!}
+              <div class="text-xs text-gray-400">
+                XP: <span class="text-cyan-400 font-medium">{selectedOwned.xp ?? 0}</span>
+                <span class="text-gray-500"> / </span>
+                <span class="text-cyan-300">{xpNeeded}</span>
+              </div>
+              <div class="w-full bg-slate-700 rounded-full h-1.5 mt-0.5">
+                <div
+                  class="bg-cyan-500 h-1.5 rounded-full transition-all"
+                  style="width: {Math.min(100, ((selectedOwned.xp ?? 0) / xpNeeded) * 100)}%"
+                ></div>
+              </div>
+            {:else}
+              <div class="text-xs text-cyan-400 font-bold">Max Level</div>
+            {/if}
             <div class="text-xs text-gray-400">
               Duplicates: {selectedOwned.duplicates}
             </div>
