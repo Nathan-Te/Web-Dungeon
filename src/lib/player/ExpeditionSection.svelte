@@ -4,7 +4,7 @@
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { ExpeditionConfig, ExpeditionDuration } from '../admin/adminTypes';
   import type { PlayerSave, OwnedCharacter, ActiveExpedition, ExpeditionResult } from './playerStore';
-  import { isCharacterOnExpedition } from './playerStore';
+  import { isCharacterOnExpedition, getXpForLevel } from './playerStore';
   import { calculateTeamPower, resolveExpedition, previewExpedition } from '../game/expeditionSimulation';
   import SpritePreview from '../components/SpritePreview.svelte';
 
@@ -66,6 +66,20 @@
   // Result state
   let lastResult: ExpeditionResult | null = $state(null);
   let lastExpedition: ActiveExpedition | null = $state(null);
+
+  interface XpGainEntry {
+    characterId: string;
+    name: string;
+    role: Role;
+    rarity: Rarity;
+    sprites?: import('../game/types').SpriteSet;
+    prevLevel: number;
+    prevXp: number;
+    newLevel: number;
+    newXp: number;
+    xpGained: number;
+  }
+  let xpGains: XpGainEntry[] = $state([]);
 
   // Timer for countdown updates
   let now = $state(Date.now());
@@ -142,6 +156,38 @@
 
   function handleCollect(expedition: ActiveExpedition) {
     const result = resolveExpedition(expedition, expeditionConfig);
+
+    // Snapshot levels before XP is awarded
+    const xpEach = result.xpEarned > 0
+      ? Math.floor(result.xpEarned / expedition.teamCharacterIds.length)
+      : 0;
+    xpGains = expedition.teamCharacterIds.map(charId => {
+      const owned = playerSave.collection.find(c => c.characterId === charId);
+      const def = characters.find(c => c.id === charId);
+      if (!owned || !def) return null;
+      // Simulate level-up for display
+      let newXp = (owned.xp ?? 0) + xpEach;
+      let newLevel = owned.level;
+      while (true) {
+        const needed = getXpForLevel(newLevel, levelThresholds);
+        if (needed === null || newXp < needed) break;
+        newXp -= needed;
+        newLevel++;
+      }
+      return {
+        characterId: charId,
+        name: def.name,
+        role: def.role,
+        rarity: def.rarity,
+        sprites: def.sprites,
+        prevLevel: owned.level,
+        prevXp: owned.xp ?? 0,
+        newLevel,
+        newXp,
+        xpGained: xpEach,
+      };
+    }).filter((e): e is XpGainEntry => e !== null);
+
     lastResult = result;
     lastExpedition = expedition;
     onCollectExpedition(expedition, result);
@@ -202,18 +248,6 @@
         {lastResult.fullClear ? 'Expedition Complete!' : 'Expedition Failed'}
       </h3>
 
-      <!-- Team -->
-      <div class="flex gap-2 justify-center mb-4">
-        {#each lastExpedition.teamCharacterIds as charId}
-          {@const def = getCharDef(charId)}
-          {#if def}
-            <div class="w-14 h-14 rounded-lg border {RARITY_BORDER[def.rarity]} bg-slate-900 flex items-center justify-center overflow-hidden">
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-12 h-12" />
-            </div>
-          {/if}
-        {/each}
-      </div>
-
       <!-- Progress -->
       <div class="text-center mb-4">
         <div class="text-sm text-gray-400">Waves Cleared</div>
@@ -228,10 +262,49 @@
         </div>
       </div>
 
-      <!-- Rewards -->
+      <!-- XP Gains per character -->
+      {#if xpGains.length > 0}
+        <div class="mb-4">
+          <h4 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h4>
+          <div class="space-y-3">
+            {#each xpGains as entry}
+              {@const xpNeeded = getXpForLevel(entry.newLevel, levelThresholds)}
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 flex-shrink-0 rounded border {RARITY_BORDER[entry.rarity]} bg-slate-900 overflow-hidden">
+                  <SpritePreview sprites={entry.sprites} fallback={ROLE_ICONS[entry.role]} class="w-10 h-10" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="font-medium truncate">{entry.name}</span>
+                    <span class="text-cyan-400 text-xs font-bold flex-shrink-0">+{entry.xpGained} XP</span>
+                  </div>
+                  {#if entry.newLevel > entry.prevLevel}
+                    <div class="text-xs text-yellow-400 font-bold">Level Up! Lv{entry.prevLevel} → Lv{entry.newLevel}</div>
+                  {/if}
+                  {#if xpNeeded !== null}
+                    <div class="w-full bg-slate-700 rounded-full h-2 mt-1">
+                      <div
+                        class="bg-cyan-500 h-2 rounded-full transition-all"
+                        style="width: {Math.min(100, (entry.newXp / xpNeeded) * 100)}%"
+                      ></div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">
+                      Lv{entry.newLevel} — {entry.newXp}/{xpNeeded} XP
+                    </div>
+                  {:else}
+                    <div class="text-[10px] text-cyan-400 font-bold mt-0.5">Max Level</div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Rewards summary -->
       <div class="space-y-3">
         <div class="flex items-center justify-between bg-slate-900 rounded p-3">
-          <span class="text-gray-400">XP Earned</span>
+          <span class="text-gray-400">Total XP</span>
           <span class="text-cyan-400 font-bold">+{lastResult.xpEarned} XP</span>
         </div>
 
@@ -246,7 +319,7 @@
       </div>
 
       <button
-        onclick={() => { viewState = 'list'; lastResult = null; lastExpedition = null; }}
+        onclick={() => { viewState = 'list'; lastResult = null; lastExpedition = null; xpGains = []; }}
         class="mt-4 w-full px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded font-bold text-sm"
       >
         Back to Expeditions
