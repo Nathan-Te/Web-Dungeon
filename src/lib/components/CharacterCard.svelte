@@ -240,7 +240,7 @@
     </div>
     <div style="width: {isBoss ? cellSize : 96}px" class="-mt-0.5">
       <div class="text-center font-bold truncate leading-tight {isBoss ? 'text-base text-red-300' : 'text-[11px]'}">
-        {#if isBoss}<span class="text-red-500">BOSS </span>{/if}{name}
+        {#if isBoss}<span class="text-red-500 mr-1">BOSS</span>{/if}{name}
       </div>
       <div class="bg-gray-900 rounded-full overflow-hidden mx-0.5 {isBoss ? 'h-3' : 'h-1.5'}">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
