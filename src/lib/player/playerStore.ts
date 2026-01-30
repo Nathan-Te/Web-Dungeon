@@ -15,6 +15,8 @@ export interface OwnedCharacter {
   ascension: number;
   /** Number of duplicate copies held (used for ascension) */
   duplicates: number;
+  /** Current experience points */
+  xp: number;
 }
 
 /** Daily tracking state */
@@ -39,6 +41,7 @@ export interface PlayerSave {
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
+const PENDING_GACHA_KEY = 'dungeon-gacha-pending';
 const CURRENT_PLAYER_VERSION = 1;
 
 function getTodayString(): string {
@@ -87,6 +90,11 @@ export function loadPlayerSave(): PlayerSave {
       save.daily.gachaPullsRemaining = 1;
     }
 
+    // Migrate characters missing xp field
+    for (const c of save.collection) {
+      if (typeof c.xp !== 'number') c.xp = 0;
+    }
+
     return save;
   } catch {
     return createDefaultSave();
@@ -118,7 +126,7 @@ export function addCharacterToCollection(
     ...save,
     collection: [
       ...save.collection,
-      { characterId, level: 1, ascension: 0, duplicates: 0 },
+      { characterId, level: 1, ascension: 0, duplicates: 0, xp: 0 },
     ],
   };
 }
@@ -185,9 +193,74 @@ export function markDungeonCleared(save: PlayerSave): PlayerSave {
   };
 }
 
+/** Default level thresholds if none configured */
+const DEFAULT_LEVEL_THRESHOLDS = [
+  10, 25, 50, 80, 120, 170, 230, 300, 400, 500,
+  620, 760, 920, 1100, 1300, 1520, 1760, 2020, 2300, 2600,
+];
+
+/** Get XP needed for the next level (0-indexed: level 1 needs thresholds[0] to reach level 2) */
+export function getXpForLevel(level: number, thresholds?: number[]): number | null {
+  const t = thresholds && thresholds.length > 0 ? thresholds : DEFAULT_LEVEL_THRESHOLDS;
+  const idx = level - 1; // level 1 → index 0
+  if (idx < 0 || idx >= t.length) return null; // max level reached
+  return t[idx];
+}
+
+/** Award XP to specific characters, auto-leveling when thresholds are met */
+export function awardXp(
+  save: PlayerSave,
+  characterIds: string[],
+  totalXp: number,
+  levelThresholds?: number[]
+): PlayerSave {
+  if (characterIds.length === 0 || totalXp <= 0) return save;
+  const xpEach = Math.floor(totalXp / characterIds.length);
+  if (xpEach <= 0) return save;
+
+  const idSet = new Set(characterIds);
+  return {
+    ...save,
+    collection: save.collection.map((c) => {
+      if (!idSet.has(c.characterId)) return c;
+      let xp = (c.xp ?? 0) + xpEach;
+      let level = c.level;
+      const t = levelThresholds && levelThresholds.length > 0 ? levelThresholds : DEFAULT_LEVEL_THRESHOLDS;
+      // Auto level-up
+      while (true) {
+        const needed = t[level - 1];
+        if (needed === undefined) break; // max level
+        if (xp < needed) break;
+        xp -= needed;
+        level++;
+      }
+      return { ...c, xp, level };
+    }),
+  };
+}
+
 /** Reset player save completely */
 export function resetPlayerSave(): PlayerSave {
   const fresh = createDefaultSave();
   savePlayerSave(fresh);
+  clearPendingGachaReward();
   return fresh;
+}
+
+/** Store a pending gacha reward (protects against refresh during animation) */
+export function setPendingGachaReward(characterId: string): void {
+  localStorage.setItem(PENDING_GACHA_KEY, characterId);
+}
+
+/** Clear the pending gacha reward after it's been collected */
+export function clearPendingGachaReward(): void {
+  localStorage.removeItem(PENDING_GACHA_KEY);
+}
+
+/** Claim any pending gacha reward that wasn't collected (e.g. page was refreshed mid-animation) */
+export function claimPendingGachaReward(save: PlayerSave): PlayerSave {
+  const pendingId = localStorage.getItem(PENDING_GACHA_KEY);
+  if (!pendingId) return save;
+  clearPendingGachaReward();
+  return addCharacterToCollection(save, pendingId);
 }

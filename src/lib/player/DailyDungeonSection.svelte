@@ -35,9 +35,10 @@
     maxTeamSize?: number;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
+    onXpAwarded: (survivorIds: string[], xp: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 5, onAttemptUsed, onDungeonCleared }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded }: Props = $props();
 
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
@@ -299,13 +300,17 @@
     const result = simulation.simulate();
 
     actionLog = result.actionLog;
+    // Build initial display state (uses current survivorHp for carry-over)
     displayUnits = buildDisplayUnits(playerTeam, enemyTeam);
     currentActionIndex = -1;
     isPlaying = false;
 
     roomResults = [...roomResults, { room, result }];
 
-    // Update survivor HP
+    // Snapshot the initial display state for playback BEFORE applying actions
+    const initialDisplay = displayUnits.map(u => ({ ...u }));
+
+    // Apply all actions to get final post-battle state for survivor tracking
     for (const action of result.actionLog) {
       applyActionToUnits(displayUnits, action);
     }
@@ -316,8 +321,17 @@
       }
     }
 
-    // Reset display for playback
-    displayUnits = buildDisplayUnits(playerTeam, enemyTeam);
+    // Award XP to survivors if room was won
+    if (result.winner === 'player') {
+      const xp = room.xpReward ?? 0;
+      if (xp > 0) {
+        const survivorIds = Array.from(survivorHp.keys());
+        onXpAwarded(survivorIds, xp);
+      }
+    }
+
+    // Restore pre-battle display state for playback
+    displayUnits = initialDisplay;
     currentActionIndex = -1;
     startPlayback();
   }

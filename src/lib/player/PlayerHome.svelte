@@ -13,6 +13,10 @@
     useDungeonAttempt,
     markDungeonCleared,
     resetPlayerSave,
+    setPendingGachaReward,
+    clearPendingGachaReward,
+    claimPendingGachaReward,
+    awardXp,
     type PlayerSave,
   } from './playerStore';
   import GachaSection from './GachaSection.svelte';
@@ -50,18 +54,27 @@
     // Load local content immediately, then sync with online version
     content = loadContent();
     playerSave = loadPlayerSave();
+    // Claim any pending gacha reward from a previous interrupted animation
+    const claimed = claimPendingGachaReward(playerSave);
+    if (claimed !== playerSave) {
+      playerSave = claimed;
+      savePlayerSave(playerSave);
+    }
     // Async: fetch remote content and update if newer
     const synced = await loadContentWithSync();
     content = synced;
   });
 
-  function handleGachaPullStart() {
-    // Immediately consume the pull and save — prevents refresh exploit
+  function handleGachaPullStart(characterId: string) {
+    // Immediately consume the pull and store the pending reward — prevents refresh exploit
     playerSave = markGachaPulled(playerSave);
+    setPendingGachaReward(characterId);
     savePlayerSave(playerSave);
   }
 
   function handleGachaPull(characterId: string) {
+    // Animation completed: add character to collection and clear the pending reward
+    clearPendingGachaReward();
     playerSave = addCharacterToCollection(playerSave, characterId);
     savePlayerSave(playerSave);
   }
@@ -82,6 +95,11 @@
 
   function handleDungeonCleared() {
     playerSave = markDungeonCleared(playerSave);
+    savePlayerSave(playerSave);
+  }
+
+  function handleXpAwarded(survivorIds: string[], xp: number) {
+    playerSave = awardXp(playerSave, survivorIds, xp, content.levelThresholds);
     savePlayerSave(playerSave);
   }
 
@@ -230,6 +248,7 @@
           {maxTeamSize}
           onAttemptUsed={handleDungeonAttemptUsed}
           onDungeonCleared={handleDungeonCleared}
+          onXpAwarded={handleXpAwarded}
         />
       {/if}
     {:else}
@@ -244,6 +263,7 @@
       characters={content.characters}
       {gachaConfig}
       roleStats={content.roleStats}
+      levelThresholds={content.levelThresholds}
       onAscend={handleAscend}
     />
   {/if}

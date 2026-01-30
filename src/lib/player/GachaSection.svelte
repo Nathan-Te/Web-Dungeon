@@ -9,7 +9,7 @@
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
     gachaConfig: GachaConfig;
-    onPullStart: () => void;
+    onPullStart: (characterId: string) => void;
     onPull: (characterId: string) => void;
   }
 
@@ -85,9 +85,6 @@
   function performPull() {
     if (playerSave.daily.gachaPullsRemaining <= 0 || gachaConfig.characterPool.length === 0) return;
 
-    // Immediately mark pull as used and save — prevents refresh exploit
-    onPullStart();
-
     isAnimating = true;
     pullResult = null;
     showResult = false;
@@ -111,6 +108,9 @@
     if (pool.length === 0) { isAnimating = false; return; }
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
+
+    // Save pending reward and consume pull BEFORE animation — prevents refresh exploit
+    onPullStart(picked.id);
 
     // Build strip
     carouselItems = buildCarouselStrip(picked);
@@ -169,6 +169,15 @@
     carouselAnimFrame = requestAnimationFrame(animate);
   }
 
+  function resetForNextPull() {
+    pullResult = null;
+    showResult = false;
+    isAnimating = false;
+    carouselItems = [];
+    carouselX = 0;
+    carouselLanded = false;
+  }
+
   onDestroy(() => {
     if (carouselAnimFrame) cancelAnimationFrame(carouselAnimFrame);
   });
@@ -201,6 +210,17 @@
         <div class="capitalize text-sm {RARITY_TEXT[pullResult.rarity]}">{pullResult.rarity}</div>
         <div class="capitalize text-xs text-gray-400">{pullResult.role}</div>
       </div>
+      {#if playerSave.daily.gachaPullsRemaining > 0}
+        <button
+          onclick={resetForNextPull}
+          class="px-6 py-3 bg-gradient-to-b from-yellow-500 to-amber-700 hover:from-yellow-400 hover:to-amber-600
+            rounded-xl font-bold shadow-lg shadow-amber-900/50 transition-all hover:scale-105"
+        >
+          Pull Again! ({playerSave.daily.gachaPullsRemaining} left)
+        </button>
+      {:else}
+        <div class="text-sm text-gray-400">No pulls remaining. Come back tomorrow!</div>
+      {/if}
     </div>
   {:else if isAnimating && carouselItems.length > 0}
     <!-- CS:GO-style horizontal carousel -->

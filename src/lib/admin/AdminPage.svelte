@@ -101,6 +101,9 @@
   function onSaveGachaConfig(config: GachaConfig) {
     save({ ...content, gachaConfig: config });
   }
+  function onSaveLevelThresholds(thresholds: number[]) {
+    save({ ...content, levelThresholds: thresholds });
+  }
   function onSaveDailyDungeon(id: string) {
     save({ ...content, dailyDungeonId: id });
   }
@@ -275,7 +278,9 @@
     <GachaConfigEditor
       characters={content.characters}
       gachaConfig={content.gachaConfig}
+      levelThresholds={content.levelThresholds}
       onSave={onSaveGachaConfig}
+      {onSaveLevelThresholds}
     />
   {:else if activeTab === 'data'}
     <div class="space-y-6">

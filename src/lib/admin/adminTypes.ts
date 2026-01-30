@@ -56,6 +56,8 @@ export interface DungeonRoom {
   enemies: DungeonRoomEnemy[];
   /** Difficulty multiplier applied to enemy stats */
   difficultyMult: number;
+  /** XP reward shared among surviving characters when room is cleared */
+  xpReward: number;
 }
 
 /** Enemy placement in a dungeon room */
@@ -102,6 +104,8 @@ export interface GameContent {
   maxDungeonTeamSize?: number;
   /** Timestamp of last online publish (ms since epoch) */
   publishedAt?: number;
+  /** XP thresholds for each level: index 0 = XP needed for level 1→2, etc. */
+  levelThresholds?: number[];
 }
 
 export const CURRENT_CONTENT_VERSION = 3;
@@ -145,6 +149,7 @@ export function createBlankRoom(roomNumber: number): DungeonRoom {
     isBoss: roomNumber === 6,
     enemies: [],
     difficultyMult: 1 + (roomNumber - 1) * 0.1,
+    xpReward: roomNumber * 10,
   };
 }
 
