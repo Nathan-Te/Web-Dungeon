@@ -353,6 +353,7 @@
       customRoleStats,
       abilityDefs: allAbilities,
       characterAbilityIds: characterAbilityIds.size > 0 ? characterAbilityIds : undefined,
+      bossIds: enemyBossIds.size > 0 ? enemyBossIds : undefined,
     });
     const result = simulation.simulate();
 

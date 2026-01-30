@@ -81,6 +81,8 @@ export class AutoBattleSimulation {
       abilityDefs?: AbilityDefinition[];
       /** Character ability ID mapping: characterId -> abilityId(s) */
       characterAbilityIds?: Map<string, string[]>;
+      /** IDs of boss units (occupy 3x3 visually) */
+      bossIds?: Set<string>;
       /** HP overrides for player units (carry-over from previous rooms) */
       playerHpOverrides?: Map<string, { currentHp: number; maxHp: number }>;
     }
@@ -89,7 +91,7 @@ export class AutoBattleSimulation {
     this.rng = new SeededRNG(seed);
     this.customRoleStats = options?.customRoleStats;
     this.abilityDefs = options?.abilityDefs ?? [];
-    this.initializeTeams(playerTeam, enemyTeam);
+    this.initializeTeams(playerTeam, enemyTeam, options?.bossIds);
 
     // Apply HP overrides for player units (dungeon carry-over)
     if (options?.playerHpOverrides) {
@@ -185,7 +187,7 @@ export class AutoBattleSimulation {
    * Initialize combat states for both teams
    * Assigns positions based on role preferences
    */
-  private initializeTeams(playerTeam: Character[], enemyTeam: Character[]): void {
+  private initializeTeams(playerTeam: Character[], enemyTeam: Character[], bossIds?: Set<string>): void {
     const assignPositions = (
       team: Character[],
       teamType: 'player' | 'enemy'
@@ -196,6 +198,51 @@ export class AutoBattleSimulation {
       );
 
       const usedPositions = new Set<string>();
+      const hasBoss = teamType === 'enemy' && bossIds && bossIds.size > 0;
+
+      // If enemy team has a boss, place boss at (0,0) and reserve rows 0-2
+      if (hasBoss) {
+        const bossChars = sorted.filter(c => bossIds.has(c.id));
+        const nonBoss = sorted.filter(c => !bossIds.has(c.id));
+
+        for (const char of bossChars) {
+          const position: Position = { row: 0, col: 0 };
+          // Mark rows 0-2 as used (boss visual 3x3 area)
+          for (let r = 0; r <= 2; r++) {
+            for (let c = 0; c <= 2; c++) {
+              usedPositions.add(`${r},${c}`);
+            }
+          }
+          const state = char.createCombatState(teamType, position);
+          state.isBoss = true;
+          const units = this.enemyUnits;
+          units.set(char.id, state);
+          this.characterNames.set(char.id, char.name);
+          this.characterRoles.set(char.id, char.role);
+          this.characterSprites.set(char.id, char.definition.sprites);
+        }
+
+        // Non-boss enemies go to row 3
+        for (const char of nonBoss) {
+          let position: Position | null = null;
+          for (let col = 0; col <= 2 && !position; col++) {
+            const posKey = `3,${col}`;
+            if (!usedPositions.has(posKey)) {
+              position = { row: 3, col: col as 0 | 1 | 2 };
+              usedPositions.add(posKey);
+            }
+          }
+          if (position) {
+            const state = char.createCombatState(teamType, position);
+            const units = this.enemyUnits;
+            units.set(char.id, state);
+            this.characterNames.set(char.id, char.name);
+            this.characterRoles.set(char.id, char.role);
+            this.characterSprites.set(char.id, char.definition.sprites);
+          }
+        }
+        return;
+      }
 
       sorted.forEach((char, index) => {
         const preferredRow = char.preferredRow;
@@ -659,7 +706,17 @@ export class AutoBattleSimulation {
     const units = team === 'player' ? this.playerUnits : this.enemyUnits;
     const occupied = new Set<string>();
     for (const u of units.values()) {
-      if (u.isAlive) occupied.add(`${u.position.row},${u.position.col}`);
+      if (u.isAlive) {
+        occupied.add(`${u.position.row},${u.position.col}`);
+        // Boss units visually occupy a 3x3 area (rows 0-2, cols 0-2)
+        if (u.isBoss) {
+          for (let r = 0; r <= 2; r++) {
+            for (let c = 0; c <= 2; c++) {
+              occupied.add(`${r},${c}`);
+            }
+          }
+        }
+      }
     }
     // Try rows 0-3, cols 0-2
     for (let row = 0; row <= 3; row++) {
