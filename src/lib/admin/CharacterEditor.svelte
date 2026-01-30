@@ -255,6 +255,68 @@
         />
       </div>
 
+      <!-- Summoner Config -->
+      {#if editingChar.role === 'summoner'}
+        <div class="mt-3 bg-slate-900 rounded p-3">
+          <span class="block text-xs text-gray-400 mb-2">Summon Targets (characters this summoner can summon)</span>
+          <div class="space-y-1">
+            {#each editingChar.summonIds ?? [] as summonId, i}
+              <div class="flex gap-2 items-center">
+                <select
+                  value={summonId}
+                  onchange={(e) => {
+                    if (!editingChar) return;
+                    const ids = [...(editingChar.summonIds ?? [])];
+                    ids[i] = e.currentTarget.value;
+                    editingChar = { ...editingChar, summonIds: ids };
+                  }}
+                  class="flex-1 px-3 py-1.5 bg-slate-700 rounded text-sm"
+                >
+                  {#each characters.filter(c => c.id !== editingChar?.id) as char}
+                    <option value={char.id}>{char.name} ({char.role}, {char.rarity})</option>
+                  {/each}
+                </select>
+                <button
+                  onclick={() => {
+                    if (!editingChar) return;
+                    const ids = [...(editingChar.summonIds ?? [])];
+                    ids.splice(i, 1);
+                    editingChar = { ...editingChar, summonIds: ids };
+                  }}
+                  class="px-2 py-1 bg-red-800 hover:bg-red-700 rounded text-xs"
+                >X</button>
+              </div>
+            {/each}
+            <button
+              onclick={() => {
+                if (!editingChar) return;
+                const ids = [...(editingChar.summonIds ?? [])];
+                const others = characters.filter(c => c.id !== editingChar?.id);
+                if (others.length > 0) {
+                  ids.push(others[0].id);
+                  editingChar = { ...editingChar, summonIds: ids };
+                }
+              }}
+              class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs"
+            >+ Add Summon</button>
+          </div>
+          <div class="mt-2">
+            <span class="text-xs text-gray-400">Max Active Summons (1-3)</span>
+            <input
+              type="number"
+              min="1"
+              max="3"
+              value={editingChar.maxSummons ?? 1}
+              onchange={(e) => {
+                if (!editingChar) return;
+                editingChar = { ...editingChar, maxSummons: parseInt(e.currentTarget.value) || 1 };
+              }}
+              class="ml-2 w-16 px-2 py-1 bg-slate-700 rounded text-sm"
+            />
+          </div>
+        </div>
+      {/if}
+
       <!-- Base Stats Preview -->
       <div class="mt-3 p-3 bg-slate-900 rounded text-xs">
         <span class="text-gray-400">Base Stats ({editingChar.role}):</span>
