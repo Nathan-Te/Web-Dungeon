@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { AbilityDefinition, AbilityTargeting } from '../game/abilities';
-  import type { Role } from '../game/types';
+  import type { Role, SpriteSource } from '../game/types';
   import { createBlankAbility } from './adminTypes';
+  import SingleSpritePicker from './SingleSpritePicker.svelte';
 
   interface Props {
     abilities: AbilityDefinition[];
@@ -252,39 +253,29 @@
         {/if}
       </div>
 
-      <!-- Ability Sprites -->
+      <!-- Ability VFX Sprites -->
       <div class="sm:col-span-2 mt-1">
-        <span class="block text-xs text-gray-400 mb-2 font-bold">Ability VFX Sprites (optional)</span>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <span class="block text-xs text-gray-400 mb-1">Caster Sprite URL</span>
-            <input
-              type="text"
-              value={editingAbility.casterSprite && typeof editingAbility.casterSprite === 'string' ? editingAbility.casterSprite : ''}
-              oninput={(e) => {
-                if (!editingAbility) return;
-                const v = (e.target as HTMLInputElement).value.trim();
-                editingAbility = { ...editingAbility, casterSprite: v || undefined };
+        <span class="block text-xs text-gray-400 mb-3 font-bold">Ability VFX Sprites (optional)</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-slate-900 rounded-lg p-3">
+            <SingleSpritePicker
+              label="Caster Overlay"
+              value={editingAbility.casterSprite}
+              onUpdate={(v) => {
+                if (editingAbility) editingAbility = { ...editingAbility, casterSprite: v };
               }}
-              placeholder="Image URL shown on caster"
-              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
             />
-            <span class="text-[10px] text-gray-600">Overlay on the character casting the ability</span>
+            <p class="text-[10px] text-gray-600 mt-1">Shown on the character casting the ability</p>
           </div>
-          <div>
-            <span class="block text-xs text-gray-400 mb-1">Target Sprite URL</span>
-            <input
-              type="text"
-              value={editingAbility.targetSprite && typeof editingAbility.targetSprite === 'string' ? editingAbility.targetSprite : ''}
-              oninput={(e) => {
-                if (!editingAbility) return;
-                const v = (e.target as HTMLInputElement).value.trim();
-                editingAbility = { ...editingAbility, targetSprite: v || undefined };
+          <div class="bg-slate-900 rounded-lg p-3">
+            <SingleSpritePicker
+              label="Target Overlay"
+              value={editingAbility.targetSprite}
+              onUpdate={(v) => {
+                if (editingAbility) editingAbility = { ...editingAbility, targetSprite: v };
               }}
-              placeholder="Image URL shown on target(s)"
-              class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
             />
-            <span class="text-[10px] text-gray-600">Overlay on each target hit by the ability</span>
+            <p class="text-[10px] text-gray-600 mt-1">Shown on each target hit by the ability</p>
           </div>
         </div>
       </div>
