@@ -186,8 +186,10 @@
           }
         }
 
-        // Track summoner
+        // Track summoner — summons inherit the summoner's level and ascension
         if (template.role === 'summoner' && template.summonIds && template.summonIds.length > 0) {
+          const summonerLevel = level;
+          const summonerAscension = template.ascension;
           const templates: SummonTemplate[] = template.summonIds
             .map(sid => allEnemies.find(e => e.id === sid))
             .filter((e): e is EnemyTemplate => e !== null && e !== undefined)
@@ -195,8 +197,8 @@
               id: e.id,
               name: e.name,
               role: e.role,
-              level: Math.max(1, Math.round(e.level * room.difficultyMult)),
-              ascension: e.ascension,
+              level: summonerLevel,
+              ascension: summonerAscension,
               sprites: e.sprites ?? (e.sprite ? { idle: e.sprite } : undefined),
               statOverrides: e.statOverrides,
             }));

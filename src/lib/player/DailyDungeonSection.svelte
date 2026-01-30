@@ -220,13 +220,15 @@
         }
 
         if (template.role === 'summoner' && template.summonIds && template.summonIds.length > 0) {
+          const summonerLevel = level;
+          const summonerAscension = template.ascension;
           const templates: SummonTemplate[] = template.summonIds
             .map((sid) => enemies.find((e) => e.id === sid))
             .filter((e): e is EnemyTemplate => e !== null && e !== undefined)
             .map((e) => ({
               id: e.id, name: e.name, role: e.role,
-              level: Math.max(1, Math.round(e.level * room.difficultyMult)),
-              ascension: e.ascension,
+              level: summonerLevel,
+              ascension: summonerAscension,
               sprites: e.sprites ?? (e.sprite ? { idle: e.sprite } : undefined),
               statOverrides: e.statOverrides,
             }));
@@ -363,7 +365,7 @@
     }
     survivorHp = new Map();
     for (const u of displayUnits) {
-      if (u.team === 'player' && u.isAlive) {
+      if (u.team === 'player' && u.isAlive && !u.isSummoned) {
         survivorHp.set(u.id, { currentHp: u.currentHp, maxHp: u.maxHp });
       }
     }
