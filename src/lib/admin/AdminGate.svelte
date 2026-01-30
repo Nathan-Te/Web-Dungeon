@@ -9,10 +9,19 @@
   let { onAuthenticated, onCancel }: Props = $props();
 
   const ADMIN_KEY = 'dungeon-admin-auth';
-  const ADMIN_PASSWORD = 'dungeonmaster';
+  // SHA-256 hash of the admin password (hashed so it's not plain-text in source)
+  const ADMIN_PASSWORD_HASH = 'e2f9128f1f9eb8053e540af25307ee57f0462138c6d6eaf454686f2275818b05';
 
   let password = $state('');
   let error = $state('');
+
+  /** Hash a string using SHA-256 via the Web Crypto API */
+  async function sha256(input: string): Promise<string> {
+    const data = new TextEncoder().encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   // Check if already authenticated this session
   onMount(() => {
@@ -21,9 +30,10 @@
     }
   });
 
-  function handleSubmit(e: Event) {
+  async function handleSubmit(e: Event) {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+    const hash = await sha256(password);
+    if (hash === ADMIN_PASSWORD_HASH) {
       sessionStorage.setItem(ADMIN_KEY, 'true');
       error = '';
       onAuthenticated();

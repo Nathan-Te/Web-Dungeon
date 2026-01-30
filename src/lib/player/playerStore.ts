@@ -358,3 +358,35 @@ export function removeExpedition(save: PlayerSave, expeditionId: string): Player
 export function isCharacterOnExpedition(save: PlayerSave, characterId: string): boolean {
   return (save.expeditions ?? []).some(exp => exp.teamCharacterIds.includes(characterId));
 }
+
+// --- Cross-device sync ---
+
+/** Export the current save as a base64 sync code */
+export function exportSyncCode(save: PlayerSave): string {
+  const json = JSON.stringify(save);
+  // Use encodeURIComponent to handle Unicode, then base64-encode
+  return btoa(unescape(encodeURIComponent(json)));
+}
+
+/** Import a save from a base64 sync code. Returns the parsed save or an error message. */
+export function importSyncCode(code: string): PlayerSave | string {
+  try {
+    const trimmed = code.trim();
+    if (!trimmed) return 'Code vide';
+    const json = decodeURIComponent(escape(atob(trimmed)));
+    const parsed = JSON.parse(json);
+    // Validate basic structure
+    if (typeof parsed.version !== 'number' || !Array.isArray(parsed.collection) || !parsed.daily) {
+      return 'Format de sauvegarde invalide';
+    }
+    // Validate collection entries
+    for (const c of parsed.collection) {
+      if (!c.characterId || typeof c.level !== 'number') {
+        return 'Donnees de collection corrompues';
+      }
+    }
+    return parsed as PlayerSave;
+  } catch {
+    return 'Code de synchronisation invalide';
+  }
+}
