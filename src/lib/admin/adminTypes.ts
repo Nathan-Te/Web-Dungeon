@@ -106,6 +106,8 @@ export interface GameContent {
   publishedAt?: number;
   /** XP thresholds for each level: index 0 = XP needed for level 1→2, etc. */
   levelThresholds?: number[];
+  /** Stat multiplier per rarity tier (applied to base stats before level/ascension scaling) */
+  rarityMultipliers?: Record<Rarity, number>;
 }
 
 export const CURRENT_CONTENT_VERSION = 3;

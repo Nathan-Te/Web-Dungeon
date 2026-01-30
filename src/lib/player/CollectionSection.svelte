@@ -11,11 +11,12 @@
     characters: CharacterDefinition[];
     gachaConfig?: GachaConfig;
     roleStats?: Partial<Record<Role, BaseStats>>;
+    rarityMultipliers?: Partial<Record<Rarity, number>>;
     levelThresholds?: number[];
     onAscend: (characterId: string) => void;
   }
 
-  let { playerSave, characters, gachaConfig, roleStats, levelThresholds, onAscend }: Props = $props();
+  let { playerSave, characters, gachaConfig, roleStats, rarityMultipliers, levelThresholds, onAscend }: Props = $props();
 
   const RARITY_BORDER: Record<Rarity, string> = {
     common: 'border-gray-500',
@@ -48,13 +49,14 @@
 
   function getStats(owned: OwnedCharacter, def: CharacterDefinition): { hp: number; atk: number; def: number; spd: number } {
     const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
+    const rarityMult = rarityMultipliers?.[def.rarity] ?? 1;
     const levelMult = 1 + (owned.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
     const ascMult = 1 + owned.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
     return {
-      hp: Math.round(base.hp * levelMult * ascMult),
-      atk: Math.round(base.atk * levelMult * ascMult),
-      def: Math.round(base.def * levelMult * ascMult),
-      spd: Math.round(base.spd * levelMult * ascMult),
+      hp: Math.round(base.hp * rarityMult * levelMult * ascMult),
+      atk: Math.round(base.atk * rarityMult * levelMult * ascMult),
+      def: Math.round(base.def * rarityMult * levelMult * ascMult),
+      spd: Math.round(base.spd * rarityMult * levelMult * ascMult),
     };
   }
 
@@ -88,17 +90,17 @@
         {#if def}
           <button
             onclick={() => selectedCharId = selectedCharId === owned.characterId ? null : owned.characterId}
-            class="relative w-20 h-24 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
+            class="relative w-28 h-36 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
               {RARITY_BORDER[def.rarity]}
               {selectedCharId === owned.characterId ? 'ring-2 ring-white scale-105' : 'hover:brightness-125'}
               bg-slate-800"
           >
             {#if canAscend(owned)}
-              <span class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[8px] font-bold text-black z-10">!</span>
+              <span class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[9px] font-bold text-black z-10">!</span>
             {/if}
-            <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14" />
-            <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
-            <span class="text-[8px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+            <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20" />
+            <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
+            <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
           </button>
         {/if}
       {/each}

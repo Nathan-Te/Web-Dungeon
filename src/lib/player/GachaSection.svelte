@@ -11,9 +11,10 @@
     gachaConfig: GachaConfig;
     onPullStart: (characterId: string) => void;
     onPull: (characterId: string) => void;
+    onAnimatingChange?: (animating: boolean) => void;
   }
 
-  let { playerSave, characters, gachaConfig, onPullStart, onPull }: Props = $props();
+  let { playerSave, characters, gachaConfig, onPullStart, onPull, onAnimatingChange }: Props = $props();
 
   const RARITY_COLORS: Record<Rarity, string> = {
     common: 'border-gray-400 bg-gray-800',
@@ -86,6 +87,7 @@
     if (playerSave.daily.gachaPullsRemaining <= 0 || gachaConfig.characterPool.length === 0) return;
 
     isAnimating = true;
+    onAnimatingChange?.(true);
     pullResult = null;
     showResult = false;
     carouselLanded = false;
@@ -105,7 +107,7 @@
     // Filter pool by rarity
     const poolForRarity = poolCharacters.filter((c) => c.rarity === selectedRarity);
     const pool = poolForRarity.length > 0 ? poolForRarity : poolCharacters;
-    if (pool.length === 0) { isAnimating = false; return; }
+    if (pool.length === 0) { isAnimating = false; onAnimatingChange?.(false); return; }
 
     const picked = pool[Math.floor(Math.random() * pool.length)];
 
@@ -133,6 +135,7 @@
           pullResult = picked;
           isNew = !playerSave.collection.some((c) => c.characterId === picked.id);
           isAnimating = false;
+          onAnimatingChange?.(false);
           showResult = true;
           onPull(picked.id);
         }, 800);
@@ -298,11 +301,11 @@
                 <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
                 <div class="flex gap-2 flex-wrap">
                   {#each chars as char}
-                    <div class="w-20 h-28 rounded-lg border-2 flex flex-col items-center overflow-hidden
+                    <div class="w-28 h-36 rounded-lg border-2 flex flex-col items-center overflow-hidden
                       {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">
-                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-14 h-14 mt-0.5" />
-                      <span class="text-[8px] font-bold truncate w-full text-center px-0.5">{char.name}</span>
-                      <span class="text-[7px] capitalize text-gray-400">{char.role}</span>
+                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-20 h-20 mt-0.5" />
+                      <span class="text-[10px] font-bold truncate w-full text-center px-1">{char.name}</span>
+                      <span class="text-[8px] capitalize text-gray-400">{char.role}</span>
                     </div>
                   {/each}
                 </div>
