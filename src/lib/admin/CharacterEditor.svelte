@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { CharacterDefinition, Role, Rarity, SpriteSource, SpriteSheetConfig } from '../game/types';
-  import { ROLE_BASE_STATS } from '../game/types';
+  import type { CharacterDefinition, Role, Rarity, SpriteSource, SpriteSheetConfig, DisplaySize } from '../game/types';
+  import { ROLE_BASE_STATS, DISPLAY_SIZE_PX } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
   import { createBlankCharacter } from './adminTypes';
   import SpritePicker from './SpritePicker.svelte';
@@ -20,6 +20,13 @@
 
   const ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
   const RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
+  const DISPLAY_SIZES: DisplaySize[] = ['small', 'medium', 'large', 'xlarge'];
+  const SIZE_LABELS: Record<DisplaySize, string> = {
+    small: 'Small (64px)',
+    medium: 'Medium (88px)',
+    large: 'Large (140px)',
+    xlarge: 'XLarge (200px)',
+  };
 
   const RARITY_STARS: Record<Rarity, string> = {
     common: '1',
@@ -212,6 +219,23 @@
           >
             {#each RARITIES as r}
               <option value={r}>{r.charAt(0).toUpperCase() + r.slice(1)} ({RARITY_STARS[r]} star)</option>
+            {/each}
+          </select>
+        </div>
+
+        <div>
+          <span class="block text-xs text-gray-400 mb-1">Display Size</span>
+          <select
+            value={editingChar.displaySize ?? 'medium'}
+            onchange={(e) => {
+              if (!editingChar) return;
+              const size = e.currentTarget.value as DisplaySize;
+              editingChar = { ...editingChar, displaySize: size === 'medium' ? undefined : size };
+            }}
+            class="w-full px-3 py-2 bg-slate-700 rounded text-sm"
+          >
+            {#each DISPLAY_SIZES as s}
+              <option value={s}>{SIZE_LABELS[s]}</option>
             {/each}
           </select>
         </div>

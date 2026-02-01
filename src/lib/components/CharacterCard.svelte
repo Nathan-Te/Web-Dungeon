@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { Role, SpriteSet, SpriteSource, SpriteSheetConfig, AnimState, HitEffect } from '../game/types';
+  import type { Role, SpriteSet, SpriteSource, SpriteSheetConfig, AnimState, HitEffect, DisplaySize } from '../game/types';
+  import { DISPLAY_SIZE_PX } from '../game/types';
 
   interface Props {
     name: string;
@@ -13,13 +14,22 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    displaySize?: DisplaySize;
     abilityOverlay?: SpriteSource;
   }
 
-  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect, isBoss = false, abilityOverlay }: Props = $props();
+  let { name, role, currentHp, maxHp, isAlive, isPlayer, sprites, animState = 'idle', hitEffect, isBoss = false, displaySize = 'medium', abilityOverlay }: Props = $props();
 
-  /** Cell size in px — bosses get 3x the space */
-  let cellSize = $derived(isBoss ? 264 : 88);
+  /** Resolve cell size from displaySize, falling back to isBoss for backward compat */
+  let cellSize = $derived(
+    displaySize !== 'medium'
+      ? DISPLAY_SIZE_PX[displaySize]
+      : isBoss
+        ? DISPLAY_SIZE_PX.xlarge
+        : DISPLAY_SIZE_PX.medium
+  );
+
+  let isLarge = $derived(displaySize === 'large' || displaySize === 'xlarge' || isBoss);
 
   const roleColors: Record<Role, string> = {
     tank: 'bg-blue-600',
@@ -183,7 +193,7 @@
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
     <div class="relative rounded-lg border-2 overflow-hidden bg-slate-900
       {isPlayer ? 'border-blue-400' : 'border-red-400'}
-      {isBoss ? 'border-4 border-red-600' : ''}"
+      {isLarge ? 'border-4 border-red-600' : ''}"
       style="width: {cellSize}px; height: {cellSize}px;">
       {#if hitOverlayClass}
         <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
@@ -238,23 +248,24 @@
         />
       {/if}
     </div>
-    <div style="width: {isBoss ? cellSize : 96}px" class="-mt-0.5">
-      <div class="text-center font-bold truncate leading-tight {isBoss ? 'text-base text-red-300' : 'text-[11px]'}">
+    <div style="width: {isLarge ? cellSize : 96}px" class="-mt-0.5">
+      <div class="text-center font-bold truncate leading-tight {isLarge ? 'text-base text-red-300' : 'text-[11px]'}">
         {#if isBoss}<span class="text-red-500 mr-1">BOSS</span>{/if}{name}
       </div>
-      <div class="bg-gray-900 rounded-full overflow-hidden mx-0.5 {isBoss ? 'h-3' : 'h-1.5'}">
+      <div class="bg-gray-900 rounded-full overflow-hidden mx-0.5 {isLarge ? 'h-3' : 'h-1.5'}">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
       </div>
-      <div class="text-center text-gray-300 leading-tight {isBoss ? 'text-sm' : 'text-[10px]'}">{currentHp}/{maxHp}</div>
+      <div class="text-center text-gray-300 leading-tight {isLarge ? 'text-sm' : 'text-[10px]'}">{currentHp}/{maxHp}</div>
     </div>
   </div>
 {:else}
   <!-- No-sprite layout: role icon card -->
   <div
-    class="relative w-[88px] h-[104px] rounded-lg border-2 transition-all duration-200
+    class="relative rounded-lg border-2 transition-all duration-200
       {isPlayer ? 'border-blue-400' : 'border-red-400'}
       {roleColors[role]}
       {isAlive ? 'opacity-100' : 'opacity-30 grayscale'}"
+    style="width: {cellSize}px; height: {cellSize + 16}px;"
   >
     {#if hitOverlayClass}
       <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>

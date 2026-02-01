@@ -3,7 +3,7 @@
  * Extends core game types with editor-specific data
  */
 
-import type { CharacterDefinition, Role, Rarity, SpriteSet, BaseStats } from '../game/types';
+import type { CharacterDefinition, Role, Rarity, SpriteSet, BaseStats, DisplaySize } from '../game/types';
 import type { AbilityDefinition } from '../game/abilities';
 
 /** Pity guarantee: after N pulls without the target rarity, guarantee it */
@@ -59,6 +59,8 @@ export interface EnemyTemplate {
   summonIds?: string[];
   /** Max active summons (1-3, default 1) */
   maxSummons?: number;
+  /** Display size for battle rendering (default 'medium') */
+  displaySize?: DisplaySize;
 }
 
 /** A dungeon room with enemy composition */
