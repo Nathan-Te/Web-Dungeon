@@ -13,6 +13,7 @@
     type AnimState,
     type HitEffect,
     type SummonTemplate,
+    type DisplaySize,
     ROLE_BASE_STATS,
     ROLE_PREFERRED_ROW,
     COMBAT_CONSTANTS,
@@ -39,6 +40,7 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    displaySize?: DisplaySize;
     isSummoned?: boolean;
     abilityOverlay?: SpriteSource;
   }
@@ -251,6 +253,7 @@
             pos = foundPos;
           }
 
+          const template = allEnemies.find(e => char.id.startsWith(e.id));
           units.push({
             id: char.id,
             name: char.name,
@@ -266,6 +269,7 @@
             sprites: char.definition.sprites ?? (char.definition.sprite ? { idle: char.definition.sprite } : undefined),
             animState: 'idle' as AnimState,
             isBoss,
+            displaySize: template?.displaySize,
           });
         }
         return;
@@ -303,6 +307,9 @@
               maxHp = carried.maxHp;
             }
           }
+          const charDisplaySize = teamType === 'player'
+            ? char.definition.displaySize
+            : allEnemies.find(e => char.id.startsWith(e.id))?.displaySize;
           units.push({
             id: char.id,
             name: char.name,
@@ -317,6 +324,7 @@
             isAlive: currentHp > 0,
             sprites: char.definition.sprites ?? (char.definition.sprite ? { idle: char.definition.sprite } : undefined),
             animState: 'idle' as AnimState,
+            displaySize: charDisplaySize,
           });
         }
       }

@@ -12,6 +12,7 @@
     type SpriteSource,
     type AnimState,
     type HitEffect,
+    type DisplaySize,
     ROLE_PREFERRED_ROW,
   } from '../game';
 
@@ -50,6 +51,7 @@
     animState?: AnimState;
     hitEffect?: HitEffect;
     isBoss?: boolean;
+    displaySize?: DisplaySize;
     isSummoned?: boolean;
     abilityOverlay?: SpriteSource;
   }
@@ -167,6 +169,7 @@
             isAlive: true,
             sprites: char.definition.sprites ?? (char.definition.sprite ? { idle: char.definition.sprite } : undefined),
             animState: 'idle' as AnimState,
+            displaySize: char.definition.displaySize,
           });
         }
       }

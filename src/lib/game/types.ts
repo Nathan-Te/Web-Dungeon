@@ -14,6 +14,17 @@ export interface Position {
   col: 0 | 1 | 2;
 }
 
+/** Display size categories for character/enemy rendering */
+export type DisplaySize = 'small' | 'medium' | 'large' | 'xlarge';
+
+/** Pixel dimensions for each display size */
+export const DISPLAY_SIZE_PX: Record<DisplaySize, number> = {
+  small: 64,
+  medium: 88,
+  large: 140,
+  xlarge: 200,
+};
+
 /** Base character stats (level 1, ascension 0) */
 export interface BaseStats {
   hp: number;
@@ -95,6 +106,8 @@ export interface CharacterDefinition {
   summonIds?: string[];
   /** Max active summons (1-3, default 1) */
   maxSummons?: number;
+  /** Display size for battle rendering (default 'medium') */
+  displaySize?: DisplaySize;
 }
 
 /** Combat state for a character during battle */
