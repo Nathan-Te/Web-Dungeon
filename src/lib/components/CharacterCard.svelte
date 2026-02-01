@@ -189,14 +189,12 @@
 </script>
 
 {#if hasSprite}
-  <!-- Sprite layout: image dominant, info strip below -->
+  <!-- Sprite layout: floating sprite with subtle info underneath -->
   <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
-    <div class="relative rounded-lg border-2 overflow-hidden bg-slate-900
-      {isPlayer ? 'border-blue-400' : 'border-red-400'}
-      {isLarge ? 'border-4 border-red-600' : ''}"
+    <div class="relative overflow-visible"
       style="width: {cellSize}px; height: {cellSize}px;">
       {#if hitOverlayClass}
-        <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
+        <div class="absolute inset-0 z-10 pointer-events-none rounded-full {hitOverlayClass}"></div>
       {/if}
       {#if overlaySheetConfig}
         {@const oCfg = overlaySheetConfig}
@@ -221,7 +219,6 @@
         </div>
       {/if}
       {#if sheetConfig}
-        <!-- Animated sprite sheet: scale sheet so one frame fills the container, apply zoom -->
         {@const baseScale = cellSize / sheetConfig.frameWidth}
         {@const scale = baseScale * spriteZoom}
         {@const totalCols = sheetConfig.framesPerRow}
@@ -236,61 +233,52 @@
         {@const offsetY = (cellSize - sheetConfig.frameHeight * scale) / 2}
         <div
           class="w-full h-full transition-transform duration-200 {animClass}"
-          style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: {offsetX - posX}px {offsetY - posY}px;"
+          style="background-image: url({sheetConfig.src}); background-size: {scaledW}px {scaledH}px; background-position: {offsetX - posX}px {offsetY - posY}px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));"
         ></div>
       {:else if staticSrc}
-        <!-- Static image with zoom -->
         <img
           src={staticSrc}
           alt={name}
           class="w-full h-full object-contain transition-all duration-200 {animClass}"
-          style="transform: scale({spriteZoom})"
+          style="transform: scale({spriteZoom}); filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));"
         />
       {/if}
     </div>
-    <div style="width: {isLarge ? cellSize : 96}px" class="-mt-0.5">
-      <div class="text-center font-bold truncate leading-tight {isLarge ? 'text-base text-red-300' : 'text-[11px]'}">
-        {#if isBoss}<span class="text-red-500 mr-1">BOSS</span>{/if}{name}
+    <!-- Info bar: name + HP -->
+    <div style="width: {Math.max(cellSize, 72)}px" class="mt-0.5">
+      <div class="text-center font-bold truncate leading-tight {isLarge ? 'text-sm text-red-300' : 'text-[10px] text-gray-200'}">
+        {#if isBoss}<span class="text-red-500 mr-0.5">BOSS</span>{/if}{name}
       </div>
-      <div class="bg-gray-900 rounded-full overflow-hidden mx-0.5 {isLarge ? 'h-3' : 'h-1.5'}">
+      <div class="bg-black/60 rounded-full overflow-hidden mx-auto {isLarge ? 'h-2.5' : 'h-1.5'}" style="width: {Math.min(cellSize, 96)}px;">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
       </div>
-      <div class="text-center text-gray-300 leading-tight {isLarge ? 'text-sm' : 'text-[10px]'}">{currentHp}/{maxHp}</div>
+      <div class="text-center text-gray-400 leading-tight {isLarge ? 'text-xs' : 'text-[9px]'}">{currentHp}/{maxHp}</div>
     </div>
   </div>
 {:else}
-  <!-- No-sprite layout: role icon card -->
-  <div
-    class="relative rounded-lg border-2 transition-all duration-200
-      {isPlayer ? 'border-blue-400' : 'border-red-400'}
-      {roleColors[role]}
-      {isAlive ? 'opacity-100' : 'opacity-30 grayscale'}"
-    style="width: {cellSize}px; height: {cellSize + 16}px;"
-  >
-    {#if hitOverlayClass}
-      <div class="absolute inset-0 z-10 pointer-events-none rounded-lg {hitOverlayClass}"></div>
-    {/if}
-    {#if overlayStaticSrc}
-      <div class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center opacity-80">
-        <img src={overlayStaticSrc} alt="ability" class="w-full h-full object-contain" />
-      </div>
-    {/if}
-    <div class="absolute top-0.5 left-0 right-0 text-center text-xs font-bold truncate px-1">
-      {name}
+  <!-- No-sprite layout: role icon floating -->
+  <div class="flex flex-col items-center {isAlive ? '' : 'opacity-30 grayscale'}">
+    <div
+      class="relative flex items-center justify-center rounded-full transition-all duration-200
+        {roleColors[role]}"
+      style="width: {cellSize}px; height: {cellSize}px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));"
+    >
+      {#if hitOverlayClass}
+        <div class="absolute inset-0 z-10 pointer-events-none rounded-full {hitOverlayClass}"></div>
+      {/if}
+      {#if overlayStaticSrc}
+        <div class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center opacity-80">
+          <img src={overlayStaticSrc} alt="ability" class="w-full h-full object-contain" />
+        </div>
+      {/if}
+      <span class="text-2xl font-bold text-white/90">{roleIcons[role]}</span>
     </div>
-
-    <div class="absolute top-6 left-0 right-0 text-center text-3xl font-bold">
-      {roleIcons[role]}
-    </div>
-
-    <div class="absolute bottom-7 left-1 right-1">
-      <div class="h-2.5 bg-gray-900 rounded-full overflow-hidden">
+    <div style="width: {Math.max(cellSize, 72)}px" class="mt-0.5">
+      <div class="text-center font-bold truncate leading-tight text-[10px] text-gray-200">{name}</div>
+      <div class="bg-black/60 rounded-full overflow-hidden mx-auto h-1.5" style="width: {Math.min(cellSize, 96)}px;">
         <div class="h-full transition-all duration-300 {hpColor}" style="width: {hpPercent}%"></div>
       </div>
-    </div>
-
-    <div class="absolute bottom-1 left-0 right-0 text-center text-xs">
-      {currentHp}/{maxHp}
+      <div class="text-center text-gray-400 leading-tight text-[9px]">{currentHp}/{maxHp}</div>
     </div>
   </div>
 {/if}
