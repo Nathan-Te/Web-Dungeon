@@ -3,7 +3,7 @@
   import type { CharacterDefinition, Role, Rarity, BaseStats } from '../game/types';
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { ExpeditionConfig, ExpeditionDuration } from '../admin/adminTypes';
-  import type { PlayerSave, OwnedCharacter, ActiveExpedition, ExpeditionResult } from './playerStore';
+  import type { PlayerSave, OwnedCharacter, ActiveExpedition, ExpeditionResult, TeamPreset } from './playerStore';
   import { isCharacterOnExpedition, getXpForLevel } from './playerStore';
   import { calculateTeamPower, resolveExpedition, previewExpedition } from '../game/expeditionSimulation';
   import SpritePreview from '../components/SpritePreview.svelte';
@@ -16,6 +16,7 @@
     rarityMultipliers?: Partial<Record<Rarity, number>>;
     levelThresholds?: number[];
     isAdmin?: boolean;
+    teamPresets?: TeamPreset[];
     onStartExpedition: (teamCharacterIds: string[], duration: ExpeditionDuration, teamPower: number) => void;
     onCollectExpedition: (expedition: ActiveExpedition, result: ExpeditionResult) => void;
     onForceCompleteExpedition?: (expeditionId: string) => void;
@@ -29,6 +30,7 @@
     rarityMultipliers,
     levelThresholds,
     isAdmin = false,
+    teamPresets,
     onStartExpedition,
     onCollectExpedition,
     onForceCompleteExpedition,
@@ -108,6 +110,19 @@
 
   let maxConcurrent = $derived(expeditionConfig.maxConcurrentExpeditions ?? 3);
   let canStartNew = $derived(activeExpeditions.length < maxConcurrent && availableCharacters.length > 0);
+
+  // Valid team presets (non-empty, with at least some characters available)
+  let availableCharIds = $derived(new Set(availableCharacters.map(c => c.owned.characterId)));
+  let validPresets = $derived(
+    (teamPresets ?? [])
+      .map((preset, index) => ({ preset, index }))
+      .filter(({ preset }) => preset.characterIds.length > 0 && preset.characterIds.some(id => availableCharIds.has(id)))
+  );
+
+  function loadPreset(preset: TeamPreset) {
+    const validIds = preset.characterIds.filter(id => availableCharIds.has(id));
+    selectedTeam = validIds.slice(0, expeditionConfig.maxTeamSize);
+  }
 
   function getStats(owned: OwnedCharacter, def: CharacterDefinition) {
     const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
@@ -354,6 +369,21 @@
         <h3 class="font-bold mb-3 text-gray-300">
           Team ({selectedTeam.length}/{expeditionConfig.maxTeamSize})
         </h3>
+
+        <!-- Team Presets -->
+        {#if validPresets.length > 0}
+          <div class="flex gap-2 flex-wrap mb-3">
+            <span class="text-xs text-gray-500 self-center">Load team:</span>
+            {#each validPresets as { preset, index }}
+              <button
+                onclick={() => loadPreset(preset)}
+                class="px-3 py-1.5 bg-indigo-900 hover:bg-indigo-800 border border-indigo-600 rounded text-xs font-medium text-indigo-300"
+              >
+                {preset.name || `Team ${index + 1}`}
+              </button>
+            {/each}
+          </div>
+        {/if}
 
         {#if availableCharacters.length === 0}
           <div class="text-center text-gray-500 py-4 text-sm">
