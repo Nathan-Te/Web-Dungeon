@@ -19,6 +19,7 @@
     clearPendingGachaReward,
     claimPendingGachaReward,
     awardXp,
+    awardGold,
     startExpedition,
     removeExpedition,
     markRoomXpAwarded,
@@ -130,6 +131,11 @@
     savePlayerSave(playerSave);
   }
 
+  function handleGoldAwarded(amount: number) {
+    playerSave = awardGold(playerSave, amount);
+    savePlayerSave(playerSave);
+  }
+
   function handleStartExpedition(teamCharacterIds: string[], duration: ExpeditionDuration, teamPower: number) {
     playerSave = startExpedition(playerSave, teamCharacterIds, duration, teamPower);
     savePlayerSave(playerSave);
@@ -151,6 +157,10 @@
     // Award XP to the team
     if (result.xpEarned > 0) {
       playerSave = awardXp(playerSave, expedition.teamCharacterIds, result.xpEarned, content.levelThresholds);
+    }
+    // Award gold
+    if (result.goldEarned > 0) {
+      playerSave = awardGold(playerSave, result.goldEarned);
     }
     // Grant gacha pull if won
     if (result.gachaPullWon) {
@@ -267,9 +277,12 @@
   </div>
 
   <!-- Summary bar -->
-  <div class="bg-slate-800 rounded-lg px-4 py-2 mb-4 flex gap-6 text-sm">
+  <div class="bg-slate-800 rounded-lg px-4 py-2 mb-4 flex gap-6 text-sm flex-wrap">
     <span class="text-blue-400">
       {playerSave.collection.length} Characters
+    </span>
+    <span class="text-yellow-500 font-medium">
+      {playerSave.gold ?? 0} Gold
     </span>
     <span class="{playerSave.daily.gachaPullsRemaining <= 0 ? 'text-gray-500' : 'text-yellow-400'}">
       Gacha: {playerSave.daily.gachaPullsRemaining <= 0 ? 'No pulls' : `${playerSave.daily.gachaPullsRemaining} pull${playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''}`}
@@ -343,6 +356,7 @@
           onDungeonCleared={handleDungeonCleared}
           onXpAwarded={handleXpAwarded}
           onRoomXpAwarded={handleRoomXpAwarded}
+          onGoldAwarded={handleGoldAwarded}
         />
       {/if}
     {:else}

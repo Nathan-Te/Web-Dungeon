@@ -522,6 +522,17 @@
                           class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
                         />
                       </div>
+                      <div>
+                        <span class="block text-xs text-gray-400 mb-0.5">Gold Reward</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="9999"
+                          value={room.goldReward ?? 0}
+                          oninput={(e) => updateRoom(i, { ...room, goldReward: parseInt(e.currentTarget.value) || 0 })}
+                          class="w-full px-2 py-1 bg-slate-700 rounded text-xs"
+                        />
+                      </div>
                       <div class="flex items-end gap-1 pb-0.5">
                         <input
                           type="checkbox"
