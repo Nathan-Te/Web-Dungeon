@@ -22,6 +22,8 @@
     startExpedition,
     removeExpedition,
     markRoomXpAwarded,
+    saveTeamPreset,
+    deleteTeamPreset,
     type PlayerSave,
     type ActiveExpedition,
     type ExpeditionResult,
@@ -31,6 +33,7 @@
   import CollectionSection from './CollectionSection.svelte';
   import DailyDungeonSection from './DailyDungeonSection.svelte';
   import ExpeditionSection from './ExpeditionSection.svelte';
+  import TeamSection from './TeamSection.svelte';
   import SaveSync from './SaveSync.svelte';
 
   interface Props {
@@ -39,7 +42,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition';
+  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition' | 'teams';
   let activeSection: Section = $state('collection');
   let gachaAnimating = $state(false);
 
@@ -193,8 +196,19 @@
   let activeExpeditionCount = $derived((playerSave.expeditions ?? []).length);
   let isAdmin = $derived(sessionStorage.getItem('dungeon-admin-auth') === 'true');
 
+  function handleSaveTeam(slotIndex: number, name: string, characterIds: string[]) {
+    playerSave = saveTeamPreset(playerSave, slotIndex, name, characterIds);
+    savePlayerSave(playerSave);
+  }
+
+  function handleDeleteTeam(slotIndex: number) {
+    playerSave = deleteTeamPreset(playerSave, slotIndex);
+    savePlayerSave(playerSave);
+  }
+
   const sections: { key: Section; label: string; icon: string }[] = [
     { key: 'collection', label: 'Collection', icon: '' },
+    { key: 'teams', label: 'Teams', icon: '' },
     { key: 'gacha', label: 'Gacha', icon: '' },
     { key: 'dungeon', label: 'Dungeon', icon: '' },
     { key: 'expedition', label: 'Expedition', icon: '' },
@@ -324,6 +338,7 @@
           rarityMultipliers={content.rarityMultipliers}
           levelThresholds={content.levelThresholds}
           {maxTeamSize}
+          teamPresets={playerSave.teams}
           onAttemptUsed={handleDungeonAttemptUsed}
           onDungeonCleared={handleDungeonCleared}
           onXpAwarded={handleXpAwarded}
@@ -346,6 +361,7 @@
         rarityMultipliers={content.rarityMultipliers}
         levelThresholds={content.levelThresholds}
         {isAdmin}
+        teamPresets={playerSave.teams}
         onStartExpedition={handleStartExpedition}
         onCollectExpedition={handleCollectExpedition}
         onForceCompleteExpedition={handleForceCompleteExpedition}
@@ -355,6 +371,16 @@
         Expeditions are not configured yet. An admin needs to set them up.
       </div>
     {/if}
+
+  {:else if activeSection === 'teams'}
+    <TeamSection
+      {playerSave}
+      characters={content.characters}
+      roleStats={content.roleStats}
+      rarityMultipliers={content.rarityMultipliers}
+      onSaveTeam={handleSaveTeam}
+      onDeleteTeam={handleDeleteTeam}
+    />
 
   {:else if activeSection === 'collection'}
     <CollectionSection

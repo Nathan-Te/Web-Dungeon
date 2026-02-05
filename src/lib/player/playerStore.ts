@@ -66,6 +66,19 @@ export interface ExpeditionResult {
   gachaChance: number;
 }
 
+/** A saved team preset */
+export interface TeamPreset {
+  /** Preset name (user-editable) */
+  name: string;
+  /** Character IDs in this team (up to 6) */
+  characterIds: string[];
+}
+
+/** Maximum number of team presets a player can save */
+export const MAX_TEAM_PRESETS = 3;
+/** Maximum number of characters per team preset */
+export const MAX_TEAM_SIZE = 6;
+
 /** Complete player save data */
 export interface PlayerSave {
   version: number;
@@ -77,6 +90,8 @@ export interface PlayerSave {
   expeditions?: ActiveExpedition[];
   /** Pity counters: number of pulls since last occurrence of each rarity */
   pityCounters?: Record<string, number>;
+  /** Saved team presets */
+  teams?: TeamPreset[];
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
@@ -408,6 +423,42 @@ export function removeExpedition(save: PlayerSave, expeditionId: string): Player
 /** Check if a character is currently on an expedition */
 export function isCharacterOnExpedition(save: PlayerSave, characterId: string): boolean {
   return (save.expeditions ?? []).some(exp => exp.teamCharacterIds.includes(characterId));
+}
+
+// --- Team preset helpers ---
+
+/** Save a team preset at the given slot index (0-2) */
+export function saveTeamPreset(
+  save: PlayerSave,
+  slotIndex: number,
+  name: string,
+  characterIds: string[],
+): PlayerSave {
+  if (slotIndex < 0 || slotIndex >= MAX_TEAM_PRESETS) return save;
+  const teams = [...(save.teams ?? [])];
+  // Pad with empty presets if needed
+  while (teams.length <= slotIndex) {
+    teams.push({ name: '', characterIds: [] });
+  }
+  teams[slotIndex] = { name, characterIds: characterIds.slice(0, MAX_TEAM_SIZE) };
+  return { ...save, teams };
+}
+
+/** Delete a team preset at the given slot index */
+export function deleteTeamPreset(save: PlayerSave, slotIndex: number): PlayerSave {
+  if (slotIndex < 0 || slotIndex >= MAX_TEAM_PRESETS) return save;
+  const teams = [...(save.teams ?? [])];
+  if (slotIndex < teams.length) {
+    teams[slotIndex] = { name: '', characterIds: [] };
+  }
+  return { ...save, teams };
+}
+
+/** Get a team preset by slot index (returns undefined if not set) */
+export function getTeamPreset(save: PlayerSave, slotIndex: number): TeamPreset | undefined {
+  const preset = save.teams?.[slotIndex];
+  if (!preset || preset.characterIds.length === 0) return undefined;
+  return preset;
 }
 
 // --- Cross-device sync ---

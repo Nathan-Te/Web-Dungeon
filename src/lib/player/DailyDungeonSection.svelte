@@ -20,7 +20,7 @@
   import type { BaseStats, Rarity } from '../game/types';
   import type { Dungeon, DungeonRoom, EnemyTemplate, GachaConfig } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
-  import type { PlayerSave, OwnedCharacter } from './playerStore';
+  import type { PlayerSave, OwnedCharacter, TeamPreset } from './playerStore';
   import { getXpForLevel, hasRoomAwardedXp } from './playerStore';
   import BattleGrid from '../components/BattleGrid.svelte';
   import BattleLog from '../components/BattleLog.svelte';
@@ -37,13 +37,27 @@
     rarityMultipliers?: Partial<Record<Rarity, number>>;
     levelThresholds?: number[];
     maxTeamSize?: number;
+    teamPresets?: TeamPreset[];
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
     onRoomXpAwarded: (roomIndex: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded }: Props = $props();
+
+  // Valid team presets (non-empty, all characters still owned)
+  let validPresets = $derived(
+    (teamPresets ?? [])
+      .map((preset, index) => ({ preset, index }))
+      .filter(({ preset }) => preset.characterIds.length > 0)
+  );
+
+  function loadPreset(preset: TeamPreset) {
+    const ownedIds = new Set(playerSave.collection.map(c => c.characterId));
+    const validIds = preset.characterIds.filter(id => ownedIds.has(id));
+    selectedIds = validIds.slice(0, maxTeamSize);
+  }
 
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
@@ -568,6 +582,21 @@
       {#if ownedCharacters.length === 0}
         <p class="text-gray-500 py-4">You have no characters yet. Pull from the Gacha first!</p>
       {:else}
+        <!-- Team Presets -->
+        {#if validPresets.length > 0}
+          <div class="flex gap-2 flex-wrap mb-3">
+            <span class="text-xs text-gray-500 self-center">Load team:</span>
+            {#each validPresets as { preset, index }}
+              <button
+                onclick={() => loadPreset(preset)}
+                class="px-3 py-1.5 bg-indigo-900 hover:bg-indigo-800 border border-indigo-600 rounded text-xs font-medium text-indigo-300"
+              >
+                {preset.name || `Team ${index + 1}`}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
         <div class="flex gap-3 flex-wrap mb-4">
           {#each ownedCharacters as { owned, def }}
             <button
