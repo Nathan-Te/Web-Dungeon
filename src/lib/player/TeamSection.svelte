@@ -104,6 +104,20 @@
       .filter((x): x is { owned: OwnedCharacter; def: CharacterDefinition } => x.def !== undefined)
   );
 
+  function getCharPower(owned: OwnedCharacter, def: CharacterDefinition): number {
+    const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
+    const rarityMult = rarityMultipliers?.[def.rarity] ?? 1;
+    const levelMult = 1 + (owned.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
+    const ascMult = 1 + owned.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
+    const stats = {
+      hp: Math.round(base.hp * rarityMult * levelMult * ascMult),
+      atk: Math.round(base.atk * rarityMult * levelMult * ascMult),
+      def: Math.round(base.def * rarityMult * levelMult * ascMult),
+      spd: Math.round(base.spd * rarityMult * levelMult * ascMult),
+    };
+    return calculateCharacterPower(stats, def.role);
+  }
+
   function getTeamPower(characterIds: string[]): number {
     let total = 0;
     for (const id of characterIds) {
@@ -155,9 +169,10 @@
         <div class="flex gap-3 flex-wrap mb-4">
           {#each ownedCharacters as { owned, def }}
             {@const isSelected = editSelection.includes(owned.characterId)}
+            {@const power = getCharPower(owned, def)}
             <button
               onclick={() => toggleCharacter(owned.characterId)}
-              class="relative w-28 h-36 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
+              class="relative w-28 h-40 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {RARITY_BORDER[def.rarity]}
                 {isSelected
                   ? 'ring-2 ring-indigo-400 scale-105'
@@ -173,8 +188,9 @@
               {/if}
               <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20 mt-1" />
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
-              <span class="text-[9px] capitalize text-gray-400">{def.role}</span>
+              <span class="text-[9px] {ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+              <span class="text-[8px] text-indigo-400 font-medium">{power} PWR</span>
             </button>
           {/each}
         </div>
