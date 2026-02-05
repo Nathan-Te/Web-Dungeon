@@ -21,7 +21,7 @@
   import type { Dungeon, DungeonRoom, EnemyTemplate, GachaConfig } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave, OwnedCharacter, TeamPreset } from './playerStore';
-  import { getXpForLevel, hasRoomAwardedXp } from './playerStore';
+  import { getXpForLevel, hasRoomAwardedXp, isCharacterOnExpedition } from './playerStore';
   import BattleGrid from '../components/BattleGrid.svelte';
   import BattleLog from '../components/BattleLog.svelte';
 
@@ -42,9 +42,10 @@
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
     onRoomXpAwarded: (roomIndex: number) => void;
+    onGoldAwarded: (amount: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
 
   // Valid team presets (non-empty, all characters still owned)
   let validPresets = $derived(
@@ -121,6 +122,7 @@
   }
   let xpGains: XpGainEntry[] = $state([]);
   let showXpScreen = $state(false);
+  let roomGoldGained = $state(0);
 
   // Track boss/summoner
   let enemyBossIds: Set<string> = new Set();
@@ -134,9 +136,10 @@
   let latestResult = $derived(roomResults.length > 0 ? roomResults[roomResults.length - 1].result : null);
   let currentRoom = $derived(currentRoomIndex < dungeon.rooms.length ? dungeon.rooms[currentRoomIndex] : null);
 
-  // Owned characters available for selection
+  // Owned characters available for selection (exclude those on expedition)
   let ownedCharacters = $derived(
     playerSave.collection
+      .filter((o) => !isCharacterOnExpedition(playerSave, o.characterId))
       .map((o) => ({ owned: o, def: characters.find((c) => c.id === o.characterId) }))
       .filter((x): x is { owned: OwnedCharacter; def: CharacterDefinition } => x.def !== undefined)
   );
@@ -385,10 +388,17 @@
       }
     }
 
-    // Award XP to survivors if room was won (skip if already awarded for this room index)
+    // Award XP and Gold to survivors if room was won (skip if already awarded for this room index)
     if (result.winner === 'player') {
       const xp = room.xpReward ?? 0;
+      const gold = room.goldReward ?? 0;
       const alreadyAwarded = hasRoomAwardedXp(playerSave, currentRoomIndex);
+      if (gold > 0 && !alreadyAwarded) {
+        roomGoldGained = gold;
+        onGoldAwarded(gold);
+      } else {
+        roomGoldGained = 0;
+      }
       if (xp > 0 && !alreadyAwarded) {
         onRoomXpAwarded(currentRoomIndex);
         const survivorIds = Array.from(survivorHp.keys());
@@ -709,7 +719,12 @@
       <div class="xl:w-80 xl:flex-shrink-0 xl:order-3">
         {#if battleDone && canContinue && showXpScreen && xpGains.length > 0}
           <div class="mt-4 xl:mt-0 bg-slate-800 rounded-lg p-4">
-            <h3 class="text-center font-bold text-cyan-400 mb-3">XP Gained!</h3>
+            <h3 class="text-center font-bold text-cyan-400 mb-3">Rewards!</h3>
+            {#if roomGoldGained > 0}
+              <div class="flex items-center justify-center gap-1 mb-3 text-sm">
+                <span class="text-yellow-500 font-bold">+{roomGoldGained} Gold</span>
+              </div>
+            {/if}
             <div class="space-y-3">
               {#each xpGains as entry}
                 {@const xpNeeded = getXpForLevel(entry.newLevel, levelThresholds)}

@@ -324,6 +324,11 @@
         </div>
 
         <div class="flex items-center justify-between bg-slate-900 rounded p-3">
+          <span class="text-gray-400">Gold</span>
+          <span class="text-yellow-500 font-bold">+{lastResult.goldEarned} Gold</span>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-900 rounded p-3">
           <span class="text-gray-400">Gacha Pull</span>
           {#if lastResult.gachaPullWon}
             <span class="text-yellow-400 font-bold">+1 Pull Won!</span>
@@ -419,7 +424,7 @@
       {#if preview && selectedTeam.length > 0}
         <div class="bg-slate-800 rounded-lg p-4">
           <h3 class="font-bold mb-3 text-gray-300">Preview</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
             <div class="bg-slate-900 rounded p-2">
               <div class="text-[10px] text-gray-500">Team Power</div>
               <div class="text-sm font-bold text-emerald-400">{teamPower}</div>
@@ -431,6 +436,10 @@
             <div class="bg-slate-900 rounded p-2">
               <div class="text-[10px] text-gray-500">Est. XP</div>
               <div class="text-sm font-bold text-cyan-400">~{preview.estimatedXp}</div>
+            </div>
+            <div class="bg-slate-900 rounded p-2">
+              <div class="text-[10px] text-gray-500">Est. Gold</div>
+              <div class="text-sm font-bold text-yellow-500">~{preview.estimatedGold}</div>
             </div>
             <div class="bg-slate-900 rounded p-2">
               <div class="text-[10px] text-gray-500">Gacha Chance</div>

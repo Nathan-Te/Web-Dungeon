@@ -92,6 +92,15 @@
         />
       </label>
       <label class="block">
+        <span class="text-xs text-gray-400">Base Gold / Wave</span>
+        <input
+          type="number"
+          min="0"
+          bind:value={config.baseGoldPerWave}
+          class="mt-1 w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded text-sm"
+        />
+      </label>
+      <label class="block">
         <span class="text-xs text-gray-400">Base Gacha Chance</span>
         <input
           type="number"

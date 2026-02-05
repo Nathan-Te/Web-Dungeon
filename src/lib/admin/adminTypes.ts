@@ -74,6 +74,8 @@ export interface DungeonRoom {
   difficultyMult: number;
   /** XP reward shared among surviving characters when room is cleared */
   xpReward: number;
+  /** Gold reward earned when room is cleared */
+  goldReward: number;
 }
 
 /** Enemy placement in a dungeon room */
@@ -112,6 +114,8 @@ export interface ExpeditionConfig {
   durationTiers: Record<ExpeditionDuration, ExpeditionDurationTier>;
   /** Base XP reward per wave cleared */
   baseXpPerWave: number;
+  /** Base gold reward per wave cleared */
+  baseGoldPerWave: number;
   /** Base gacha pull chance (0-1) for a 4h expedition at power ratio 1.0 */
   baseGachaChance: number;
   /** Gacha chance multiplier per duration tier (applied to baseGachaChance) */
@@ -205,6 +209,7 @@ export function createBlankRoom(roomNumber: number): DungeonRoom {
     enemies: [],
     difficultyMult: 1 + (roomNumber - 1) * 0.1,
     xpReward: roomNumber * 10,
+    goldReward: roomNumber * 15,
   };
 }
 
@@ -239,6 +244,7 @@ export function createDefaultExpeditionConfig(): ExpeditionConfig {
     maxTeamSize: 5,
     maxConcurrentExpeditions: 3,
     baseXpPerWave: 15,
+    baseGoldPerWave: 10,
     baseGachaChance: 0.05,
     gachaChanceMultiplier: { 4: 1.0, 8: 1.8, 12: 2.5, 24: 4.0 },
     powerRatioGachaBonus: 0.5,

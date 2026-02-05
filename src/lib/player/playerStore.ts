@@ -60,6 +60,8 @@ export interface ExpeditionResult {
   fullClear: boolean;
   /** XP earned (shared among team) */
   xpEarned: number;
+  /** Gold earned */
+  goldEarned: number;
   /** Whether the gacha pull was won */
   gachaPullWon: boolean;
   /** The gacha chance that was rolled against */
@@ -92,6 +94,8 @@ export interface PlayerSave {
   pityCounters?: Record<string, number>;
   /** Saved team presets */
   teams?: TeamPreset[];
+  /** Gold currency */
+  gold: number;
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
@@ -116,6 +120,7 @@ function createDefaultSave(): PlayerSave {
     version: CURRENT_PLAYER_VERSION,
     collection: [],
     daily: createFreshDaily(),
+    gold: 0,
   };
   // New players get 3 bonus gacha pulls on top of the daily pull
   save.daily.gachaPullsRemaining = 1 + 3;
@@ -180,6 +185,9 @@ export function loadPlayerSave(): PlayerSave {
     for (const c of save.collection) {
       if (typeof c.xp !== 'number') c.xp = 0;
     }
+
+    // Migrate saves missing gold field
+    if (typeof save.gold !== 'number') save.gold = 0;
 
     return save;
   } catch {
@@ -340,6 +348,12 @@ export function awardXp(
       return { ...c, xp, level };
     }),
   };
+}
+
+/** Award gold to the player */
+export function awardGold(save: PlayerSave, amount: number): PlayerSave {
+  if (amount <= 0) return save;
+  return { ...save, gold: (save.gold ?? 0) + amount };
 }
 
 /** Reset player save completely */

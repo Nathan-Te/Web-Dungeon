@@ -96,6 +96,11 @@ export function resolveExpedition(
     config.baseXpPerWave * tier.xpMultiplier * wavesCleared
   );
 
+  // Gold: baseGoldPerWave * xpMultiplier * wavesCleared (reuse xpMultiplier for scaling)
+  const goldEarned = Math.floor(
+    (config.baseGoldPerWave ?? 10) * tier.xpMultiplier * wavesCleared
+  );
+
   // Gacha chance calculation
   const durationMult = config.gachaChanceMultiplier[expedition.duration];
   const powerBonus = Math.min(powerRatio, 2.0) * config.powerRatioGachaBonus;
@@ -111,6 +116,7 @@ export function resolveExpedition(
     totalWaves: tier.totalWaves,
     fullClear,
     xpEarned,
+    goldEarned,
     gachaPullWon,
     gachaChance,
   };
@@ -124,7 +130,7 @@ export function previewExpedition(
   teamPower: number,
   duration: ExpeditionDuration,
   config: ExpeditionConfig,
-): { estimatedWaves: number; totalWaves: number; estimatedXp: number; gachaChance: number; clearChance: number } {
+): { estimatedWaves: number; totalWaves: number; estimatedXp: number; estimatedGold: number; gachaChance: number; clearChance: number } {
   const tier = config.durationTiers[duration];
   const powerRatio = teamPower / Math.max(1, tier.requiredPower);
 
@@ -143,6 +149,7 @@ export function previewExpedition(
   const estimatedWaves = Math.round(expectedWaves);
   const clearChance = survivalProb;
   const estimatedXp = Math.floor(config.baseXpPerWave * tier.xpMultiplier * estimatedWaves);
+  const estimatedGold = Math.floor((config.baseGoldPerWave ?? 10) * tier.xpMultiplier * estimatedWaves);
 
   // Gacha chance (same formula as resolveExpedition, using expected clear rate)
   const durationMult = config.gachaChanceMultiplier[duration];
@@ -152,5 +159,5 @@ export function previewExpedition(
   gachaChance = Math.min(gachaChance, config.maxGachaChance);
   gachaChance = Math.max(0, gachaChance);
 
-  return { estimatedWaves, totalWaves: tier.totalWaves, estimatedXp, gachaChance, clearChance };
+  return { estimatedWaves, totalWaves: tier.totalWaves, estimatedXp, estimatedGold, gachaChance, clearChance };
 }
