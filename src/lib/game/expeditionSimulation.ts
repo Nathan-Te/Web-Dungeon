@@ -4,18 +4,57 @@
  * Uses seeded RNG for deterministic results.
  */
 
+import type { Role } from './types';
 import type { ExpeditionConfig, ExpeditionDuration } from '../admin/adminTypes';
 import type { ActiveExpedition, ExpeditionResult } from '../player/playerStore';
 import { SeededRNG } from './rng';
 
 /**
+ * Role-specific stat weights for power calculation.
+ *
+ * Each role contributes to team power differently based on its combat function:
+ * - Tanks: valued for survivability (HP, DEF) — they absorb damage for the team
+ * - Warriors: balanced front-liners — good ATK and solid DEF
+ * - Archers: ranged damage dealers — high ATK value, fast
+ * - Mages: burst casters — highest ATK weight, glass cannon
+ * - Assassins: speed-burst killers — fast strikes, high SPD value
+ * - Healers: sustain providers — their ATK scales healing, team lifeline
+ * - Summoners: force multipliers — ATK scales summons, add extra bodies
+ *
+ * Weights are tuned so that all roles at level 1 produce ~similar power (~1000-1150).
+ */
+const ROLE_POWER_WEIGHTS: Record<Role, { hp: number; atk: number; def: number; spd: number }> = {
+  tank:     { hp: 0.5, atk: 2.0, def: 2.5, spd: 2.0 },
+  warrior:  { hp: 0.8, atk: 3.0, def: 1.5, spd: 1.5 },
+  archer:   { hp: 0.5, atk: 3.5, def: 1.0, spd: 2.5 },
+  mage:     { hp: 0.5, atk: 3.5, def: 1.0, spd: 2.0 },
+  assassin: { hp: 0.5, atk: 3.0, def: 1.0, spd: 2.5 },
+  healer:   { hp: 1.0, atk: 4.0, def: 1.5, spd: 2.0 },
+  summoner: { hp: 0.8, atk: 3.5, def: 1.0, spd: 2.5 },
+};
+
+/** Default weights used when no role is provided (backward-compatible) */
+const DEFAULT_POWER_WEIGHTS = { hp: 0.6, atk: 3.0, def: 1.5, spd: 2.0 };
+
+/**
+ * Calculate power contribution of a single character based on its role.
+ */
+export function calculateCharacterPower(
+  stats: { hp: number; atk: number; def: number; spd: number },
+  role?: Role,
+): number {
+  const w = role ? ROLE_POWER_WEIGHTS[role] : DEFAULT_POWER_WEIGHTS;
+  return Math.round(stats.hp * w.hp + stats.atk * w.atk + stats.def * w.def + stats.spd * w.spd);
+}
+
+/**
  * Calculate team power from character stats.
- * Power = sum of (hp + atk*4 + def*2 + spd) for each unit.
+ * Uses role-aware weights when role is provided, otherwise falls back to default weights.
  */
 export function calculateTeamPower(
-  stats: { hp: number; atk: number; def: number; spd: number }[]
+  stats: { hp: number; atk: number; def: number; spd: number; role?: Role }[]
 ): number {
-  return stats.reduce((sum, s) => sum + s.hp + s.atk * 4 + s.def * 2 + s.spd, 0);
+  return stats.reduce((sum, s) => sum + calculateCharacterPower(s, s.role), 0);
 }
 
 /**
