@@ -141,8 +141,8 @@
     return selectedTeam.map(id => {
       const owned = playerSave.collection.find(c => c.characterId === id);
       const def = characters.find(c => c.id === id);
-      if (!owned || !def) return { hp: 0, atk: 0, def: 0, spd: 0 };
-      return getStats(owned, def);
+      if (!owned || !def) return { hp: 0, atk: 0, def: 0, spd: 0, role: 'warrior' as const };
+      return { ...getStats(owned, def), role: def.role };
     });
   }
 

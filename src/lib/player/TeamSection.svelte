@@ -3,6 +3,7 @@
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { PlayerSave, OwnedCharacter, TeamPreset } from './playerStore';
   import { MAX_TEAM_PRESETS, MAX_TEAM_SIZE } from './playerStore';
+  import { calculateCharacterPower } from '../game/expeditionSimulation';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
@@ -32,6 +33,16 @@
     tank: 'bg-blue-900', warrior: 'bg-orange-900', archer: 'bg-green-900',
     mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
     summoner: 'bg-teal-900',
+  };
+
+  const ROLE_TEXT_COLORS: Record<Role, string> = {
+    tank: 'text-blue-400', warrior: 'text-orange-400', archer: 'text-green-400', mage: 'text-purple-400',
+    assassin: 'text-red-400', healer: 'text-pink-400', summoner: 'text-teal-400',
+  };
+
+  const ROLE_LABELS: Record<Role, string> = {
+    tank: 'Tank', warrior: 'Warrior', archer: 'Archer', mage: 'Mage',
+    assassin: 'Assassin', healer: 'Healer', summoner: 'Summoner',
   };
 
   // Editing state
@@ -103,11 +114,13 @@
       const rarityMult = rarityMultipliers?.[def.rarity] ?? 1;
       const levelMult = 1 + (owned.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
       const ascMult = 1 + owned.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
-      const hp = Math.round(base.hp * rarityMult * levelMult * ascMult);
-      const atk = Math.round(base.atk * rarityMult * levelMult * ascMult);
-      const def_ = Math.round(base.def * rarityMult * levelMult * ascMult);
-      const spd = Math.round(base.spd * rarityMult * levelMult * ascMult);
-      total += hp + atk * 4 + def_ * 2 + spd;
+      const stats = {
+        hp: Math.round(base.hp * rarityMult * levelMult * ascMult),
+        atk: Math.round(base.atk * rarityMult * levelMult * ascMult),
+        def: Math.round(base.def * rarityMult * levelMult * ascMult),
+        spd: Math.round(base.spd * rarityMult * levelMult * ascMult),
+      };
+      total += calculateCharacterPower(stats, def.role);
     }
     return total;
   }
@@ -237,7 +250,10 @@
                     </div>
                     <div class="min-w-0">
                       <div class="text-sm font-medium truncate">{def.name}</div>
-                      <div class="text-[10px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</div>
+                      <div class="flex items-center gap-1.5 text-[10px]">
+                        <span class="{ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
+                        <span class="text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+                      </div>
                     </div>
                   </div>
                 {:else}
