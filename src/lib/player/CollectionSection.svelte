@@ -4,6 +4,7 @@
   import type { GachaConfig } from '../admin/adminTypes';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
   import { getXpForLevel } from './playerStore';
+  import { calculateCharacterPower } from '../game/expeditionSimulation';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
@@ -35,6 +36,16 @@
   const ROLE_ICONS: Record<Role, string> = {
     tank: 'T', warrior: 'W', archer: 'A', mage: 'M',
     assassin: 'X', healer: 'H', summoner: 'S',
+  };
+
+  const ROLE_TEXT_COLORS: Record<Role, string> = {
+    tank: 'text-blue-400', warrior: 'text-orange-400', archer: 'text-green-400', mage: 'text-purple-400',
+    assassin: 'text-red-400', healer: 'text-pink-400', summoner: 'text-teal-400',
+  };
+
+  const ROLE_LABELS: Record<Role, string> = {
+    tank: 'Tank', warrior: 'Warrior', archer: 'Archer', mage: 'Mage',
+    assassin: 'Assassin', healer: 'Healer', summoner: 'Summoner',
   };
 
   let selectedCharId: string | null = $state(null);
@@ -88,9 +99,11 @@
       {#each playerSave.collection as owned}
         {@const def = getCharDef(owned.characterId)}
         {#if def}
+          {@const charStats = getStats(owned, def)}
+          {@const power = calculateCharacterPower(charStats, def.role)}
           <button
             onclick={() => selectedCharId = selectedCharId === owned.characterId ? null : owned.characterId}
-            class="relative w-28 h-36 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
+            class="relative w-28 h-40 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
               {RARITY_BORDER[def.rarity]}
               {selectedCharId === owned.characterId ? 'ring-2 ring-white scale-105' : 'hover:brightness-125'}
               bg-slate-800"
@@ -100,7 +113,9 @@
             {/if}
             <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20" />
             <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
+            <span class="text-[9px] {ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
             <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+            <span class="text-[8px] text-indigo-400 font-medium">{power} PWR</span>
           </button>
         {/if}
       {/each}
@@ -110,6 +125,7 @@
     {#if selectedChar && selectedOwned}
       {@const stats = getStats(selectedOwned, selectedChar)}
       {@const cost = getAscensionCost(selectedOwned.ascension)}
+      {@const detailPower = calculateCharacterPower(stats, selectedChar.role)}
       <div class="bg-slate-800 rounded-lg p-4 max-w-md mx-auto border {RARITY_BORDER[selectedChar.rarity]}">
         <div class="flex gap-4">
           <!-- Sprite -->
@@ -121,7 +137,8 @@
             <h3 class="font-bold text-lg">{selectedChar.name}</h3>
             <div class="flex gap-2 text-xs">
               <span class="capitalize {RARITY_TEXT[selectedChar.rarity]}">{selectedChar.rarity}</span>
-              <span class="text-gray-400 capitalize">{selectedChar.role}</span>
+              <span class="{ROLE_TEXT_COLORS[selectedChar.role]}">{ROLE_LABELS[selectedChar.role]}</span>
+              <span class="text-indigo-400 font-bold">{detailPower} PWR</span>
             </div>
             <div class="text-sm">
               <span class="text-yellow-400">Ascension {selectedOwned.ascension}</span>
