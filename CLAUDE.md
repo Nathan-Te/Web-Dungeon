@@ -249,3 +249,20 @@ Editors for: characters, enemies, dungeons, abilities, gacha config, expedition 
 - **Role-colored UI**: Each role has consistent colors across the app (border, text, background).
 - **SpritePreview for lists**: Always use `SpritePreview.svelte` for non-battle character displays.
 - **CharacterCard for combat**: Only use `CharacterCard.svelte` inside `BattleGrid` during active battles.
+
+---
+
+## Git Workflow
+
+After committing and pushing changes, **always create a Pull Request and merge it into `main`** automatically:
+
+```bash
+# 1. Push the branch
+git push -u origin <branch-name>
+
+# 2. Create the PR and merge it immediately
+gh pr create --title "<title>" --body "<body>" --base main
+gh pr merge --merge --delete-branch
+```
+
+Do NOT wait for manual review — merge directly after push.
