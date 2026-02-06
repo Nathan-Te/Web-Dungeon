@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { CharacterDefinition, BaseStats, Role } from '../game/types';
   import type { AbilityDefinition } from '../game/abilities';
-  import type { GameContent, EnemyTemplate, Dungeon } from './adminTypes';
+  import type { GameContent, EnemyTemplate, Dungeon, Tower } from './adminTypes';
   import {
     loadContent,
     saveContent,
@@ -17,6 +17,8 @@
     deleteDungeon,
     upsertAbility,
     deleteAbility,
+    upsertTower,
+    deleteTower,
     publishContentOnline,
     getGitHubToken,
     setGitHubToken,
@@ -29,6 +31,7 @@
   import RolesReference from './RolesReference.svelte';
   import GachaConfigEditor from './GachaConfigEditor.svelte';
   import ExpeditionConfigEditor from './ExpeditionConfigEditor.svelte';
+  import TowerEditor from './TowerEditor.svelte';
   import SaveEditor from './SaveEditor.svelte';
   import type { GachaConfig, ExpeditionConfig } from './adminTypes';
 
@@ -38,7 +41,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'saves' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'towers' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'saves' | 'data';
   let activeTab: Tab = $state('characters');
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
@@ -85,6 +88,14 @@
   }
   function onDeleteDungeon(id: string) {
     save(deleteDungeon(content, id));
+  }
+
+  // Tower CRUD
+  function onSaveTower(tower: Tower) {
+    save(upsertTower(content, tower));
+  }
+  function onDeleteTower(id: string) {
+    save(deleteTower(content, id));
   }
 
   // Ability CRUD
@@ -191,6 +202,7 @@
     { key: 'characters', label: 'Characters', count: () => content.characters.length },
     { key: 'enemies', label: 'Enemies', count: () => content.enemies.length },
     { key: 'dungeons', label: 'Dungeons', count: () => content.dungeons.length },
+    { key: 'towers', label: 'Tours', count: () => (content.towers ?? []).length },
     { key: 'spells', label: 'Spells', count: () => content.abilities.length },
     { key: 'roles', label: 'Roles', count: () => 0 },
     { key: 'gacha', label: 'Gacha', count: () => content.gachaConfig?.characterPool.length ?? 0 },
@@ -279,6 +291,13 @@
       onSaveDailyDungeon={onSaveDailyDungeon}
       onSaveSchedule={onSaveSchedule}
     />
+  {:else if activeTab === 'towers'}
+    <TowerEditor
+      towers={content.towers ?? []}
+      dungeons={content.dungeons}
+      onSave={onSaveTower}
+      onDelete={onDeleteTower}
+    />
   {:else if activeTab === 'spells'}
     <SpellEditor
       abilities={content.abilities}
@@ -321,6 +340,10 @@
           <div class="bg-slate-900 rounded p-3">
             <div class="text-2xl font-bold text-amber-400">{content.dungeons.length}</div>
             <div class="text-xs text-gray-400">Dungeons</div>
+          </div>
+          <div class="bg-slate-900 rounded p-3">
+            <div class="text-2xl font-bold text-indigo-400">{(content.towers ?? []).length}</div>
+            <div class="text-xs text-gray-400">Tours</div>
           </div>
           <div class="bg-slate-900 rounded p-3">
             <div class="text-2xl font-bold text-purple-400">{content.abilities.length}</div>
