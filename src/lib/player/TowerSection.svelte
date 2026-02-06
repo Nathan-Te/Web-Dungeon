@@ -45,6 +45,7 @@
   let selectedStage: TowerStage | null = $state(null);
   let activeDungeon: Dungeon | null = $state(null);
   let stageCleared = $state(false);
+  let shouldAutoStart = $state(false);
   let nextStageCountdown = $state(0);
   let nextStageTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -57,11 +58,12 @@
     viewState = 'stages';
   }
 
-  function startStage(stage: TowerStage) {
+  function startStage(stage: TowerStage, autoStart = false) {
     const dungeon = dungeons.find(d => d.id === stage.dungeonId);
     if (!dungeon) return;
     selectedStage = stage;
     activeDungeon = dungeon;
+    shouldAutoStart = autoStart;
     viewState = 'battle';
   }
 
@@ -97,7 +99,7 @@
     if (!next) return;
     stopNextStageCountdown();
     stageCleared = false;
-    startStage(next);
+    startStage(next, true);
   }
 
   function startNextStageCountdown() {
@@ -193,6 +195,7 @@
       maxTeamSize={activeDungeon.maxTeamSize ?? 5}
       {teamPresets}
       unlimitedAttempts={true}
+      autoStart={shouldAutoStart}
       onAttemptUsed={handleAttemptUsed}
       onDungeonCleared={handleStageCleared}
       onXpAwarded={onXpAwarded}
