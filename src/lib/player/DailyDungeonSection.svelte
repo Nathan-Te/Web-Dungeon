@@ -644,12 +644,12 @@
 
   {:else if phase === 'running'}
     <!-- Battle in progress -->
-    <div class="flex items-center justify-center gap-4 mb-2">
-      <span class="text-sm text-gray-400">
+    <div class="flex items-center justify-center gap-2 sm:gap-4 mb-2 flex-wrap">
+      <span class="text-xs sm:text-sm text-gray-400">
         Room {currentRoomIndex + 1}/{dungeon.rooms.length} — {currentRoom?.name ?? ''}
       </span>
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">Speed:</span>
+      <div class="flex items-center gap-1 sm:gap-2">
+        <span class="text-[10px] sm:text-xs text-gray-500">Speed:</span>
         <select
           bind:value={playbackSpeed}
           onchange={() => {

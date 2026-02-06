@@ -59,14 +59,11 @@
    * col-based horizontal jitter adds scatter.
    */
   function laneOffsetY(row: number): number {
-    // Front row = lower on the battlefield, back row = higher
-    // Row 0: +20px, Row 1: 0px, Row 2: -16px, Row 3: +32px (summon row)
     const offsets: Record<number, number> = { 0: 20, 1: 0, 2: -16, 3: 32 };
     return offsets[row] ?? 0;
   }
 
   function jitterX(col: number, row: number): number {
-    // Small horizontal offset based on col+row to break perfect alignment
     const seeds = [0, 8, -6, 12, -10, 4];
     return seeds[(col * 3 + row) % seeds.length] ?? 0;
   }
@@ -78,22 +75,22 @@
 </script>
 
 <!-- Battlefield container -->
-<div class="battlefield-wrap relative w-full overflow-hidden rounded-xl py-3 px-2"
+<div class="battlefield-wrap relative w-full overflow-hidden rounded-xl py-2 sm:py-3 px-1 sm:px-2"
      style="background: linear-gradient(180deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.7) 50%, rgba(15,23,42,0.9) 100%);">
 
   <!-- Ground line decoration -->
   <div class="absolute bottom-0 left-0 right-0 h-8 opacity-20"
        style="background: linear-gradient(0deg, rgba(100,116,139,0.4) 0%, transparent 100%);"></div>
 
-  <div class="flex items-stretch justify-center gap-0 min-h-[180px]">
+  <!-- Desktop: horizontal layout (player left | VS | enemy right) -->
+  <div class="hidden sm:flex items-stretch justify-center gap-0 min-h-[180px]">
 
-    <!-- Player Team (left side) — front row on the right, back on the left -->
+    <!-- Player Team (left side) -->
     <div class="flex-1 flex items-center justify-end pr-2 relative">
       {#if playerDisplayUnits.length === 0}
         <div class="text-gray-600 text-xs italic">No units</div>
       {:else}
         <div class="flex gap-1 items-end">
-          <!-- Back rows first (left), front rows last (right = closest to center) -->
           {#each [...playerRowKeys].reverse() as row}
             {@const units = playerRows.get(row) ?? []}
             <div class="flex flex-col items-center gap-1" style="transform: translateY({laneOffsetY(row)}px);">
@@ -128,13 +125,12 @@
       <div class="w-px flex-1 bg-gradient-to-b from-transparent via-amber-500/40 to-transparent"></div>
     </div>
 
-    <!-- Enemy Team (right side) — front row on the left, back on the right -->
+    <!-- Enemy Team (right side) -->
     <div class="flex-1 flex items-center justify-start pl-2 relative">
       {#if enemyDisplayUnits.length === 0}
         <div class="text-gray-600 text-xs italic">No units</div>
       {:else}
         <div class="flex gap-1 items-end">
-          <!-- Front rows first (left = closest to center), back rows last (right) -->
           {#each enemyRowKeys as row}
             {@const units = enemyRows.get(row) ?? []}
             <div class="flex flex-col items-center gap-1" style="transform: translateY({laneOffsetY(row)}px);">
@@ -157,6 +153,71 @@
                 </div>
               {/each}
             </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <!-- Mobile: vertical stacked layout (allies top, enemies bottom) -->
+  <div class="sm:hidden flex flex-col gap-0">
+
+    <!-- Player Team label + units -->
+    <div class="px-1">
+      <div class="text-[10px] font-bold text-blue-400 mb-1">Alliés</div>
+      {#if playerDisplayUnits.length === 0}
+        <div class="text-gray-600 text-xs italic text-center py-2">No units</div>
+      {:else}
+        <div class="flex flex-wrap justify-center gap-1">
+          {#each playerDisplayUnits as unit (unit.id)}
+            <CharacterCard
+              name={unit.name}
+              role={unit.role}
+              currentHp={unit.currentHp}
+              maxHp={unit.maxHp}
+              isAlive={unit.isAlive}
+              isPlayer={true}
+              sprites={unit.sprites}
+              animState={unit.animState}
+              hitEffect={unit.hitEffect}
+              isBoss={unit.isBoss}
+              displaySize="small"
+              abilityOverlay={unit.abilityOverlay}
+            />
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Horizontal VS separator -->
+    <div class="flex items-center gap-2 px-4 my-1">
+      <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent"></div>
+      <span class="text-amber-500/60 text-[10px] font-bold tracking-widest">VS</span>
+      <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent"></div>
+    </div>
+
+    <!-- Enemy Team label + units -->
+    <div class="px-1">
+      <div class="text-[10px] font-bold text-red-400 mb-1">Ennemis</div>
+      {#if enemyDisplayUnits.length === 0}
+        <div class="text-gray-600 text-xs italic text-center py-2">No units</div>
+      {:else}
+        <div class="flex flex-wrap justify-center gap-1">
+          {#each enemyDisplayUnits as unit (unit.id)}
+            <CharacterCard
+              name={unit.name}
+              role={unit.role}
+              currentHp={unit.currentHp}
+              maxHp={unit.maxHp}
+              isAlive={unit.isAlive}
+              isPlayer={false}
+              sprites={unit.sprites}
+              animState={unit.animState}
+              hitEffect={unit.hitEffect}
+              isBoss={unit.isBoss}
+              displaySize={unit.isBoss ? 'large' : 'small'}
+              abilityOverlay={unit.abilityOverlay}
+            />
           {/each}
         </div>
       {/if}
