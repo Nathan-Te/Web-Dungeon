@@ -60,8 +60,11 @@
   const CARD_STEP = CARD_WIDTH + CARD_GAP;
   const STRIP_BEFORE = 60; // random cards before the result
   const STRIP_AFTER = 10; // trailing random cards after the result (visual padding)
-  const VIEWPORT_WIDTH = 400; // visible window
   const RESULT_INDEX = STRIP_BEFORE; // index of the result card in the strip
+
+  // Responsive carousel width: measure container, fallback to 400px
+  let carouselContainer: HTMLDivElement | undefined = $state(undefined);
+  let viewportWidth = $state(Math.min(400, typeof window !== 'undefined' ? window.innerWidth - 32 : 400));
 
   /** Pool of characters available in gacha */
   let poolCharacters = $derived(
@@ -147,7 +150,7 @@
 
     // Center the result card in the viewport
     const finalCardPos = RESULT_INDEX * CARD_STEP;
-    carouselTargetX = finalCardPos - VIEWPORT_WIDTH / 2 + CARD_WIDTH / 2;
+    carouselTargetX = finalCardPos - viewportWidth / 2 + CARD_WIDTH / 2;
 
     // Start slow, accelerate, then decelerate at the end
     carouselSpeed = 4;
@@ -208,6 +211,20 @@
     carouselLanded = false;
   }
 
+  function updateViewportWidth() {
+    if (carouselContainer) {
+      viewportWidth = Math.min(400, carouselContainer.clientWidth);
+    } else {
+      viewportWidth = Math.min(400, window.innerWidth - 32);
+    }
+  }
+
+  $effect(() => {
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+    return () => window.removeEventListener('resize', updateViewportWidth);
+  });
+
   onDestroy(() => {
     if (carouselAnimFrame) cancelAnimationFrame(carouselAnimFrame);
   });
@@ -258,7 +275,7 @@
       <div class="text-sm text-gray-400 animate-pulse">Pulling...</div>
 
       <!-- Carousel viewport -->
-      <div class="relative" style="width: {VIEWPORT_WIDTH}px;">
+      <div class="relative w-full max-w-[400px]" bind:this={carouselContainer}>
         <!-- Center marker (triangle + line) -->
         <div class="absolute top-0 left-1/2 -translate-x-1/2 z-10 w-0.5 h-full bg-yellow-400/60"></div>
         <div class="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-0 h-0
@@ -348,11 +365,11 @@
             {#if chars.length > 0}
               <div class="mb-3">
                 <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
-                <div class="flex gap-2 flex-wrap">
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                   {#each chars as char}
-                    <div class="w-28 h-36 rounded-lg border-2 flex flex-col items-center overflow-hidden
+                    <div class="aspect-[7/9] rounded-lg border-2 flex flex-col items-center overflow-hidden
                       {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">
-                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-20 h-20 mt-0.5" />
+                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-0.5" />
                       <span class="text-[10px] font-bold truncate w-full text-center px-1">{char.name}</span>
                       <span class="text-[8px] capitalize text-gray-400">{char.role}</span>
                     </div>
