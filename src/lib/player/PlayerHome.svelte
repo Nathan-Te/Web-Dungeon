@@ -43,7 +43,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition' | 'teams';
+  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition' | 'teams' | 'save';
   let activeSection: Section = $state('collection');
   let gachaAnimating = $state(false);
 
@@ -222,6 +222,7 @@
     { key: 'gacha', label: 'Gacha', shortLabel: 'Gacha', icon: '\u{2728}' },
     { key: 'dungeon', label: 'Dungeon', shortLabel: 'Donjon', icon: '\u{2694}\u{FE0F}' },
     { key: 'expedition', label: 'Expedition', shortLabel: 'Exped.', icon: '\u{1F5FA}\u{FE0F}' },
+    { key: 'save', label: 'Sauvegarde', shortLabel: 'Save', icon: '\u{1F4BE}' },
   ];
 
   // Daily reset countdown timer
@@ -259,16 +260,7 @@
     >
       Dungeon Gacha Run
     </h1>
-    <div class="flex items-center gap-1.5 sm:gap-2">
-      <span class="text-amber-400 font-mono text-xs font-bold sm:hidden">{resetCountdown}</span>
-      <SaveSync {playerSave} onImport={handleSyncImport} />
-      <button
-        onclick={handleResetSave}
-        class="px-2 sm:px-3 py-1 bg-red-900 hover:bg-red-800 rounded text-xs text-red-300"
-      >
-        Reset
-      </button>
-    </div>
+    <span class="text-amber-400 font-mono text-xs font-bold sm:hidden">{resetCountdown}</span>
   </div>
 
   <!-- Daily Reset Timer — hidden on mobile (shown inline in header) -->
@@ -321,6 +313,7 @@
         {playerSave}
         characters={content.characters}
         {gachaConfig}
+        abilities={content.abilities}
         onPullStart={handleGachaPullStart}
         onPull={handleGachaPull}
         onAnimatingChange={(v) => gachaAnimating = v}
@@ -402,10 +395,18 @@
       {playerSave}
       characters={content.characters}
       {gachaConfig}
+      abilities={content.abilities}
       roleStats={content.roleStats}
       rarityMultipliers={content.rarityMultipliers}
       levelThresholds={content.levelThresholds}
       onAscend={handleAscend}
+    />
+
+  {:else if activeSection === 'save'}
+    <SaveSync
+      {playerSave}
+      onImport={handleSyncImport}
+      onReset={handleResetSave}
     />
   {/if}
 </div>

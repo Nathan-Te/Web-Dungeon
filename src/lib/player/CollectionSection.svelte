@@ -2,6 +2,7 @@
   import type { CharacterDefinition, Role, Rarity, BaseStats, SpriteSource, SpriteSheetConfig } from '../game/types';
   import { ROLE_BASE_STATS, COMBAT_CONSTANTS } from '../game/types';
   import type { GachaConfig } from '../admin/adminTypes';
+  import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave, OwnedCharacter } from './playerStore';
   import { getXpForLevel } from './playerStore';
   import { calculateCharacterPower } from '../game/expeditionSimulation';
@@ -11,13 +12,14 @@
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
     gachaConfig?: GachaConfig;
+    abilities?: AbilityDefinition[];
     roleStats?: Partial<Record<Role, BaseStats>>;
     rarityMultipliers?: Partial<Record<Rarity, number>>;
     levelThresholds?: number[];
     onAscend: (characterId: string) => void;
   }
 
-  let { playerSave, characters, gachaConfig, roleStats, rarityMultipliers, levelThresholds, onAscend }: Props = $props();
+  let { playerSave, characters, gachaConfig, abilities, roleStats, rarityMultipliers, levelThresholds, onAscend }: Props = $props();
 
   const RARITY_BORDER: Record<Rarity, string> = {
     common: 'border-gray-500',
@@ -92,6 +94,25 @@
   function canAscend(owned: OwnedCharacter): boolean {
     const cost = getAscensionCost(owned.ascension);
     return cost !== null && owned.duplicates >= cost;
+  }
+
+  function findAbility(def: CharacterDefinition): AbilityDefinition | undefined {
+    if (!abilities || !def.abilityName) return undefined;
+    return abilities.find(a => a.name.toLowerCase() === def.abilityName.toLowerCase());
+  }
+
+  function formatAbilityEffect(ab: AbilityDefinition, stats: { atk: number }): string {
+    if (ab.targeting === 'heal_lowest_ally') {
+      const heal = Math.round(stats.atk * ab.powerMultiplier);
+      return `Soin : ~${heal} PV (${(ab.powerMultiplier * 100).toFixed(0)}% ATK)`;
+    }
+    if (ab.targeting === 'summon_unit') {
+      return 'Invoque une unité alliée';
+    }
+    const dmg = Math.round(stats.atk * ab.powerMultiplier);
+    const targets = ab.targetCount > 1 ? ` x${ab.targetCount} cibles` : '';
+    const ignDef = ab.ignoreDefense ? ', ignore DEF' : '';
+    return `Dégâts : ~${dmg} (${(ab.powerMultiplier * 100).toFixed(0)}% ATK)${targets}${ignDef}`;
   }
 
   // Filtered and sorted collection
@@ -318,6 +339,7 @@
 
         <!-- Ability -->
         {#if selectedChar.abilityName}
+          {@const ab = findAbility(selectedChar)}
           <div class="mt-4 bg-slate-900 rounded-lg p-3 border border-slate-700">
             <div class="flex items-center gap-2 mb-1">
               <span class="text-xs text-gray-500">Sort</span>
@@ -325,6 +347,14 @@
             </div>
             {#if selectedChar.abilityDescription}
               <p class="text-xs text-gray-300 leading-relaxed">{selectedChar.abilityDescription}</p>
+            {/if}
+            {#if ab}
+              <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                <span class="text-emerald-400 font-medium">{formatAbilityEffect(ab, stats)}</span>
+                {#if ab.cooldown}
+                  <span class="text-gray-500">CD : {ab.cooldown} tours</span>
+                {/if}
+              </div>
             {/if}
           </div>
         {/if}
