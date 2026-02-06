@@ -459,6 +459,15 @@
         </div>
       {/if}
 
+      <!-- Warning: characters unavailable during expedition -->
+      {#if selectedTeam.length > 0}
+        <div class="bg-amber-900/30 border border-amber-600/50 rounded-lg px-4 py-3 text-center">
+          <p class="text-xs text-amber-400">
+            Les personnages envoyés en expédition ne seront plus disponibles pour le Donjon Quotidien ni pour d'autres expéditions jusqu'à leur retour.
+          </p>
+        </div>
+      {/if}
+
       <!-- Actions -->
       <div class="flex gap-3">
         <button
