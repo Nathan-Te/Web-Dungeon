@@ -155,7 +155,7 @@
     </div>
 
     <div class="space-y-2">
-      {#each selectedTower.stages.sort((a, b) => a.stageNumber - b.stageNumber) as stage}
+      {#each [...selectedTower.stages].sort((a, b) => a.stageNumber - b.stageNumber) as stage}
         {@const isCleared = stage.stageNumber <= cleared}
         {@const isNext = stage.stageNumber === cleared + 1}
         {@const isLocked = stage.stageNumber > cleared + 1}
