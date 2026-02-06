@@ -48,7 +48,19 @@
     assassin: 'Assassin', healer: 'Healer', summoner: 'Summoner',
   };
 
+  const ALL_ROLES: Role[] = ['tank', 'warrior', 'archer', 'mage', 'assassin', 'healer', 'summoner'];
+  const ALL_RARITIES: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
+  const RARITY_ORDER: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+
   let selectedCharId: string | null = $state(null);
+
+  // Search & filter state
+  let searchQuery = $state('');
+  let filterRole: Role | 'all' = $state('all');
+  let filterRarity: Rarity | 'all' = $state('all');
+  type SortKey = 'level' | 'rarity' | 'role' | 'power' | 'name';
+  let sortBy: SortKey = $state('level');
+  let sortDesc = $state(true);
 
   let ownedMap = $derived(
     new Map(playerSave.collection.map((o) => [o.characterId, o]))
@@ -82,11 +94,65 @@
     return cost !== null && owned.duplicates >= cost;
   }
 
+  // Filtered and sorted collection
+  let filteredCollection = $derived.by(() => {
+    const query = searchQuery.trim().toLowerCase();
+    let list = playerSave.collection
+      .map(owned => {
+        const def = getCharDef(owned.characterId);
+        if (!def) return null;
+        const stats = getStats(owned, def);
+        const power = calculateCharacterPower(stats, def.role);
+        return { owned, def, stats, power };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Text search
+    if (query) {
+      list = list.filter(({ def }) =>
+        def.name.toLowerCase().includes(query) ||
+        def.role.toLowerCase().includes(query) ||
+        def.abilityName?.toLowerCase().includes(query)
+      );
+    }
+
+    // Role filter
+    if (filterRole !== 'all') {
+      list = list.filter(({ def }) => def.role === filterRole);
+    }
+
+    // Rarity filter
+    if (filterRarity !== 'all') {
+      list = list.filter(({ def }) => def.rarity === filterRarity);
+    }
+
+    // Sort
+    const dir = sortDesc ? -1 : 1;
+    list.sort((a, b) => {
+      switch (sortBy) {
+        case 'level':
+          return (a.owned.level - b.owned.level || a.owned.ascension - b.owned.ascension) * dir;
+        case 'rarity':
+          return (RARITY_ORDER[a.def.rarity] - RARITY_ORDER[b.def.rarity]) * dir;
+        case 'role':
+          return a.def.role.localeCompare(b.def.role) * dir;
+        case 'power':
+          return (a.power - b.power) * dir;
+        case 'name':
+          return a.def.name.localeCompare(b.def.name) * dir;
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  });
+
   let selectedChar = $derived(selectedCharId ? getCharDef(selectedCharId) : null);
   let selectedOwned = $derived(selectedCharId ? ownedMap.get(selectedCharId) : undefined);
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
   <h2 class="text-xl font-bold text-blue-400 text-center">Collection</h2>
 
   {#if playerSave.collection.length === 0}
@@ -94,13 +160,76 @@
       Your collection is empty. Pull characters from the Gacha!
     </div>
   {:else}
+    <!-- Search & Filters -->
+    <div class="bg-slate-800 rounded-lg p-3 space-y-2">
+      <!-- Search bar -->
+      <input
+        type="text"
+        placeholder="Rechercher un personnage..."
+        bind:value={searchQuery}
+        class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+      />
+
+      <!-- Filters row -->
+      <div class="flex gap-2 flex-wrap items-center">
+        <!-- Role filter -->
+        <select
+          bind:value={filterRole}
+          class="px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white focus:border-blue-500 focus:outline-none"
+        >
+          <option value="all">Tous les rôles</option>
+          {#each ALL_ROLES as role}
+            <option value={role}>{ROLE_LABELS[role]}</option>
+          {/each}
+        </select>
+
+        <!-- Rarity filter -->
+        <select
+          bind:value={filterRarity}
+          class="px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white focus:border-blue-500 focus:outline-none"
+        >
+          <option value="all">Toutes raretés</option>
+          {#each ALL_RARITIES as rarity}
+            <option value={rarity} class="capitalize">{rarity}</option>
+          {/each}
+        </select>
+
+        <!-- Sort -->
+        <select
+          bind:value={sortBy}
+          class="px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white focus:border-blue-500 focus:outline-none"
+        >
+          <option value="level">Tri: Niveau</option>
+          <option value="power">Tri: Puissance</option>
+          <option value="rarity">Tri: Rareté</option>
+          <option value="role">Tri: Rôle</option>
+          <option value="name">Tri: Nom</option>
+        </select>
+
+        <!-- Sort direction -->
+        <button
+          onclick={() => sortDesc = !sortDesc}
+          class="px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white hover:bg-slate-700"
+          title={sortDesc ? 'Décroissant' : 'Croissant'}
+        >
+          {sortDesc ? '\u{2193}' : '\u{2191}'}
+        </button>
+
+        <!-- Results count -->
+        <span class="text-[10px] text-gray-500 ml-auto">
+          {filteredCollection.length}/{playerSave.collection.length}
+        </span>
+      </div>
+    </div>
+
     <!-- Character Grid -->
-    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
-      {#each playerSave.collection as owned}
-        {@const def = getCharDef(owned.characterId)}
-        {#if def}
-          {@const charStats = getStats(owned, def)}
-          {@const power = calculateCharacterPower(charStats, def.role)}
+    {#if filteredCollection.length === 0}
+      <div class="text-center text-gray-500 py-6 text-sm">
+        Aucun personnage trouvé.
+      </div>
+    {:else}
+      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+        {#each filteredCollection as { owned, def, power }}
           <button
             onclick={() => selectedCharId = selectedCharId === owned.characterId ? null : owned.characterId}
             class="relative aspect-[7/10] rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
@@ -117,9 +246,9 @@
             <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
             <span class="text-[8px] text-indigo-400 font-medium">{power} PWR</span>
           </button>
-        {/if}
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
 
     <!-- Character Detail -->
     {#if selectedChar && selectedOwned}
@@ -186,6 +315,19 @@
             <div class="text-sm font-bold text-yellow-400">{stats.spd}</div>
           </div>
         </div>
+
+        <!-- Ability -->
+        {#if selectedChar.abilityName}
+          <div class="mt-4 bg-slate-900 rounded-lg p-3 border border-slate-700">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-gray-500">Sort</span>
+              <span class="text-sm font-bold text-amber-400">{selectedChar.abilityName}</span>
+            </div>
+            {#if selectedChar.abilityDescription}
+              <p class="text-xs text-gray-300 leading-relaxed">{selectedChar.abilityDescription}</p>
+            {/if}
+          </div>
+        {/if}
 
         <!-- Ascension -->
         <div class="mt-4">
