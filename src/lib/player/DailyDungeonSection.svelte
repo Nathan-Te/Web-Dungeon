@@ -128,6 +128,11 @@
   let showXpScreen = $state(false);
   let roomGoldGained = $state(0);
 
+  // Auto-advance between rooms
+  let autoAdvance = $state(false);
+  let autoAdvanceCountdown = $state(0);
+  let autoAdvanceTimer: ReturnType<typeof setInterval> | null = null;
+
   // Track boss/summoner
   let enemyBossIds: Set<string> = new Set();
   let bossAbilityMap: Map<string, Role[]> = new Map();
@@ -575,10 +580,48 @@
     phase = 'failed';
   }
 
-  onDestroy(() => stopPlayback());
+  function startAutoAdvanceCountdown() {
+    stopAutoAdvanceCountdown();
+    autoAdvanceCountdown = 3;
+    autoAdvanceTimer = setInterval(() => {
+      autoAdvanceCountdown--;
+      if (autoAdvanceCountdown <= 0) {
+        stopAutoAdvanceCountdown();
+        if (showXpScreen) showXpScreen = false;
+        handleNextRoom();
+      }
+    }, 1000);
+  }
+
+  function stopAutoAdvanceCountdown() {
+    autoAdvanceCountdown = 0;
+    if (autoAdvanceTimer) {
+      clearInterval(autoAdvanceTimer);
+      autoAdvanceTimer = null;
+    }
+  }
+
+  function skipAutoAdvance() {
+    stopAutoAdvanceCountdown();
+    if (showXpScreen) showXpScreen = false;
+    handleNextRoom();
+  }
+
+  onDestroy(() => {
+    stopPlayback();
+    stopAutoAdvanceCountdown();
+  });
 
   let canContinue = $derived(battleDone && latestResult?.winner === 'player');
   let isLastRoom = $derived(currentRoomIndex + 1 >= dungeon.rooms.length);
+
+  // Auto-advance countdown when room is won
+  $effect(() => {
+    if (phase === 'running' && canContinue && autoAdvance) {
+      startAutoAdvanceCountdown();
+    }
+    return () => stopAutoAdvanceCountdown();
+  });
 </script>
 
 <div class="space-y-4">
@@ -677,6 +720,10 @@
           <option value={250}>Fast</option>
         </select>
       </div>
+      <label class="flex items-center gap-1 cursor-pointer">
+        <input type="checkbox" bind:checked={autoAdvance} class="accent-green-500 w-3 h-3" />
+        <span class="text-[10px] sm:text-xs text-gray-400">Auto</span>
+      </label>
     </div>
 
     <!-- Desktop: 3-column layout (log | battle | xp), Mobile: stacked -->
@@ -697,13 +744,19 @@
 
         {#if battleDone}
           {#if canContinue && !showXpScreen}
-            <div class="flex justify-center gap-3 mt-4 xl:hidden">
-              <button
-                onclick={handleNextRoom}
-                class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
-              >
-                {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
-              </button>
+            <div class="flex justify-center items-center gap-3 mt-4 xl:hidden">
+              {#if autoAdvance && autoAdvanceCountdown > 0}
+                <span class="text-sm text-gray-400">Suite dans <span class="text-white font-bold">{autoAdvanceCountdown}s</span></span>
+                <button onclick={skipAutoAdvance} class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-bold text-sm">Passer</button>
+                <button onclick={() => { stopAutoAdvanceCountdown(); autoAdvance = false; }} class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs">Annuler</button>
+              {:else}
+                <button
+                  onclick={handleNextRoom}
+                  class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+                >
+                  {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+                </button>
+              {/if}
             </div>
           {:else if !canContinue}
             <div class="flex justify-center gap-3 mt-4">
@@ -763,24 +816,38 @@
                 </div>
               {/each}
             </div>
-            <div class="flex justify-center mt-4">
-              <button
-                onclick={() => { showXpScreen = false; handleNextRoom(); }}
-                class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
-              >
-                {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
-              </button>
+            <div class="flex justify-center items-center gap-3 mt-4">
+              {#if autoAdvance && autoAdvanceCountdown > 0}
+                <span class="text-sm text-gray-400">Suite dans <span class="text-white font-bold">{autoAdvanceCountdown}s</span></span>
+                <button onclick={skipAutoAdvance} class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-bold text-sm">Passer</button>
+                <button onclick={() => { stopAutoAdvanceCountdown(); autoAdvance = false; }} class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs">Annuler</button>
+              {:else}
+                <button
+                  onclick={() => { showXpScreen = false; handleNextRoom(); }}
+                  class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+                >
+                  {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+                </button>
+              {/if}
             </div>
           </div>
         {:else if battleDone && canContinue && !showXpScreen}
           <!-- Desktop-only: Next Room button in right column -->
-          <div class="hidden xl:flex xl:items-center xl:justify-center xl:pt-8">
-            <button
-              onclick={handleNextRoom}
-              class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
-            >
-              {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
-            </button>
+          <div class="hidden xl:flex xl:flex-col xl:items-center xl:justify-center xl:pt-8 xl:gap-3">
+            {#if autoAdvance && autoAdvanceCountdown > 0}
+              <span class="text-sm text-gray-400">Suite dans <span class="text-white font-bold">{autoAdvanceCountdown}s</span></span>
+              <div class="flex gap-2">
+                <button onclick={skipAutoAdvance} class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-bold text-sm">Passer</button>
+                <button onclick={() => { stopAutoAdvanceCountdown(); autoAdvance = false; }} class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs">Annuler</button>
+              </div>
+            {:else}
+              <button
+                onclick={handleNextRoom}
+                class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold"
+              >
+                {isLastRoom ? 'Victory! Complete Dungeon' : 'Next Room'}
+              </button>
+            {/if}
           </div>
         {/if}
       </div>

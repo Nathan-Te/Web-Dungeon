@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { CharacterDefinition, Role, BaseStats, Rarity } from '../game/types';
   import type { Tower, TowerStage, Dungeon, EnemyTemplate } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
@@ -43,6 +44,9 @@
   let selectedTower: Tower | null = $state(null);
   let selectedStage: TowerStage | null = $state(null);
   let activeDungeon: Dungeon | null = $state(null);
+  let stageCleared = $state(false);
+  let nextStageCountdown = $state(0);
+  let nextStageTimer: ReturnType<typeof setInterval> | null = null;
 
   function getProgress(towerId: string): TowerProgress | undefined {
     return getTowerProgress(playerSave, towerId);
@@ -64,6 +68,10 @@
   function handleStageCleared() {
     if (selectedTower && selectedStage) {
       onStageCleared(selectedTower.id, selectedStage.stageNumber);
+      stageCleared = true;
+      if (getNextStage()) {
+        startNextStageCountdown();
+      }
     }
   }
 
@@ -76,24 +84,66 @@
     // No daily tracking for tower
   }
 
+  function getNextStage(): TowerStage | null {
+    if (!selectedTower || !selectedStage) return null;
+    const sorted = [...selectedTower.stages].sort((a, b) => a.stageNumber - b.stageNumber);
+    const idx = sorted.findIndex(s => s.stageNumber === selectedStage!.stageNumber);
+    if (idx < 0 || idx >= sorted.length - 1) return null;
+    return sorted[idx + 1];
+  }
+
+  function startNextStage() {
+    const next = getNextStage();
+    if (!next) return;
+    stopNextStageCountdown();
+    stageCleared = false;
+    startStage(next);
+  }
+
+  function startNextStageCountdown() {
+    stopNextStageCountdown();
+    nextStageCountdown = 3;
+    nextStageTimer = setInterval(() => {
+      nextStageCountdown--;
+      if (nextStageCountdown <= 0) {
+        stopNextStageCountdown();
+        startNextStage();
+      }
+    }, 1000);
+  }
+
+  function stopNextStageCountdown() {
+    nextStageCountdown = 0;
+    if (nextStageTimer) {
+      clearInterval(nextStageTimer);
+      nextStageTimer = null;
+    }
+  }
+
   function backToStages() {
+    stopNextStageCountdown();
+    stageCleared = false;
     viewState = 'stages';
     activeDungeon = null;
     selectedStage = null;
   }
 
   function backToList() {
+    stopNextStageCountdown();
+    stageCleared = false;
     viewState = 'list';
     selectedTower = null;
     selectedStage = null;
     activeDungeon = null;
   }
+
+  onDestroy(() => stopNextStageCountdown());
 </script>
 
 <div class="space-y-4">
   {#if viewState === 'battle' && activeDungeon}
     <!-- Battle phase: reuse DailyDungeonSection -->
-    <div class="flex items-center gap-2 mb-2">
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
       <button
         onclick={backToStages}
         class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-medium"
@@ -103,7 +153,34 @@
       <span class="text-sm text-gray-400">
         {selectedTower?.name} — Étage {selectedStage?.stageNumber}
       </span>
+      {#if stageCleared}
+        {@const nextStage = getNextStage()}
+        {#if nextStage}
+          <div class="flex items-center gap-2 ml-auto">
+            {#if nextStageCountdown > 0}
+              <span class="text-xs text-gray-400">Étage suivant dans <span class="text-white font-bold">{nextStageCountdown}s</span></span>
+            {/if}
+            <button
+              onclick={startNextStage}
+              class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-bold"
+            >
+              Étage {nextStage.stageNumber} &rarr;
+            </button>
+            {#if nextStageCountdown > 0}
+              <button
+                onclick={stopNextStageCountdown}
+                class="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs"
+              >
+                Annuler
+              </button>
+            {/if}
+          </div>
+        {:else}
+          <span class="ml-auto text-xs text-yellow-400 font-bold">Tour terminée !</span>
+        {/if}
+      {/if}
     </div>
+    {#key selectedStage?.stageNumber}
     <DailyDungeonSection
       {playerSave}
       {characters}
@@ -122,6 +199,7 @@
       onRoomXpAwarded={handleRoomXpAwarded}
       onGoldAwarded={onGoldAwarded}
     />
+    {/key}
 
   {:else if viewState === 'stages' && selectedTower}
     <!-- Stage list for selected tower -->
