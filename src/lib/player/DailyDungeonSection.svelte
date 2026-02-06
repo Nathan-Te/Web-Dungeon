@@ -894,7 +894,9 @@
       <div class="text-3xl font-bold text-red-400 mb-2">Dungeon Failed</div>
       <div class="text-gray-400 mb-4">
         You were defeated at room {currentRoomIndex + 1}.
-        Attempts remaining: <span class="text-amber-400 font-bold">{attemptsLeft}</span>
+        {#if !unlimitedAttempts}
+          Attempts remaining: <span class="text-amber-400 font-bold">{attemptsLeft}</span>
+        {/if}
       </div>
       {#if attemptsLeft > 0}
         <button
@@ -903,7 +905,7 @@
         >
           Try Again
         </button>
-      {:else}
+      {:else if !unlimitedAttempts}
         <div class="text-red-400 text-sm">No more attempts today. Come back tomorrow!</div>
       {/if}
     </div>
