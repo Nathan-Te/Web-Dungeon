@@ -38,6 +38,8 @@
     levelThresholds?: number[];
     maxTeamSize?: number;
     teamPresets?: TeamPreset[];
+    /** If true, don't consume daily dungeon attempts (used by Tower mode) */
+    unlimitedAttempts?: boolean;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
@@ -45,7 +47,9 @@
     onGoldAwarded: (amount: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, unlimitedAttempts = false, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
+
+  let attemptsLeft = $derived(unlimitedAttempts ? 99 : playerSave.daily.dungeonAttemptsLeft);
 
   // Valid team presets (non-empty, all characters still owned)
   let validPresets = $derived(
@@ -585,8 +589,10 @@
     <div class="bg-slate-800 rounded-lg p-4">
       <h3 class="font-bold mb-3">Select Your Team (up to {maxTeamSize})</h3>
       <div class="text-xs text-gray-400 mb-2">
-        Attempts remaining: <span class="text-amber-400 font-bold">{playerSave.daily.dungeonAttemptsLeft}</span>
-        <span class="ml-3">Selected: <span class="text-white font-bold">{selectedIds.length}/{maxTeamSize}</span></span>
+        {#if !unlimitedAttempts}
+          Attempts remaining: <span class="text-amber-400 font-bold">{attemptsLeft}</span>
+        {/if}
+        <span class="{unlimitedAttempts ? '' : 'ml-3'}">Selected: <span class="text-white font-bold">{selectedIds.length}/{maxTeamSize}</span></span>
       </div>
 
       {#if ownedCharacters.length === 0}
@@ -630,12 +636,12 @@
         <div class="flex gap-3">
           <button
             onclick={startDungeon}
-            disabled={selectedIds.length === 0 || playerSave.daily.dungeonAttemptsLeft <= 0}
+            disabled={selectedIds.length === 0 || attemptsLeft <= 0}
             class="px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded font-bold"
           >
             Enter Dungeon ({dungeon.rooms.length} rooms)
           </button>
-          {#if playerSave.daily.dungeonAttemptsLeft <= 0}
+          {#if attemptsLeft <= 0}
             <span class="text-red-400 text-sm self-center">No attempts left today!</span>
           {/if}
         </div>
@@ -791,9 +797,9 @@
       <div class="text-3xl font-bold text-red-400 mb-2">Dungeon Failed</div>
       <div class="text-gray-400 mb-4">
         You were defeated at room {currentRoomIndex + 1}.
-        Attempts remaining: <span class="text-amber-400 font-bold">{playerSave.daily.dungeonAttemptsLeft}</span>
+        Attempts remaining: <span class="text-amber-400 font-bold">{attemptsLeft}</span>
       </div>
-      {#if playerSave.daily.dungeonAttemptsLeft > 0}
+      {#if attemptsLeft > 0}
         <button
           onclick={() => { phase = 'select'; selectedIds = []; }}
           class="px-6 py-3 bg-amber-600 hover:bg-amber-500 rounded font-bold"

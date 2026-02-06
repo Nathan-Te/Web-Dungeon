@@ -10,6 +10,7 @@ import {
   type EnemyTemplate,
   type DungeonRoom,
   type Dungeon,
+  type Tower,
   CURRENT_CONTENT_VERSION,
 } from './adminTypes';
 
@@ -347,5 +348,25 @@ export function deleteAbility(content: GameContent, id: string): GameContent {
   return {
     ...content,
     abilities: content.abilities.filter((a) => a.id !== id),
+  };
+}
+
+export function upsertTower(
+  content: GameContent,
+  tower: Tower
+): GameContent {
+  const towers = content.towers ?? [];
+  const idx = towers.findIndex((t) => t.id === tower.id);
+  const updated =
+    idx >= 0
+      ? towers.map((t, i) => (i === idx ? tower : t))
+      : [...towers, tower];
+  return { ...content, towers: updated };
+}
+
+export function deleteTower(content: GameContent, id: string): GameContent {
+  return {
+    ...content,
+    towers: (content.towers ?? []).filter((t) => t.id !== id),
   };
 }

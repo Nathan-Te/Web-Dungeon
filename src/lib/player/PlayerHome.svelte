@@ -22,7 +22,9 @@
     awardGold,
     startExpedition,
     removeExpedition,
+    cancelExpedition,
     markRoomXpAwarded,
+    markTowerStageCleared,
     saveTeamPreset,
     deleteTeamPreset,
     type PlayerSave,
@@ -35,6 +37,7 @@
   import DailyDungeonSection from './DailyDungeonSection.svelte';
   import ExpeditionSection from './ExpeditionSection.svelte';
   import TeamSection from './TeamSection.svelte';
+  import TowerSection from './TowerSection.svelte';
   import SaveSync from './SaveSync.svelte';
 
   interface Props {
@@ -43,8 +46,8 @@
 
   let { onNavigate }: Props = $props();
 
-  type Section = 'gacha' | 'dungeon' | 'collection' | 'expedition' | 'teams' | 'save';
-  let activeSection: Section = $state('collection');
+  type Section = 'hub' | 'gacha' | 'dungeon' | 'collection' | 'expedition' | 'teams' | 'tower' | 'save';
+  let activeSection: Section = $state('hub');
   let gachaAnimating = $state(false);
 
   // Game content (admin-defined)
@@ -66,29 +69,24 @@
   let maxTeamSize = $derived(dailyDungeon?.maxTeamSize ?? 5);
 
   onMount(async () => {
-    // Load local content immediately, then sync with online version
     content = loadContent();
     playerSave = loadPlayerSave();
-    // Apply gacha config (daily pulls, initial bonus)
     const gc = content.gachaConfig;
     const configured = applyGachaConfig(playerSave, gc?.dailyPulls, gc?.initialBonusPulls);
     if (configured !== playerSave) {
       playerSave = configured;
       savePlayerSave(playerSave);
     }
-    // Claim any pending gacha reward from a previous interrupted animation
     const claimed = claimPendingGachaReward(playerSave);
     if (claimed !== playerSave) {
       playerSave = claimed;
       savePlayerSave(playerSave);
     }
-    // Async: fetch remote content and update if newer
     const synced = await loadContentWithSync();
     content = synced;
   });
 
   function handleGachaPullStart(characterId: string, rarity: string) {
-    // Immediately consume the pull and store the pending reward — prevents refresh exploit
     playerSave = markGachaPulled(playerSave);
     playerSave = updatePityCounters(playerSave, rarity);
     setPendingGachaReward(characterId);
@@ -96,7 +94,6 @@
   }
 
   function handleGachaPull(characterId: string) {
-    // Animation completed: add character to collection and clear the pending reward
     clearPendingGachaReward();
     playerSave = addCharacterToCollection(playerSave, characterId);
     savePlayerSave(playerSave);
@@ -151,18 +148,19 @@
     savePlayerSave(playerSave);
   }
 
+  function handleCancelExpedition(expeditionId: string) {
+    playerSave = cancelExpedition(playerSave, expeditionId);
+    savePlayerSave(playerSave);
+  }
+
   function handleCollectExpedition(expedition: ActiveExpedition, result: ExpeditionResult) {
-    // Remove the expedition
     playerSave = removeExpedition(playerSave, expedition.id);
-    // Award XP to the team
     if (result.xpEarned > 0) {
       playerSave = awardXp(playerSave, expedition.teamCharacterIds, result.xpEarned, content.levelThresholds);
     }
-    // Award gold
     if (result.goldEarned > 0) {
       playerSave = awardGold(playerSave, result.goldEarned);
     }
-    // Grant gacha pull if won
     if (result.gachaPullWon) {
       playerSave = {
         ...playerSave,
@@ -172,6 +170,11 @@
         },
       };
     }
+    savePlayerSave(playerSave);
+  }
+
+  function handleTowerStageCleared(towerId: string, stageNumber: number) {
+    playerSave = markTowerStageCleared(playerSave, towerId, stageNumber);
     savePlayerSave(playerSave);
   }
 
@@ -205,6 +208,7 @@
   let expeditionConfig = $derived(content.expeditionConfig);
   let activeExpeditionCount = $derived((playerSave.expeditions ?? []).length);
   let isAdmin = $derived(sessionStorage.getItem('dungeon-admin-auth') === 'true');
+  let towers = $derived(content.towers ?? []);
 
   function handleSaveTeam(slotIndex: number, name: string, characterIds: string[]) {
     playerSave = saveTeamPreset(playerSave, slotIndex, name, characterIds);
@@ -216,13 +220,110 @@
     savePlayerSave(playerSave);
   }
 
-  const sections: { key: Section; label: string; shortLabel: string; icon: string }[] = [
-    { key: 'collection', label: 'Collection', shortLabel: 'Collec.', icon: '\u{1F4E6}' },
-    { key: 'teams', label: 'Teams', shortLabel: 'Teams', icon: '\u{1F465}' },
-    { key: 'gacha', label: 'Gacha', shortLabel: 'Gacha', icon: '\u{2728}' },
-    { key: 'dungeon', label: 'Dungeon', shortLabel: 'Donjon', icon: '\u{2694}\u{FE0F}' },
-    { key: 'expedition', label: 'Expedition', shortLabel: 'Exped.', icon: '\u{1F5FA}\u{FE0F}' },
-    { key: 'save', label: 'Sauvegarde', shortLabel: 'Save', icon: '\u{1F4BE}' },
+  function goTo(section: Section) {
+    if (!gachaAnimating) activeSection = section;
+  }
+
+  // Hub tile definitions
+  interface HubTile {
+    key: Section;
+    label: string;
+    icon: string;
+    color: string;
+    borderColor: string;
+    status?: string;
+    statusColor?: string;
+  }
+
+  let hubTiles = $derived<HubTile[]>([
+    {
+      key: 'gacha',
+      label: 'Gacha',
+      icon: '\u{2728}',
+      color: 'bg-yellow-900/40',
+      borderColor: 'border-yellow-600/50',
+      status: playerSave.daily.gachaPullsRemaining > 0
+        ? `${playerSave.daily.gachaPullsRemaining} pull${playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''}`
+        : 'Aucun pull',
+      statusColor: playerSave.daily.gachaPullsRemaining > 0 ? 'text-yellow-400' : 'text-gray-500',
+    },
+    {
+      key: 'dungeon',
+      label: 'Donjon Quotidien',
+      icon: '\u{2694}\u{FE0F}',
+      color: 'bg-amber-900/40',
+      borderColor: 'border-amber-600/50',
+      status: playerSave.daily.dungeonCleared
+        ? 'Termine'
+        : `${playerSave.daily.dungeonAttemptsLeft}/3 essais`,
+      statusColor: playerSave.daily.dungeonCleared
+        ? 'text-green-400'
+        : playerSave.daily.dungeonAttemptsLeft > 0
+          ? 'text-amber-400'
+          : 'text-red-400',
+    },
+    {
+      key: 'tower',
+      label: 'Tour',
+      icon: '\u{1F3F0}',
+      color: 'bg-indigo-900/40',
+      borderColor: 'border-indigo-600/50',
+      status: towers.length > 0 ? `${towers.length} tour${towers.length > 1 ? 's' : ''}` : 'Non disponible',
+      statusColor: towers.length > 0 ? 'text-indigo-400' : 'text-gray-500',
+    },
+    {
+      key: 'expedition',
+      label: 'Expeditions',
+      icon: '\u{1F5FA}\u{FE0F}',
+      color: 'bg-emerald-900/40',
+      borderColor: 'border-emerald-600/50',
+      status: activeExpeditionCount > 0 ? `${activeExpeditionCount} en cours` : 'Aucune',
+      statusColor: activeExpeditionCount > 0 ? 'text-emerald-400' : 'text-gray-500',
+    },
+    {
+      key: 'collection',
+      label: 'Collection',
+      icon: '\u{1F4E6}',
+      color: 'bg-blue-900/40',
+      borderColor: 'border-blue-600/50',
+      status: `${playerSave.collection.length} perso.`,
+      statusColor: 'text-blue-400',
+    },
+    {
+      key: 'teams',
+      label: 'Equipes',
+      icon: '\u{1F465}',
+      color: 'bg-violet-900/40',
+      borderColor: 'border-violet-600/50',
+    },
+    {
+      key: 'save',
+      label: 'Sauvegarde',
+      icon: '\u{1F4BE}',
+      color: 'bg-slate-700/40',
+      borderColor: 'border-slate-600/50',
+    },
+  ]);
+
+  // All sections for desktop tabs
+  const allSections: { key: Section; label: string; icon: string }[] = [
+    { key: 'hub', label: 'Menu', icon: '\u{1F3E0}' },
+    { key: 'collection', label: 'Collection', icon: '\u{1F4E6}' },
+    { key: 'teams', label: 'Equipes', icon: '\u{1F465}' },
+    { key: 'gacha', label: 'Gacha', icon: '\u{2728}' },
+    { key: 'dungeon', label: 'Donjon', icon: '\u{2694}\u{FE0F}' },
+    { key: 'tower', label: 'Tour', icon: '\u{1F3F0}' },
+    { key: 'expedition', label: 'Expedition', icon: '\u{1F5FA}\u{FE0F}' },
+    { key: 'save', label: 'Save', icon: '\u{1F4BE}' },
+  ];
+
+  // Mobile bottom bar — limited to main categories
+  const bottomBarItems: { key: Section; label: string; icon: string }[] = [
+    { key: 'hub', label: 'Menu', icon: '\u{1F3E0}' },
+    { key: 'gacha', label: 'Gacha', icon: '\u{2728}' },
+    { key: 'dungeon', label: 'Donjon', icon: '\u{2694}\u{FE0F}' },
+    { key: 'collection', label: 'Collec.', icon: '\u{1F4E6}' },
+    { key: 'expedition', label: 'Exped.', icon: '\u{1F5FA}\u{FE0F}' },
   ];
 
   // Daily reset countdown timer
@@ -289,12 +390,12 @@
   </div>
 
   <!-- Desktop Section tabs — hidden on mobile -->
-  <div class="hidden sm:flex gap-1 mb-6 border-b border-slate-700 pb-1">
-    {#each sections as section}
+  <div class="hidden sm:flex gap-1 mb-6 border-b border-slate-700 pb-1 flex-wrap">
+    {#each allSections as section}
       <button
-        onclick={() => { if (!gachaAnimating) activeSection = section.key; }}
+        onclick={() => goTo(section.key)}
         disabled={gachaAnimating && section.key !== 'gacha'}
-        class="px-4 py-2 rounded-t text-sm font-medium transition-colors
+        class="px-3 py-2 rounded-t text-sm font-medium transition-colors
           {activeSection === section.key
             ? 'bg-slate-700 text-white'
             : gachaAnimating && section.key !== 'gacha'
@@ -307,7 +408,27 @@
   </div>
 
   <!-- Section Content -->
-  {#if activeSection === 'gacha'}
+  {#if activeSection === 'hub'}
+    <!-- Hub: tile grid for all sections -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+      {#each hubTiles as tile}
+        <button
+          onclick={() => goTo(tile.key)}
+          disabled={gachaAnimating && tile.key !== 'gacha'}
+          class="rounded-xl border-2 p-4 sm:p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98]
+            {tile.color} {tile.borderColor}
+            {gachaAnimating && tile.key !== 'gacha' ? 'opacity-40 cursor-not-allowed' : ''}"
+        >
+          <div class="text-2xl sm:text-3xl mb-2">{tile.icon}</div>
+          <div class="font-bold text-sm sm:text-base">{tile.label}</div>
+          {#if tile.status}
+            <div class="text-[10px] sm:text-xs mt-1 {tile.statusColor ?? 'text-gray-500'}">{tile.status}</div>
+          {/if}
+        </button>
+      {/each}
+    </div>
+
+  {:else if activeSection === 'gacha'}
     {#if gachaConfig}
       <GachaSection
         {playerSave}
@@ -359,6 +480,23 @@
       </div>
     {/if}
 
+  {:else if activeSection === 'tower'}
+    <TowerSection
+      {playerSave}
+      characters={content.characters}
+      {towers}
+      dungeons={content.dungeons}
+      enemies={content.enemies}
+      abilities={content.abilities}
+      roleStats={content.roleStats}
+      rarityMultipliers={content.rarityMultipliers}
+      levelThresholds={content.levelThresholds}
+      teamPresets={playerSave.teams}
+      onStageCleared={handleTowerStageCleared}
+      onXpAwarded={handleXpAwarded}
+      onGoldAwarded={handleGoldAwarded}
+    />
+
   {:else if activeSection === 'expedition'}
     {#if expeditionConfig}
       <ExpeditionSection
@@ -372,6 +510,7 @@
         teamPresets={playerSave.teams}
         onStartExpedition={handleStartExpedition}
         onCollectExpedition={handleCollectExpedition}
+        onCancelExpedition={handleCancelExpedition}
         onForceCompleteExpedition={handleForceCompleteExpedition}
       />
     {:else}
@@ -411,22 +550,22 @@
   {/if}
 </div>
 
-<!-- Mobile bottom navigation bar -->
+<!-- Mobile bottom navigation bar — limited to main categories -->
 <nav class="sm:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-50">
   <div class="flex justify-around items-center">
-    {#each sections as section}
+    {#each bottomBarItems as item}
       <button
-        onclick={() => { if (!gachaAnimating) activeSection = section.key; }}
-        disabled={gachaAnimating && section.key !== 'gacha'}
+        onclick={() => goTo(item.key)}
+        disabled={gachaAnimating && item.key !== 'gacha'}
         class="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors
-          {activeSection === section.key
+          {activeSection === item.key
             ? 'text-amber-400'
-            : gachaAnimating && section.key !== 'gacha'
+            : gachaAnimating && item.key !== 'gacha'
               ? 'text-gray-700 cursor-not-allowed'
               : 'text-gray-500 active:text-gray-300'}"
       >
-        <span class="text-lg leading-none">{section.icon}</span>
-        <span class="text-[10px] font-medium leading-none">{section.shortLabel}</span>
+        <span class="text-lg leading-none">{item.icon}</span>
+        <span class="text-[10px] font-medium leading-none">{item.label}</span>
       </button>
     {/each}
   </div>
