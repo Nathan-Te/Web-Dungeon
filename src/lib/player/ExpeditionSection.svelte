@@ -19,6 +19,7 @@
     teamPresets?: TeamPreset[];
     onStartExpedition: (teamCharacterIds: string[], duration: ExpeditionDuration, teamPower: number) => void;
     onCollectExpedition: (expedition: ActiveExpedition, result: ExpeditionResult) => void;
+    onCancelExpedition: (expeditionId: string) => void;
     onForceCompleteExpedition?: (expeditionId: string) => void;
   }
 
@@ -33,6 +34,7 @@
     teamPresets,
     onStartExpedition,
     onCollectExpedition,
+    onCancelExpedition,
     onForceCompleteExpedition,
   }: Props = $props();
 
@@ -82,6 +84,18 @@
     xpGained: number;
   }
   let xpGains: XpGainEntry[] = $state([]);
+
+  // Cancel confirmation
+  let cancelConfirmId: string | null = $state(null);
+
+  function handleCancelExpedition(expeditionId: string) {
+    if (cancelConfirmId === expeditionId) {
+      onCancelExpedition(expeditionId);
+      cancelConfirmId = null;
+    } else {
+      cancelConfirmId = expeditionId;
+    }
+  }
 
   // Timer for countdown updates
   let now = $state(Date.now());
@@ -545,14 +559,34 @@
                     style="width: {Math.min(100, (elapsed / total) * 100)}%"
                   ></div>
                 </div>
-                {#if isAdmin && onForceCompleteExpedition}
+                <div class="flex items-center gap-2 mt-2">
                   <button
-                    onclick={() => onForceCompleteExpedition!(exp.id)}
-                    class="mt-2 px-3 py-1 bg-amber-900 hover:bg-amber-800 border border-amber-600 rounded text-xs text-amber-300"
+                    onclick={() => handleCancelExpedition(exp.id)}
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-all
+                      {cancelConfirmId === exp.id
+                        ? 'bg-red-700 hover:bg-red-600 text-white border border-red-500'
+                        : 'bg-slate-700 hover:bg-slate-600 text-gray-300 border border-slate-600'}"
                   >
-                    [Admin] Force complete (10s)
+                    {cancelConfirmId === exp.id ? 'Confirmer l\'annulation' : 'Annuler'}
                   </button>
-                {/if}
+                  {#if cancelConfirmId === exp.id}
+                    <button
+                      onclick={() => cancelConfirmId = null}
+                      class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-xs text-gray-400"
+                    >
+                      Non
+                    </button>
+                    <span class="text-[10px] text-red-400">Les personnages reviendront sans récompenses</span>
+                  {/if}
+                  {#if isAdmin && onForceCompleteExpedition}
+                    <button
+                      onclick={() => onForceCompleteExpedition!(exp.id)}
+                      class="px-3 py-1 bg-amber-900 hover:bg-amber-800 border border-amber-600 rounded text-xs text-amber-300"
+                    >
+                      [Admin] Force (10s)
+                    </button>
+                  {/if}
+                </div>
               {:else}
                 <button
                   onclick={() => handleCollect(exp)}

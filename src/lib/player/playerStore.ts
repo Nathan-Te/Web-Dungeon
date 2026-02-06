@@ -76,6 +76,14 @@ export interface TeamPreset {
   characterIds: string[];
 }
 
+/** Player progress in a tower */
+export interface TowerProgress {
+  /** Reference to Tower.id */
+  towerId: string;
+  /** Highest stage cleared (0 = none cleared, 1 = stage 1 cleared, etc.) */
+  highestStageCleared: number;
+}
+
 /** Maximum number of team presets a player can save */
 export const MAX_TEAM_PRESETS = 3;
 /** Maximum number of characters per team preset */
@@ -96,6 +104,8 @@ export interface PlayerSave {
   teams?: TeamPreset[];
   /** Gold currency */
   gold: number;
+  /** Tower progression */
+  towerProgress?: TowerProgress[];
 }
 
 const PLAYER_SAVE_KEY = 'dungeon-gacha-player';
@@ -434,6 +444,14 @@ export function removeExpedition(save: PlayerSave, expeditionId: string): Player
   };
 }
 
+/** Cancel an in-progress expedition, freeing the characters */
+export function cancelExpedition(save: PlayerSave, expeditionId: string): PlayerSave {
+  return {
+    ...save,
+    expeditions: (save.expeditions ?? []).filter(e => e.id !== expeditionId),
+  };
+}
+
 /** Check if a character is currently on an expedition */
 export function isCharacterOnExpedition(save: PlayerSave, characterId: string): boolean {
   return (save.expeditions ?? []).some(exp => exp.teamCharacterIds.includes(characterId));
@@ -473,6 +491,33 @@ export function getTeamPreset(save: PlayerSave, slotIndex: number): TeamPreset |
   const preset = save.teams?.[slotIndex];
   if (!preset || preset.characterIds.length === 0) return undefined;
   return preset;
+}
+
+// --- Tower progress helpers ---
+
+/** Get tower progress for a specific tower */
+export function getTowerProgress(save: PlayerSave, towerId: string): TowerProgress | undefined {
+  return (save.towerProgress ?? []).find(tp => tp.towerId === towerId);
+}
+
+/** Mark a tower stage as cleared */
+export function markTowerStageCleared(save: PlayerSave, towerId: string, stageNumber: number): PlayerSave {
+  const existing = (save.towerProgress ?? []).find(tp => tp.towerId === towerId);
+  if (existing) {
+    if (stageNumber <= existing.highestStageCleared) return save;
+    return {
+      ...save,
+      towerProgress: (save.towerProgress ?? []).map(tp =>
+        tp.towerId === towerId
+          ? { ...tp, highestStageCleared: stageNumber }
+          : tp
+      ),
+    };
+  }
+  return {
+    ...save,
+    towerProgress: [...(save.towerProgress ?? []), { towerId, highestStageCleared: stageNumber }],
+  };
 }
 
 // --- Cross-device sync ---

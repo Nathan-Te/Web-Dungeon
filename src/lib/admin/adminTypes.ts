@@ -101,6 +101,24 @@ export interface Dungeon {
   maxTeamSize?: number;
 }
 
+/** A stage in a tower — references an existing dungeon */
+export interface TowerStage {
+  /** Stage number (1-indexed) */
+  stageNumber: number;
+  /** Reference to a Dungeon.id */
+  dungeonId: string;
+  /** Optional display name override for this stage */
+  name?: string;
+}
+
+/** A tower is a sequence of dungeons the player progresses through */
+export interface Tower {
+  id: string;
+  name: string;
+  description: string;
+  stages: TowerStage[];
+}
+
 /** Expedition duration options in hours */
 export type ExpeditionDuration = 4 | 8 | 12 | 24;
 
@@ -146,6 +164,7 @@ export interface GameContent {
   /** @deprecated Use dungeons instead. Kept for migration only. */
   dungeonRooms?: DungeonRoom[];
   dungeons: Dungeon[];
+  towers?: Tower[];
   abilities: AbilityDefinition[];
   /** Custom base stats per role (overrides defaults from ROLE_BASE_STATS) */
   roleStats?: Partial<Record<Role, BaseStats>>;
@@ -235,6 +254,16 @@ export function createBlankAbility(): AbilityDefinition {
     targetCount: 1,
     ignoreDefense: false,
     healThreshold: 0,
+  };
+}
+
+/** Create a blank tower */
+export function createBlankTower(): Tower {
+  return {
+    id: generateId('tower'),
+    name: '',
+    description: '',
+    stages: [],
   };
 }
 
