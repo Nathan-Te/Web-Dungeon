@@ -33,20 +33,20 @@
   });
 </script>
 
-<div bind:this={scrollContainer} class="bg-slate-800 rounded-lg p-4 h-96 overflow-y-auto">
-  <h3 class="text-lg font-bold mb-2 sticky top-0 bg-slate-800">Battle Log</h3>
+<div bind:this={scrollContainer} class="bg-slate-800 rounded-lg p-2 sm:p-4 h-48 sm:h-96 overflow-y-auto">
+  <h3 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2 sticky top-0 bg-slate-800">Battle Log</h3>
 
   {#if visibleActions.length === 0}
-    <p class="text-gray-500 italic">Battle not started...</p>
+    <p class="text-gray-500 italic text-xs sm:text-base">Battle not started...</p>
   {:else}
-    <div class="space-y-1.5 text-base">
+    <div class="space-y-0.5 sm:space-y-1.5 text-xs sm:text-base">
       {#each visibleActions as action, i}
         <div
-          class="py-1 px-2 rounded transition-all duration-200
+          class="py-0.5 sm:py-1 px-1.5 sm:px-2 rounded transition-all duration-200
             {i === currentIndex ? 'bg-slate-700' : ''}
             {actionColors[action.actionType]}"
         >
-          <span class="text-gray-500 mr-2">T{action.turn}</span>
+          <span class="text-gray-500 mr-1 sm:mr-2">T{action.turn}</span>
           {action.message}
           {#if action.isCritical}
             <span class="text-yellow-400 ml-1">CRIT!</span>
