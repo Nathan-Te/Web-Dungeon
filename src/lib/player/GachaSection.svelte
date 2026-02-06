@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import type { CharacterDefinition, Rarity, Role } from '../game/types';
   import type { GachaConfig, PityRule } from '../admin/adminTypes';
+  import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave } from './playerStore';
   import { getPityCount } from './playerStore';
   import SpritePreview from '../components/SpritePreview.svelte';
@@ -10,12 +11,13 @@
     playerSave: PlayerSave;
     characters: CharacterDefinition[];
     gachaConfig: GachaConfig;
+    abilities?: AbilityDefinition[];
     onPullStart: (characterId: string, rarity: Rarity) => void;
     onPull: (characterId: string) => void;
     onAnimatingChange?: (animating: boolean) => void;
   }
 
-  let { playerSave, characters, gachaConfig, onPullStart, onPull, onAnimatingChange }: Props = $props();
+  let { playerSave, characters, gachaConfig, abilities, onPullStart, onPull, onAnimatingChange }: Props = $props();
 
   const RARITY_COLORS: Record<Rarity, string> = {
     common: 'border-gray-400 bg-gray-800',
@@ -365,14 +367,17 @@
             {#if chars.length > 0}
               <div class="mb-3">
                 <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
-                <div class="flex flex-col gap-1.5 sm:grid sm:grid-cols-3 md:grid-cols-4 sm:gap-2">
+                <div class="flex flex-col gap-1.5 sm:grid sm:grid-cols-2 md:grid-cols-3 sm:gap-2">
                   {#each chars as char}
-                    <div class="flex sm:flex-col items-center gap-2 sm:gap-0 rounded-lg border-2 px-2 py-1.5 sm:p-0 sm:pb-1 overflow-hidden
+                    <div class="flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 overflow-hidden
                       {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">
-                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-10 h-10 sm:w-16 sm:h-16 flex-shrink-0 sm:mt-0.5" />
-                      <div class="flex flex-col sm:items-center min-w-0">
-                        <span class="text-xs sm:text-[10px] font-bold truncate">{char.name}</span>
-                        <span class="text-[10px] sm:text-[8px] capitalize text-gray-400">{char.role}</span>
+                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-10 h-10 flex-shrink-0" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="text-xs font-bold truncate">{char.name}</span>
+                        <span class="text-[10px] capitalize text-gray-400">{char.role}</span>
+                        {#if char.abilityName}
+                          <span class="text-[10px] text-amber-400 truncate">{char.abilityName}</span>
+                        {/if}
                       </div>
                     </div>
                   {/each}
