@@ -607,11 +607,11 @@
           </div>
         {/if}
 
-        <div class="flex gap-3 flex-wrap mb-4">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
           {#each ownedCharacters as { owned, def }}
             <button
               onclick={() => toggleSelect(owned.characterId)}
-              class="w-28 h-36 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
+              class="aspect-[7/9] rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {selectedIds.includes(owned.characterId)
                   ? 'border-green-400 ring-2 ring-green-400 scale-105'
                   : selectedIds.length >= maxTeamSize
@@ -619,7 +619,7 @@
                     : 'border-slate-600 hover:border-slate-400'}
                 {ROLE_COLORS[def.role]}"
             >
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20 mt-1" />
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-1" />
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
               <span class="text-[9px] capitalize text-gray-400">{def.role}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>

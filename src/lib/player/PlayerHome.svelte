@@ -216,12 +216,12 @@
     savePlayerSave(playerSave);
   }
 
-  const sections: { key: Section; label: string; icon: string }[] = [
-    { key: 'collection', label: 'Collection', icon: '' },
-    { key: 'teams', label: 'Teams', icon: '' },
-    { key: 'gacha', label: 'Gacha', icon: '' },
-    { key: 'dungeon', label: 'Dungeon', icon: '' },
-    { key: 'expedition', label: 'Expedition', icon: '' },
+  const sections: { key: Section; label: string; shortLabel: string; icon: string }[] = [
+    { key: 'collection', label: 'Collection', shortLabel: 'Collec.', icon: '\u{1F4E6}' },
+    { key: 'teams', label: 'Teams', shortLabel: 'Teams', icon: '\u{1F465}' },
+    { key: 'gacha', label: 'Gacha', shortLabel: 'Gacha', icon: '\u{2728}' },
+    { key: 'dungeon', label: 'Dungeon', shortLabel: 'Donjon', icon: '\u{2694}\u{FE0F}' },
+    { key: 'expedition', label: 'Expedition', shortLabel: 'Exped.', icon: '\u{1F5FA}\u{FE0F}' },
   ];
 
   // Daily reset countdown timer
@@ -249,35 +249,36 @@
   });
 </script>
 
-<div class="max-w-4xl xl:max-w-7xl mx-auto p-4">
-  <!-- Daily Reset Timer -->
-  <div class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 mb-4 text-center text-sm">
-    <span class="text-gray-400">Daily reset in </span>
-    <span class="text-amber-400 font-mono font-bold">{resetCountdown}</span>
-  </div>
-
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-4">
+<div class="max-w-4xl xl:max-w-7xl mx-auto px-2 sm:px-4 pt-2 sm:pt-4 pb-20 sm:pb-4">
+  <!-- Header — compact on mobile -->
+  <div class="flex items-center justify-between mb-2 sm:mb-4">
     <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <h1
-      class="text-2xl font-bold text-amber-400 select-none cursor-default"
+      class="text-lg sm:text-2xl font-bold text-amber-400 select-none cursor-default"
       onclick={handleTitleClick}
     >
       Dungeon Gacha Run
     </h1>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <span class="text-amber-400 font-mono text-xs font-bold sm:hidden">{resetCountdown}</span>
       <SaveSync {playerSave} onImport={handleSyncImport} />
       <button
         onclick={handleResetSave}
-        class="px-3 py-1 bg-red-900 hover:bg-red-800 rounded text-xs text-red-300"
+        class="px-2 sm:px-3 py-1 bg-red-900 hover:bg-red-800 rounded text-xs text-red-300"
       >
-        Reset Save
+        Reset
       </button>
     </div>
   </div>
 
-  <!-- Summary bar -->
-  <div class="bg-slate-800 rounded-lg px-4 py-2 mb-4 flex gap-6 text-sm flex-wrap">
+  <!-- Daily Reset Timer — hidden on mobile (shown inline in header) -->
+  <div class="hidden sm:block bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 mb-4 text-center text-sm">
+    <span class="text-gray-400">Daily reset in </span>
+    <span class="text-amber-400 font-mono font-bold">{resetCountdown}</span>
+  </div>
+
+  <!-- Summary bar — grid on mobile for better layout -->
+  <div class="bg-slate-800 rounded-lg px-3 sm:px-4 py-2 mb-3 sm:mb-4 grid grid-cols-3 sm:flex sm:gap-6 gap-x-2 gap-y-1 text-xs sm:text-sm">
     <span class="text-blue-400">
       {playerSave.collection.length} Characters
     </span>
@@ -285,18 +286,18 @@
       {playerSave.gold ?? 0} Gold
     </span>
     <span class="{playerSave.daily.gachaPullsRemaining <= 0 ? 'text-gray-500' : 'text-yellow-400'}">
-      Gacha: {playerSave.daily.gachaPullsRemaining <= 0 ? 'No pulls' : `${playerSave.daily.gachaPullsRemaining} pull${playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''}`}
+      {playerSave.daily.gachaPullsRemaining <= 0 ? 'No pulls' : `${playerSave.daily.gachaPullsRemaining} pull${playerSave.daily.gachaPullsRemaining > 1 ? 's' : ''}`}
     </span>
     <span class="{playerSave.daily.dungeonCleared ? 'text-green-400' : playerSave.daily.dungeonAttemptsLeft > 0 ? 'text-amber-400' : 'text-red-400'}">
-      Dungeon: {playerSave.daily.dungeonCleared ? 'Cleared' : `${playerSave.daily.dungeonAttemptsLeft}/3 attempts`}
+      {playerSave.daily.dungeonCleared ? 'Cleared' : `Dungeon ${playerSave.daily.dungeonAttemptsLeft}/3`}
     </span>
     <span class="{activeExpeditionCount > 0 ? 'text-emerald-400' : 'text-gray-500'}">
-      Expeditions: {activeExpeditionCount} active
+      Exped. {activeExpeditionCount} active
     </span>
   </div>
 
-  <!-- Section tabs -->
-  <div class="flex gap-1 mb-6 border-b border-slate-700 pb-1">
+  <!-- Desktop Section tabs — hidden on mobile -->
+  <div class="hidden sm:flex gap-1 mb-6 border-b border-slate-700 pb-1">
     {#each sections as section}
       <button
         onclick={() => { if (!gachaAnimating) activeSection = section.key; }}
@@ -408,3 +409,24 @@
     />
   {/if}
 </div>
+
+<!-- Mobile bottom navigation bar -->
+<nav class="sm:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 z-50">
+  <div class="flex justify-around items-center">
+    {#each sections as section}
+      <button
+        onclick={() => { if (!gachaAnimating) activeSection = section.key; }}
+        disabled={gachaAnimating && section.key !== 'gacha'}
+        class="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors
+          {activeSection === section.key
+            ? 'text-amber-400'
+            : gachaAnimating && section.key !== 'gacha'
+              ? 'text-gray-700 cursor-not-allowed'
+              : 'text-gray-500 active:text-gray-300'}"
+      >
+        <span class="text-lg leading-none">{section.icon}</span>
+        <span class="text-[10px] font-medium leading-none">{section.shortLabel}</span>
+      </button>
+    {/each}
+  </div>
+</nav>

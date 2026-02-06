@@ -166,13 +166,13 @@
           Select Characters ({editSelection.length}/{MAX_TEAM_SIZE})
         </h3>
 
-        <div class="flex gap-3 flex-wrap mb-4">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
           {#each ownedCharacters as { owned, def }}
             {@const isSelected = editSelection.includes(owned.characterId)}
             {@const power = getCharPower(owned, def)}
             <button
               onclick={() => toggleCharacter(owned.characterId)}
-              class="relative w-28 h-40 rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
+              class="relative aspect-[7/10] rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
                 {RARITY_BORDER[def.rarity]}
                 {isSelected
                   ? 'ring-2 ring-indigo-400 scale-105'
@@ -186,7 +186,7 @@
                   {editSelection.indexOf(owned.characterId) + 1}
                 </span>
               {/if}
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-20 h-20 mt-1" />
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-1" />
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
               <span class="text-[9px] {ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
@@ -255,17 +255,17 @@
               </div>
             </div>
 
-            <div class="flex gap-3 flex-wrap mb-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3">
               {#each preset.characterIds as charId}
                 {@const def = getCharDef(charId)}
                 {@const owned = ownedMap.get(charId)}
                 {#if def && owned}
-                  <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 border {RARITY_BORDER[def.rarity]}">
-                    <div class="w-10 h-10 rounded overflow-hidden flex-shrink-0">
-                      <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-10 h-10" />
+                  <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-2 sm:px-3 py-2 border {RARITY_BORDER[def.rarity]} min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded overflow-hidden flex-shrink-0">
+                      <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-8 h-8 sm:w-10 sm:h-10" />
                     </div>
                     <div class="min-w-0">
-                      <div class="text-sm font-medium truncate">{def.name}</div>
+                      <div class="text-xs sm:text-sm font-medium truncate">{def.name}</div>
                       <div class="flex items-center gap-1.5 text-[10px]">
                         <span class="{ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                         <span class="text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
@@ -273,8 +273,8 @@
                     </div>
                   </div>
                 {:else}
-                  <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 border border-red-800 opacity-50">
-                    <div class="w-10 h-10 rounded bg-slate-700 flex items-center justify-center text-xs text-red-400">?</div>
+                  <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-2 sm:px-3 py-2 border border-red-800 opacity-50">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded bg-slate-700 flex items-center justify-center text-xs text-red-400">?</div>
                     <div class="text-[10px] text-red-400">Missing</div>
                   </div>
                 {/if}

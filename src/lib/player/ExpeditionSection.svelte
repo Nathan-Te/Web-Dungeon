@@ -395,13 +395,13 @@
             No characters available. They may all be on expeditions.
           </div>
         {:else}
-          <div class="flex gap-2 flex-wrap">
+          <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
             {#each availableCharacters as { owned, def }}
               {@const isSelected = selectedTeam.includes(owned.characterId)}
               <button
                 onclick={() => toggleCharacter(owned.characterId)}
                 disabled={!isSelected && selectedTeam.length >= expeditionConfig.maxTeamSize}
-                class="relative w-20 h-24 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
+                class="relative aspect-[5/6] rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
                   {RARITY_BORDER[def.rarity]}
                   {isSelected ? 'ring-2 ring-emerald-400 scale-105 bg-slate-700' : 'bg-slate-800 hover:brightness-125'}
                   {!isSelected && selectedTeam.length >= expeditionConfig.maxTeamSize ? 'opacity-40 cursor-not-allowed' : ''}"
@@ -411,7 +411,7 @@
                     {selectedTeam.indexOf(owned.characterId) + 1}
                   </span>
                 {/if}
-                <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14" />
+                <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-12 h-12 sm:w-14 sm:h-14" />
                 <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
                 <span class="text-[8px] text-yellow-400">Lv{owned.level}</span>
               </button>
@@ -511,17 +511,17 @@
               </div>
 
               <!-- Team members with names + roles -->
-              <div class="flex gap-3 flex-wrap mb-4">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
                 {#each exp.teamCharacterIds as charId}
                   {@const def = getCharDef(charId)}
                   {@const owned = playerSave.collection.find(c => c.characterId === charId)}
                   {#if def}
-                    <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 border {RARITY_BORDER[def.rarity]}">
-                      <div class="w-10 h-10 rounded overflow-hidden flex-shrink-0">
-                        <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-10 h-10" />
+                    <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-2 sm:px-3 py-2 border {RARITY_BORDER[def.rarity]} min-w-0">
+                      <div class="w-8 h-8 sm:w-10 sm:h-10 rounded overflow-hidden flex-shrink-0">
+                        <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-8 h-8 sm:w-10 sm:h-10" />
                       </div>
                       <div class="min-w-0">
-                        <div class="text-sm font-medium truncate">{def.name}</div>
+                        <div class="text-xs sm:text-sm font-medium truncate">{def.name}</div>
                         <div class="flex items-center gap-1.5 text-[10px]">
                           <span class="{ROLE_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                           {#if owned}

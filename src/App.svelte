@@ -29,7 +29,7 @@
   }
 </script>
 
-<main class="min-h-screen bg-slate-900 py-8 text-white">
+<main class="min-h-screen bg-slate-900 py-2 sm:py-8 text-white">
   {#if currentPage === 'admin'}
     {#if adminAuthenticated}
       <AdminPage onNavigate={navigate} />
