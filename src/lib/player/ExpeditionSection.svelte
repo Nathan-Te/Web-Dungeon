@@ -401,7 +401,7 @@
               <button
                 onclick={() => toggleCharacter(owned.characterId)}
                 disabled={!isSelected && selectedTeam.length >= expeditionConfig.maxTeamSize}
-                class="relative aspect-[5/6] rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
+                class="relative aspect-[5/7] rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-all overflow-hidden
                   {RARITY_BORDER[def.rarity]}
                   {isSelected ? 'ring-2 ring-emerald-400 scale-105 bg-slate-700' : 'bg-slate-800 hover:brightness-125'}
                   {!isSelected && selectedTeam.length >= expeditionConfig.maxTeamSize ? 'opacity-40 cursor-not-allowed' : ''}"
@@ -413,6 +413,7 @@
                 {/if}
                 <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-12 h-12 sm:w-14 sm:h-14" />
                 <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
+                <span class="text-[8px] {ROLE_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                 <span class="text-[8px] text-yellow-400">Lv{owned.level}</span>
               </button>
             {/each}

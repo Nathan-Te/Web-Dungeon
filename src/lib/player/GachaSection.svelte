@@ -365,13 +365,15 @@
             {#if chars.length > 0}
               <div class="mb-3">
                 <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
-                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                <div class="flex flex-col gap-1.5 sm:grid sm:grid-cols-3 md:grid-cols-4 sm:gap-2">
                   {#each chars as char}
-                    <div class="aspect-[7/9] rounded-lg border-2 flex flex-col items-center overflow-hidden
+                    <div class="flex sm:flex-col items-center gap-2 sm:gap-0 rounded-lg border-2 px-2 py-1.5 sm:p-0 sm:pb-1 overflow-hidden
                       {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">
-                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-0.5" />
-                      <span class="text-[10px] font-bold truncate w-full text-center px-1">{char.name}</span>
-                      <span class="text-[8px] capitalize text-gray-400">{char.role}</span>
+                      <SpritePreview sprites={char.sprites} fallback={ROLE_ICONS[char.role]} class="w-10 h-10 sm:w-16 sm:h-16 flex-shrink-0 sm:mt-0.5" />
+                      <div class="flex flex-col sm:items-center min-w-0">
+                        <span class="text-xs sm:text-[10px] font-bold truncate">{char.name}</span>
+                        <span class="text-[10px] sm:text-[8px] capitalize text-gray-400">{char.role}</span>
+                      </div>
                     </div>
                   {/each}
                 </div>
