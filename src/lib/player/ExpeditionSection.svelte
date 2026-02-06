@@ -459,6 +459,13 @@
         </div>
       {/if}
 
+      <!-- Warning -->
+      {#if selectedTeam.length > 0}
+        <div class="bg-amber-900/40 border border-amber-700 rounded-lg px-3 py-2 text-xs text-amber-300">
+          Les personnages envoyés en expédition ne seront plus disponibles pour les donjons ou autres expéditions pendant toute la durée ({selectedDuration}h).
+        </div>
+      {/if}
+
       <!-- Actions -->
       <div class="flex gap-3">
         <button
