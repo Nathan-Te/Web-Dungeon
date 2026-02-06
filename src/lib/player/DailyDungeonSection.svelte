@@ -40,6 +40,8 @@
     teamPresets?: TeamPreset[];
     /** If true, don't consume daily dungeon attempts (used by Tower mode) */
     unlimitedAttempts?: boolean;
+    /** If true, auto-start the dungeon with the last saved team (used by Tower transitions) */
+    autoStart?: boolean;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
@@ -47,7 +49,7 @@
     onGoldAwarded: (amount: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, unlimitedAttempts = false, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, unlimitedAttempts = false, autoStart = false, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
 
   let attemptsLeft = $derived(unlimitedAttempts ? 99 : playerSave.daily.dungeonAttemptsLeft);
 
@@ -128,8 +130,10 @@
   let showXpScreen = $state(false);
   let roomGoldGained = $state(0);
 
-  // Auto-advance between rooms
-  let autoAdvance = $state(false);
+  // Auto-advance between rooms (persisted to localStorage)
+  const AUTO_ADVANCE_KEY = 'dungeon-gacha-auto-advance';
+  const LAST_TEAM_KEY = 'dungeon-gacha-last-team';
+  let autoAdvance = $state(localStorage.getItem(AUTO_ADVANCE_KEY) === 'true');
   let autoAdvanceCountdown = $state(0);
   let autoAdvanceTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -163,6 +167,8 @@
 
   function startDungeon() {
     if (selectedIds.length === 0) return;
+    // Persist team for next run / tower transitions
+    localStorage.setItem(LAST_TEAM_KEY, JSON.stringify(selectedIds));
     phase = 'running';
     currentRoomIndex = 0;
     roomResults = [];
@@ -607,6 +613,30 @@
     handleNextRoom();
   }
 
+  // Persist auto-advance preference
+  $effect(() => {
+    localStorage.setItem(AUTO_ADVANCE_KEY, autoAdvance ? 'true' : 'false');
+  });
+
+  // Load last team from localStorage and optionally auto-start
+  onMount(() => {
+    try {
+      const savedTeam = localStorage.getItem(LAST_TEAM_KEY);
+      if (savedTeam) {
+        const ids: string[] = JSON.parse(savedTeam);
+        if (Array.isArray(ids)) {
+          const available = new Set(ownedCharacters.map(x => x.owned.characterId));
+          selectedIds = ids.filter((id: string) => available.has(id)).slice(0, maxTeamSize);
+        }
+      }
+    } catch { /* ignore corrupt data */ }
+
+    // Auto-start if requested (tower mode transitions) and we have a valid team
+    if (autoStart && selectedIds.length > 0 && attemptsLeft > 0) {
+      startDungeon();
+    }
+  });
+
   onDestroy(() => {
     stopPlayback();
     stopAutoAdvanceCountdown();
@@ -868,7 +898,7 @@
       </div>
       {#if attemptsLeft > 0}
         <button
-          onclick={() => { phase = 'select'; selectedIds = []; }}
+          onclick={() => { phase = 'select'; }}
           class="px-6 py-3 bg-amber-600 hover:bg-amber-500 rounded font-bold"
         >
           Try Again
