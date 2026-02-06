@@ -254,15 +254,10 @@ Editors for: characters, enemies, dungeons, abilities, gacha config, expedition 
 
 ## Git Workflow
 
-After committing and pushing changes, **always create a Pull Request and merge it into `main`** automatically:
+After making changes, **commit and push** to the feature branch. Do NOT attempt to create PRs or merge — you don't have permission for that. The user will handle PR creation and merging manually.
 
 ```bash
-# 1. Push the branch
+git add <files>
+git commit -m "<message>"
 git push -u origin <branch-name>
-
-# 2. Create the PR and merge it immediately
-gh pr create --title "<title>" --body "<body>" --base main
-gh pr merge --merge --delete-branch
 ```
-
-Do NOT wait for manual review — merge directly after push.
