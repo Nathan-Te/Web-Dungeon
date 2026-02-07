@@ -33,6 +33,7 @@
   import ExpeditionConfigEditor from './ExpeditionConfigEditor.svelte';
   import TowerEditor from './TowerEditor.svelte';
   import SaveEditor from './SaveEditor.svelte';
+  import SpriteSheetCutter from './SpriteSheetCutter.svelte';
   import type { GachaConfig, ExpeditionConfig } from './adminTypes';
 
   interface Props {
@@ -41,7 +42,7 @@
 
   let { onNavigate }: Props = $props();
 
-  type Tab = 'characters' | 'enemies' | 'dungeons' | 'towers' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'saves' | 'data';
+  type Tab = 'characters' | 'enemies' | 'dungeons' | 'towers' | 'spells' | 'roles' | 'gacha' | 'expedition' | 'saves' | 'tools' | 'data';
   let activeTab: Tab = $state('characters');
   let content: GameContent = $state({ version: 3, characters: [], enemies: [], dungeons: [], abilities: [] });
   let statusMessage = $state('');
@@ -208,6 +209,7 @@
     { key: 'gacha', label: 'Gacha', count: () => content.gachaConfig?.characterPool.length ?? 0 },
     { key: 'expedition', label: 'Expedition', count: () => content.expeditionConfig ? 1 : 0 },
     { key: 'saves', label: 'Save Editor', count: () => 0 },
+    { key: 'tools', label: 'Outils', count: () => 0 },
     { key: 'data', label: 'Data', count: () => 0 },
   ];
 </script>
@@ -324,6 +326,8 @@
     />
   {:else if activeTab === 'saves'}
     <SaveEditor characters={content.characters} />
+  {:else if activeTab === 'tools'}
+    <SpriteSheetCutter />
   {:else if activeTab === 'data'}
     <div class="space-y-6">
       <!-- Summary -->
