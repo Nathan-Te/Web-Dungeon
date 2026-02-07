@@ -166,7 +166,7 @@
           Select Characters ({editSelection.length}/{MAX_TEAM_SIZE})
         </h3>
 
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-3 mb-4">
           {#each ownedCharacters as { owned, def }}
             {@const isSelected = editSelection.includes(owned.characterId)}
             {@const power = getCharPower(owned, def)}
@@ -186,7 +186,7 @@
                   {editSelection.indexOf(owned.characterId) + 1}
                 </span>
               {/if}
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-1" />
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 lg:w-16 lg:h-16 mt-1" />
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
               <span class="text-[9px] {ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
@@ -255,7 +255,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3 mb-3">
               {#each preset.characterIds as charId}
                 {@const def = getCharDef(charId)}
                 {@const owned = ownedMap.get(charId)}

@@ -196,6 +196,7 @@
       {teamPresets}
       unlimitedAttempts={true}
       autoStart={shouldAutoStart}
+      headerTitle="{selectedTower?.name} — {selectedStage?.name ?? `Étage ${selectedStage?.stageNumber}`}"
       onAttemptUsed={handleAttemptUsed}
       onDungeonCleared={handleStageCleared}
       onXpAwarded={onXpAwarded}
