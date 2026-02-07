@@ -284,6 +284,7 @@
     <DungeonEditor
       dungeons={content.dungeons}
       enemies={content.enemies}
+      towers={content.towers}
       dailyDungeonId={content.dailyDungeonId}
       dailyDungeonSchedule={content.dailyDungeonSchedule}
       onSave={onSaveDungeon}

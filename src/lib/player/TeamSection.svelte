@@ -260,6 +260,7 @@
                 {@const def = getCharDef(charId)}
                 {@const owned = ownedMap.get(charId)}
                 {#if def && owned}
+                  {@const power = getCharPower(owned, def)}
                   <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-2 sm:px-3 py-2 border {RARITY_BORDER[def.rarity]} min-w-0">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 rounded overflow-hidden flex-shrink-0">
                       <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-8 h-8 sm:w-10 sm:h-10" />
@@ -269,6 +270,7 @@
                       <div class="flex items-center gap-1.5 text-[10px]">
                         <span class="{ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                         <span class="text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+                        <span class="text-indigo-400 font-medium">{power} PWR</span>
                       </div>
                     </div>
                   </div>

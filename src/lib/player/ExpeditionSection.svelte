@@ -5,7 +5,7 @@
   import type { ExpeditionConfig, ExpeditionDuration } from '../admin/adminTypes';
   import type { PlayerSave, OwnedCharacter, ActiveExpedition, ExpeditionResult, TeamPreset } from './playerStore';
   import { isCharacterOnExpedition, getXpForLevel } from './playerStore';
-  import { calculateTeamPower, resolveExpedition, previewExpedition } from '../game/expeditionSimulation';
+  import { calculateTeamPower, calculateCharacterPower, resolveExpedition, previewExpedition } from '../game/expeditionSimulation';
   import SpritePreview from '../components/SpritePreview.svelte';
 
   interface Props {
@@ -243,6 +243,20 @@
     return characters.find(c => c.id === charId);
   }
 
+  function getCharPower(owned: OwnedCharacter, def: CharacterDefinition): number {
+    const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
+    const rarityMult = rarityMultipliers?.[def.rarity] ?? 1;
+    const levelMult = 1 + (owned.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
+    const ascMult = 1 + owned.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
+    const stats = {
+      hp: Math.round(base.hp * rarityMult * levelMult * ascMult),
+      atk: Math.round(base.atk * rarityMult * levelMult * ascMult),
+      def: Math.round(base.def * rarityMult * levelMult * ascMult),
+      spd: Math.round(base.spd * rarityMult * levelMult * ascMult),
+    };
+    return calculateCharacterPower(stats, def.role);
+  }
+
   const durations: ExpeditionDuration[] = [4, 8, 12, 24];
 
   function getDurationLabel(d: ExpeditionDuration): string {
@@ -412,6 +426,7 @@
           <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-2">
             {#each availableCharacters as { owned, def }}
               {@const isSelected = selectedTeam.includes(owned.characterId)}
+              {@const power = getCharPower(owned, def)}
               <button
                 onclick={() => toggleCharacter(owned.characterId)}
                 disabled={!isSelected && selectedTeam.length >= expeditionConfig.maxTeamSize}
@@ -429,6 +444,7 @@
                 <span class="text-[9px] font-medium truncate w-full text-center px-0.5">{def.name}</span>
                 <span class="text-[8px] {ROLE_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                 <span class="text-[8px] text-yellow-400">Lv{owned.level}</span>
+                <span class="text-[7px] text-indigo-400 font-medium">{power} PWR</span>
               </button>
             {/each}
           </div>
@@ -541,6 +557,7 @@
                           <span class="{ROLE_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
                           {#if owned}
                             <span class="text-yellow-400">Lv{owned.level}</span>
+                            <span class="text-indigo-400 font-medium">{getCharPower(owned, def)} PWR</span>
                           {/if}
                         </div>
                       </div>
