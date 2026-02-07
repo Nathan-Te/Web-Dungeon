@@ -360,14 +360,14 @@
 
       <!-- Obtainable Characters -->
       {#if poolCharacters.length > 0}
-        <div class="bg-slate-800 rounded-lg p-4 w-full max-w-xl">
+        <div class="bg-slate-800 rounded-lg p-4 w-full max-w-xl lg:max-w-none">
           <h4 class="text-xs text-gray-500 mb-3 text-center">Obtainable Characters ({poolCharacters.length})</h4>
           {#each (['legendary', 'epic', 'rare', 'common'] as Rarity[]) as rarity}
             {@const chars = poolCharacters.filter((c) => c.rarity === rarity)}
             {#if chars.length > 0}
               <div class="mb-3">
                 <span class="text-[10px] font-bold capitalize {RARITY_TEXT[rarity]} mb-1 block">{rarity} ({chars.length})</span>
-                <div class="flex flex-col gap-1.5 sm:grid sm:grid-cols-2 md:grid-cols-3 sm:gap-2">
+                <div class="flex flex-col gap-1.5 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-2">
                   {#each chars as char}
                     <div class="flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 overflow-hidden
                       {RARITY_COLORS[char.rarity]} {ROLE_COLORS[char.role]}">

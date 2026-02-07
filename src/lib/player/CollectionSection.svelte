@@ -249,7 +249,7 @@
         Aucun personnage trouvé.
       </div>
     {:else}
-      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+      <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-3">
         {#each filteredCollection as { owned, def, power }}
           <button
             onclick={() => selectedCharId = selectedCharId === owned.characterId ? null : owned.characterId}
@@ -261,7 +261,7 @@
             {#if canAscend(owned)}
               <span class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[9px] font-bold text-black z-10">!</span>
             {/if}
-            <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20" />
+            <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 lg:w-16 lg:h-16" />
             <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
             <span class="text-[9px] {ROLE_TEXT_COLORS[def.role]}">{ROLE_LABELS[def.role]}</span>
             <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>

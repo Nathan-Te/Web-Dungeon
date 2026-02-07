@@ -42,6 +42,8 @@
     unlimitedAttempts?: boolean;
     /** If true, auto-start the dungeon with the last saved team (used by Tower transitions) */
     autoStart?: boolean;
+    /** Custom header title (e.g. "Tower Name — Étage 3"). Overrides default "Daily Dungeon: ..." */
+    headerTitle?: string;
     onAttemptUsed: () => void;
     onDungeonCleared: () => void;
     onXpAwarded: (survivorIds: string[], xp: number) => void;
@@ -49,7 +51,7 @@
     onGoldAwarded: (amount: number) => void;
   }
 
-  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, unlimitedAttempts = false, autoStart = false, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
+  let { playerSave, characters, dungeon, enemies, abilities, roleStats, rarityMultipliers, levelThresholds, maxTeamSize = 5, teamPresets, unlimitedAttempts = false, autoStart = false, headerTitle, onAttemptUsed, onDungeonCleared, onXpAwarded, onRoomXpAwarded, onGoldAwarded }: Props = $props();
 
   let attemptsLeft = $derived(unlimitedAttempts ? 99 : playerSave.daily.dungeonAttemptsLeft);
 
@@ -655,7 +657,7 @@
 </script>
 
 <div class="space-y-4">
-  <h2 class="text-xl font-bold text-amber-400 text-center">Daily Dungeon: {dungeon.name}</h2>
+  <h2 class="text-xl font-bold text-amber-400 text-center">{headerTitle ?? `Daily Dungeon: ${dungeon.name}`}</h2>
 
   {#if phase === 'select'}
     <!-- Team Selection -->
@@ -686,7 +688,7 @@
           </div>
         {/if}
 
-        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-3 mb-4">
           {#each ownedCharacters as { owned, def }}
             <button
               onclick={() => toggleSelect(owned.characterId)}
@@ -698,7 +700,7 @@
                     : 'border-slate-600 hover:border-slate-400'}
                 {ROLE_COLORS[def.role]}"
             >
-              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 mt-1" />
+              <SpritePreview sprites={def.sprites} fallback={ROLE_ICONS[def.role]} class="w-14 h-14 sm:w-20 sm:h-20 lg:w-16 lg:h-16 mt-1" />
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
               <span class="text-[9px] capitalize text-gray-400">{def.role}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
@@ -885,15 +887,15 @@
 
   {:else if phase === 'complete'}
     <div class="text-center py-8">
-      <div class="text-3xl font-bold text-green-400 mb-2">Dungeon Cleared!</div>
-      <div class="text-gray-400">You conquered {dungeon.name} in {roomResults.length} rooms.</div>
+      <div class="text-3xl font-bold text-green-400 mb-2">{headerTitle ? 'Étage terminé !' : 'Dungeon Cleared!'}</div>
+      <div class="text-gray-400">{headerTitle ?? dungeon.name} — {roomResults.length} salles.</div>
     </div>
 
   {:else if phase === 'failed'}
     <div class="text-center py-8">
-      <div class="text-3xl font-bold text-red-400 mb-2">Dungeon Failed</div>
+      <div class="text-3xl font-bold text-red-400 mb-2">{headerTitle ? 'Défaite !' : 'Dungeon Failed'}</div>
       <div class="text-gray-400 mb-4">
-        You were defeated at room {currentRoomIndex + 1}.
+        {headerTitle ? `${headerTitle} — ` : ''}Salle {currentRoomIndex + 1}.
         {#if !unlimitedAttempts}
           Attempts remaining: <span class="text-amber-400 font-bold">{attemptsLeft}</span>
         {/if}
