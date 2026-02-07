@@ -1,11 +1,12 @@
 <script lang="ts">
-  import type { EnemyTemplate, DungeonRoom, Dungeon } from './adminTypes';
+  import type { EnemyTemplate, DungeonRoom, Dungeon, Tower } from './adminTypes';
   import type { SpriteSource, SpriteSheetConfig } from '../game/types';
   import { createBlankDungeon, createBlankRoom, generateId } from './adminTypes';
 
   interface Props {
     dungeons: Dungeon[];
     enemies: EnemyTemplate[];
+    towers?: Tower[];
     dailyDungeonId?: string;
     dailyDungeonSchedule?: Record<string, string>;
     onSave: (dungeon: Dungeon) => void;
@@ -14,7 +15,7 @@
     onSaveSchedule?: (schedule: Record<string, string>) => void;
   }
 
-  let { dungeons, enemies, dailyDungeonId, dailyDungeonSchedule, onSave, onDelete, onSaveDailyDungeon, onSaveSchedule }: Props = $props();
+  let { dungeons, enemies, towers, dailyDungeonId, dailyDungeonSchedule, onSave, onDelete, onSaveDailyDungeon, onSaveSchedule }: Props = $props();
 
   let editingDungeon: Dungeon | null = $state(null);
   let editingRoomIndex: number | null = $state(null);
@@ -96,6 +97,26 @@
   let searchQuery = $state('');
   let filterRooms = $state('');
   let filterTeam = $state('');
+  type DungeonTypeFilter = 'all' | 'dungeon' | 'tower';
+  let filterType: DungeonTypeFilter = $state('all');
+
+  /** Set of dungeon IDs referenced by at least one tower stage */
+  let towerDungeonIds = $derived(
+    new Set((towers ?? []).flatMap(t => t.stages.map(s => s.dungeonId)))
+  );
+
+  /** Map from dungeon ID to tower name(s) that reference it */
+  let dungeonTowerNames = $derived(() => {
+    const map = new Map<string, string[]>();
+    for (const tower of (towers ?? [])) {
+      for (const stage of tower.stages) {
+        const names = map.get(stage.dungeonId) ?? [];
+        if (!names.includes(tower.name)) names.push(tower.name);
+        map.set(stage.dungeonId, names);
+      }
+    }
+    return map;
+  });
 
   let filteredDungeons = $derived(() => {
     let list = dungeons;
@@ -110,6 +131,11 @@
     if (filterTeam) {
       const n = parseInt(filterTeam);
       if (!isNaN(n)) list = list.filter((d) => (d.maxTeamSize ?? 5) === n);
+    }
+    if (filterType === 'tower') {
+      list = list.filter((d) => towerDungeonIds.has(d.id));
+    } else if (filterType === 'dungeon') {
+      list = list.filter((d) => !towerDungeonIds.has(d.id));
     }
     return list;
   });
@@ -374,6 +400,17 @@
         placeholder="Search..."
         class="w-full px-3 py-1.5 bg-slate-700 rounded text-sm"
       />
+    </div>
+    <div class="w-36">
+      <span class="block text-[10px] text-gray-500 mb-0.5">Type</span>
+      <select
+        bind:value={filterType}
+        class="w-full px-2 py-1.5 bg-slate-700 rounded text-sm"
+      >
+        <option value="all">Tous</option>
+        <option value="dungeon">Donjons seuls</option>
+        <option value="tower">Étages de tour</option>
+      </select>
     </div>
     <div class="w-24">
       <span class="block text-[10px] text-gray-500 mb-0.5">Rooms</span>
@@ -647,12 +684,18 @@
   <!-- Dungeon List -->
   <div class="space-y-2">
     {#each filteredDungeons() as dungeon (dungeon.id)}
+      {@const towerNames = dungeonTowerNames().get(dungeon.id)}
       <div class="px-4 py-3 bg-slate-800 rounded group">
         <div class="flex items-center gap-3">
-          <span class="flex-1">
+          <span class="flex-1 flex items-center gap-2 flex-wrap">
             <span class="font-medium">{dungeon.name}</span>
+            {#if towerNames && towerNames.length > 0}
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-900 text-purple-300 border border-purple-700 font-medium">
+                Tour : {towerNames.join(', ')}
+              </span>
+            {/if}
             {#if dungeon.description}
-              <span class="text-xs text-gray-500 ml-2">{dungeon.description}</span>
+              <span class="text-xs text-gray-500">{dungeon.description}</span>
             {/if}
           </span>
 

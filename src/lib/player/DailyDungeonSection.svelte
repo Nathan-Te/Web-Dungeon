@@ -18,6 +18,7 @@
     COMBAT_CONSTANTS,
   } from '../game';
   import type { BaseStats, Rarity } from '../game/types';
+  import { calculateCharacterPower } from '../game/expeditionSimulation';
   import type { Dungeon, DungeonRoom, EnemyTemplate, GachaConfig } from '../admin/adminTypes';
   import type { AbilityDefinition } from '../game/abilities';
   import type { PlayerSave, OwnedCharacter, TeamPreset } from './playerStore';
@@ -78,6 +79,20 @@
     mage: 'bg-purple-900', assassin: 'bg-gray-800', healer: 'bg-emerald-900',
     summoner: 'bg-teal-900',
   };
+
+  function getCharPower(owned: OwnedCharacter, def: CharacterDefinition): number {
+    const base = roleStats?.[def.role] ?? ROLE_BASE_STATS[def.role];
+    const rarityMult = rarityMultipliers?.[def.rarity] ?? 1;
+    const levelMult = 1 + (owned.level - 1) * COMBAT_CONSTANTS.LEVEL_STAT_BONUS;
+    const ascMult = 1 + owned.ascension * COMBAT_CONSTANTS.ASCENSION_STAT_BONUS;
+    const stats = {
+      hp: Math.round(base.hp * rarityMult * levelMult * ascMult),
+      atk: Math.round(base.atk * rarityMult * levelMult * ascMult),
+      def: Math.round(base.def * rarityMult * levelMult * ascMult),
+      spd: Math.round(base.spd * rarityMult * levelMult * ascMult),
+    };
+    return calculateCharacterPower(stats, def.role);
+  }
 
   interface DisplayUnit {
     id: string;
@@ -690,6 +705,7 @@
 
         <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-3 mb-4">
           {#each ownedCharacters as { owned, def }}
+            {@const power = getCharPower(owned, def)}
             <button
               onclick={() => toggleSelect(owned.characterId)}
               class="aspect-[7/9] rounded-lg border-2 flex flex-col items-center overflow-hidden transition-all
@@ -704,6 +720,7 @@
               <span class="text-[10px] font-medium truncate w-full text-center px-1">{def.name}</span>
               <span class="text-[9px] capitalize text-gray-400">{def.role}</span>
               <span class="text-[9px] text-yellow-400">{'*'.repeat(owned.ascension)}Lv{owned.level}</span>
+              <span class="text-[8px] text-indigo-400 font-medium">{power} PWR</span>
             </button>
           {/each}
         </div>
