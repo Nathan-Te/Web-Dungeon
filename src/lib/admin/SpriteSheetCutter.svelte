@@ -9,8 +9,11 @@
   let selectedRow = $state(1);
 
   let previewCanvas: HTMLCanvasElement | undefined = $state(undefined);
-  let resultCanvas: HTMLCanvasElement | undefined = $state(undefined);
-  let hasResult = $state(false);
+
+  // Result stored as blob URL (no DOM canvas needed)
+  let resultUrl: string | null = $state(null);
+  let resultWidth = $state(0);
+  let resultHeight = $state(0);
 
   let rowHeight = $derived(imageHeight > 0 && totalRows > 0 ? Math.floor(imageHeight / totalRows) : 0);
 
@@ -20,15 +23,13 @@
     if (!file) return;
 
     imageName = file.name.replace(/\.[^.]+$/, '');
-    hasResult = false;
+    clearResult();
 
     const img = new Image();
     img.onload = () => {
       sourceImage = img;
       imageWidth = img.naturalWidth;
       imageHeight = img.naturalHeight;
-      // Auto-detect: try to guess rows from aspect ratio
-      // Default to 2 rows, user can adjust
       if (totalRows < 1) totalRows = 2;
       if (selectedRow > totalRows) selectedRow = 1;
       drawPreview();
@@ -39,17 +40,16 @@
   function drawPreview() {
     if (!previewCanvas || !sourceImage || rowHeight <= 0) return;
 
-    const scale = Math.min(1, 400 / imageWidth);
+    const scale = Math.min(1, 500 / imageWidth);
     previewCanvas.width = Math.round(imageWidth * scale);
     previewCanvas.height = Math.round(imageHeight * scale);
 
     const ctx = previewCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw the full sprite sheet scaled down
     ctx.drawImage(sourceImage, 0, 0, previewCanvas.width, previewCanvas.height);
 
-    // Draw row guides
+    // Row guide lines
     const scaledRowHeight = rowHeight * scale;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
@@ -69,7 +69,7 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(0, selectedY, previewCanvas.width, scaledRowHeight);
 
-    // Row labels
+    // Row number labels
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = `${Math.max(10, Math.round(12 * scale))}px monospace`;
     for (let i = 0; i < totalRows; i++) {
@@ -78,50 +78,49 @@
     }
   }
 
+  function clearResult() {
+    if (resultUrl) URL.revokeObjectURL(resultUrl);
+    resultUrl = null;
+  }
+
   function cutRow() {
-    if (!resultCanvas || !sourceImage || rowHeight <= 0) return;
+    if (!sourceImage || rowHeight <= 0) return;
 
-    resultCanvas.width = imageWidth;
-    resultCanvas.height = rowHeight;
+    // Draw on an offscreen canvas
+    const offscreen = document.createElement('canvas');
+    offscreen.width = imageWidth;
+    offscreen.height = rowHeight;
 
-    const ctx = resultCanvas.getContext('2d');
+    const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
     const sy = (selectedRow - 1) * rowHeight;
     ctx.drawImage(sourceImage, 0, sy, imageWidth, rowHeight, 0, 0, imageWidth, rowHeight);
-    hasResult = true;
+
+    // Convert to blob URL
+    offscreen.toBlob((blob) => {
+      if (!blob) return;
+      clearResult();
+      resultUrl = URL.createObjectURL(blob);
+      resultWidth = imageWidth;
+      resultHeight = rowHeight;
+    }, 'image/png');
   }
 
   function downloadResult() {
-    if (!resultCanvas) return;
-
-    resultCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${imageName}_row${selectedRow}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+    if (!resultUrl) return;
+    const a = document.createElement('a');
+    a.href = resultUrl;
+    a.download = `${imageName}_row${selectedRow}.png`;
+    a.click();
   }
 
   // Redraw preview when params change
   $effect(() => {
-    // Access reactive deps
     totalRows;
     selectedRow;
     sourceImage;
     drawPreview();
-  });
-
-  // Auto-cut when row changes and we already have a result
-  $effect(() => {
-    selectedRow;
-    totalRows;
-    if (hasResult && sourceImage) {
-      cutRow();
-    }
   });
 </script>
 
@@ -199,7 +198,7 @@
         <span class="text-xs text-gray-500 self-center mr-1">Ligne :</span>
         {#each Array(totalRows) as _, i}
           <button
-            onclick={() => selectedRow = i + 1}
+            onclick={() => { selectedRow = i + 1; cutRow(); }}
             class="w-8 h-8 rounded text-xs font-bold transition-colors
               {selectedRow === i + 1
                 ? 'bg-cyan-600 text-white'
@@ -227,10 +226,10 @@
     </div>
 
     <!-- Result -->
-    {#if hasResult}
+    {#if resultUrl}
       <div class="bg-slate-800 rounded-lg p-4">
         <div class="flex items-center justify-between mb-3">
-          <h4 class="text-xs text-gray-500">Resultat — Ligne {selectedRow}</h4>
+          <h4 class="text-xs text-gray-500">Resultat — Ligne {selectedRow} ({resultWidth}x{resultHeight}px)</h4>
           <button
             onclick={downloadResult}
             class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold"
@@ -239,7 +238,7 @@
           </button>
         </div>
         <div class="overflow-x-auto bg-slate-900 rounded p-2 border border-slate-600">
-          <canvas bind:this={resultCanvas} class="max-w-full" style="image-rendering: pixelated;"></canvas>
+          <img src={resultUrl} alt="Ligne {selectedRow}" class="max-w-full" style="image-rendering: pixelated;" />
         </div>
       </div>
     {/if}
